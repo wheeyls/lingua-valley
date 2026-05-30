@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { WorldScene } from "./scenes/WorldScene";
 import { DialogueScene } from "./scenes/DialogueScene";
 import { MinigameScene } from "./scenes/MinigameScene";
+import { ConversationScene } from "./scenes/ConversationScene";
 import { HudScene } from "./scenes/HudScene";
 import { GameState, REGISTRY_KEY } from "./game/state";
 
@@ -16,7 +17,7 @@ const config: Phaser.Types.Core.GameConfig = {
     default: "arcade",
     arcade: { debug: false },
   },
-  scene: [WorldScene, HudScene, DialogueScene, MinigameScene],
+  scene: [WorldScene, HudScene, DialogueScene, MinigameScene, ConversationScene],
 };
 
 const game = new Phaser.Game(config);

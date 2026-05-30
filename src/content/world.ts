@@ -26,6 +26,13 @@ export interface Npc {
   /** Objective this NPC's mini-game teaches, if any. */
   teachesObjectiveId?: string;
   lines: DialogueLine[];
+  /** OpenAI TTS voice for this NPC (alloy, echo, fable, onyx, nova, shimmer). */
+  voice?: string;
+  /**
+   * If set, this NPC runs a VOICED conversation gate instead of the
+   * multiple-choice mini-game. `opener` is the NPC's first spoken line.
+   */
+  conversation?: { opener: string };
 }
 
 export interface Area {
@@ -62,6 +69,10 @@ export const AREAS: Area[] = [
         tileY: 5,
         color: 0xe07a5f,
         teachesObjectiveId: "a1.greetings",
+        voice: "nova",
+        conversation: {
+          opener: "¡Hola! Buenos días. ¿Cómo estás hoy?",
+        },
         lines: [
           { level: "A1", es: "¡Hola! Buenos días.", en: "Hello! Good morning." },
           {

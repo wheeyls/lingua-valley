@@ -38,14 +38,17 @@ export class DialogueScene extends Phaser.Scene {
       this.renderLine();
     } else {
       // End of dialogue. If this NPC teaches something the player hasn't
-      // mastered, and the line was comprehensible, offer the mini-game.
+      // mastered, and the line was comprehensible, start the learning challenge.
       const objId = this.npc.teachesObjectiveId;
       if (objId && !this.state.proficiency.isMastered(objId)) {
         this.scene.stop();
-        this.scene.launch("MinigameScene", { objectiveId: objId });
-        const world = this.scene.get("WorldScene");
-        // MinigameScene will resume WorldScene when done.
-        void world;
+        // Voiced conversation gate takes priority when configured; otherwise
+        // fall back to the multiple-choice mini-game.
+        if (this.npc.conversation) {
+          this.scene.launch("ConversationScene", { npcId: this.npc.id });
+        } else {
+          this.scene.launch("MinigameScene", { objectiveId: objId });
+        }
       } else {
         this.close();
       }

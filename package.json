@@ -6,15 +6,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:full": "vercel dev",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p api/tsconfig.json",
     "test": "vitest run"
   },
   "dependencies": {
+    "openai": "^4.104.0",
     "phaser": "^3.80.1"
   },
   "devDependencies": {
+    "@vercel/node": "^3.2.29",
     "typescript": "^5.5.4",
     "vite": "^5.4.2",
     "vitest": "^2.0.5"
