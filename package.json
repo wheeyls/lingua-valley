@@ -1,0 +1,22 @@
+{
+  "name": "lingua-valley",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A Stardew Valley-inspired RPG where you progress by learning Spanish. Areas are gated by language comprehension, not XP.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "phaser": "^3.80.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vite": "^5.4.2",
+    "vitest": "^2.0.5"
+  }
+}

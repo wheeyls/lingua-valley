@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lingua Valley — Learn Spanish by Living It</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #1a1423;
+        color: #f4ecd8;
+        font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+        overflow: hidden;
+      }
+      #game {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      canvas {
+        image-rendering: pixelated;
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
