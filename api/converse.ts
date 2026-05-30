@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getClient, MODELS, setCommonHeaders } from "./_lib/openai";
+import { getClient, MODELS, setCommonHeaders } from "./_lib/openai.js";
 import type {
   ConverseRequest,
   ConverseResponse,
-} from "../src/domain/conversation";
+} from "../src/domain/conversation.js";
 
 export const config = { api: { bodyParser: { sizeLimit: "1mb" } } };
 

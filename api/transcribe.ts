@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { toFile } from "openai";
-import { getClient, MODELS, setCommonHeaders } from "./_lib/openai";
+import { getClient, MODELS, setCommonHeaders } from "./_lib/openai.js";
 
 export const config = {
   api: {
