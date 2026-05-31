@@ -86,6 +86,7 @@ export class DialogueScene extends Phaser.Scene {
           : "Done"
         : "Continue ▶",
       lessonLabel: teachable ? objectiveById(objId!)?.label : undefined,
+      canTrade: !!this.npc.trades && this.npc.trades.length > 0,
     };
   }
 
@@ -95,6 +96,12 @@ export class DialogueScene extends Phaser.Scene {
     this.ui = renderNodes(this, nodes, {
       continue: () => this.advance(),
       leave: () => this.close(),
+      trade: () => this.openTrade(),
     });
+  }
+
+  private openTrade() {
+    this.scene.stop();
+    this.scene.launch("TradeScene", { npcId: this.npc.id });
   }
 }

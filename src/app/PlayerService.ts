@@ -62,6 +62,26 @@ export class PlayerService {
     return result;
   }
 
+  /**
+   * Apply a pure trade transform (buy/sell) to the player's state and persist.
+   * The caller passes a domain function (from trade.ts) that maps state -> a
+   * result with the new state. On success we adopt + persist.
+   *
+   * NOTE: trades are applied locally today (like guest rewards). A server-
+   * authoritative trade endpoint is future work, mirroring /api/activity-complete.
+   */
+  async applyTrade<R extends { state: PlayerState; ok: boolean }>(
+    transform: (state: PlayerState) => R,
+  ): Promise<R> {
+    const result = transform(this.state);
+    if (result.ok) {
+      this.state = result.state;
+      await this.repo.save(this.state);
+      this.emit();
+    }
+    return result;
+  }
+
   private emit(): void {
     for (const fn of this.listeners) fn(this.state);
   }

@@ -3,6 +3,7 @@ import { WorldScene } from "./scenes/WorldScene";
 import { DialogueScene } from "./scenes/DialogueScene";
 import { MinigameScene } from "./scenes/MinigameScene";
 import { ConversationScene } from "./scenes/ConversationScene";
+import { TradeScene } from "./scenes/TradeScene";
 import { HudScene } from "./scenes/HudScene";
 import { DevScene } from "./scenes/DevScene";
 import { AuthScene } from "./scenes/AuthScene";
@@ -36,6 +37,7 @@ const config: Phaser.Types.Core.GameConfig = {
     DialogueScene,
     MinigameScene,
     ConversationScene,
+    TradeScene,
     DevScene,
     AuthScene,
   ],

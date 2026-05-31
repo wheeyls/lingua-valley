@@ -21,6 +21,8 @@ export interface DialogueVM {
   /** Continue button label + whether a lesson tease shows. */
   continueLabel: string;
   lessonLabel?: string;
+  /** Whether to show the "Trade goods" button (merchant NPCs). */
+  canTrade?: boolean;
 }
 
 const px = (s: string) => parseInt(s, 10);
@@ -131,6 +133,25 @@ export function dialogueLayout(vm: DialogueVM): UINode[] {
   const btnY = h - SAFE - btnH / 2; // bottom edge sits on the safe line
   const leaveW = 120;
   const continueW = 200;
+
+  // Optional Trade button (merchant NPCs), sits a row above the main actions.
+  if (vm.canTrade) {
+    nodes.push({
+      kind: "button",
+      id: "trade",
+      x: w / 2,
+      y: btnY - btnH - 12,
+      text: "Trade goods",
+      width: w - SAFE * 2,
+      height: btnH,
+      fill: COLOR.greenFill,
+      textColor: COLOR.parchment,
+      fontSize: px(TYPE.body),
+      action: "trade",
+      depth: 51,
+    });
+  }
+
   nodes.push({
     kind: "button",
     id: "leave",

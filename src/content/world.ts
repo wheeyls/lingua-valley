@@ -7,6 +7,7 @@
  */
 
 import type { CefrLevel } from "../domain/cefr.js";
+import type { Good } from "../domain/trade.js";
 
 export interface DialogueLine {
   /** CEFR level this line is written at (drives comprehension/garbling). */
@@ -38,6 +39,11 @@ export interface Npc {
    * (NPC plays role A, player plays role B). Takes priority over `conversation`.
    */
   lessonSlug?: string;
+  /**
+   * Goods this NPC trades. Tier-gated: better friendship unlocks more goods and
+   * better prices. Presence of `trades` makes the NPC a merchant.
+   */
+  trades?: Good[];
 }
 
 export interface Area {
@@ -146,6 +152,12 @@ export const AREAS: Area[] = [
         tileY: AREA_H + 4,
         color: 0xeaac8b,
         teachesObjectiveId: "a2.market.quantities",
+        trades: [
+          { id: "manzanas", name: "Manzanas", baseValue: 8, requiresTier: "stranger" },
+          { id: "tomates", name: "Tomates", baseValue: 12, requiresTier: "acquaintance" },
+          { id: "chiles", name: "Chiles secos", baseValue: 30, requiresTier: "friend" },
+          { id: "mole", name: "Mole casero", baseValue: 90, requiresTier: "compadre" },
+        ],
         lines: [
           {
             level: "A2",
@@ -166,6 +178,11 @@ export const AREAS: Area[] = [
         tileY: AREA_H + 10,
         color: 0xd4a373,
         teachesObjectiveId: "a2.market.food",
+        trades: [
+          { id: "pan", name: "Pan dulce", baseValue: 6, requiresTier: "stranger" },
+          { id: "concha", name: "Conchas", baseValue: 14, requiresTier: "acquaintance" },
+          { id: "rosca", name: "Rosca de reyes", baseValue: 40, requiresTier: "friend" },
+        ],
         lines: [
           {
             level: "A2",
@@ -223,6 +240,17 @@ export function areaAt(x: number, y: number): Area | undefined {
       y < a.bounds.y + a.bounds.height,
   );
 }
+
+/** Map of every tradeable good id -> display name, across all NPCs. */
+export const GOOD_NAMES: Record<string, string> = (() => {
+  const out: Record<string, string> = {};
+  for (const area of AREAS) {
+    for (const npc of area.npcs) {
+      for (const g of npc.trades ?? []) out[g.id] = g.name;
+    }
+  }
+  return out;
+})();
 
 export const WORLD_WIDTH = AREAS.reduce(
   (max, a) => Math.max(max, a.bounds.x + a.bounds.width),

@@ -52,6 +52,11 @@ describe("dialogue layout", () => {
     );
     expect(overlapIssues).toHaveLength(0);
   });
+
+  it("stays healthy with the Trade button (merchant NPC)", () => {
+    const issues = auditLayout(dialogueLayout(baseDialogue({ canTrade: true })));
+    expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);
+  });
 });
 
 function baseConversation(over: Partial<ConversationVM> = {}): ConversationVM {
@@ -112,6 +117,7 @@ function baseHud(over: Partial<HudVM> = {}): HudVM {
       { level: "A1", pct: 0 },
       { level: "A2", pct: 0 },
     ],
+    goods: [{ name: "Manzanas", qty: 3 }],
     menuOpen: false,
     ...over,
   };
@@ -215,5 +221,49 @@ describe("banner layout", () => {
         }),
       ),
     ).toHaveLength(0);
+  });
+});
+
+import { tradeLayout, type TradeVM } from "../layouts/trade";
+
+function baseTrade(over: Partial<TradeVM> = {}): TradeVM {
+  return {
+    npcName: "La Vendedora",
+    friendshipLabel: "Acquaintance",
+    pesos: 120,
+    rows: [
+      { goodId: "manzanas", name: "Manzanas", buyPrice: 8, sellPrice: 8, owned: 2, locked: false },
+      { goodId: "tomates", name: "Tomates", buyPrice: 12, sellPrice: 12, owned: 0, locked: false },
+      { goodId: "chiles", name: "Chiles secos", buyPrice: null, sellPrice: 0, owned: 0, locked: true, requiresTierLabel: "Friend" },
+    ],
+    status: "Bought Manzanas  -8 pesos",
+    ...over,
+  };
+}
+
+describe("trade layout", () => {
+  it("is healthy with mixed locked/unlocked rows", () => {
+    const issues = auditLayout(tradeLayout(baseTrade()));
+    expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);
+  });
+
+  it("buy/sell buttons never overlap", () => {
+    const overlap = auditLayout(tradeLayout(baseTrade())).filter(
+      (i) => i.rule === "no-interactive-overlap",
+    );
+    expect(overlap).toHaveLength(0);
+  });
+
+  it("stays healthy with no status and many rows", () => {
+    const rows = Array.from({ length: 5 }, (_, i) => ({
+      goodId: `g${i}`,
+      name: `Good ${i}`,
+      buyPrice: 10,
+      sellPrice: 10,
+      owned: i,
+      locked: false,
+    }));
+    const issues = auditLayout(tradeLayout(baseTrade({ rows, status: undefined })));
+    expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);
   });
 });

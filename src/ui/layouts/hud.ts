@@ -18,6 +18,8 @@ export interface HudVM {
   skills: { speaking: number; listening: number; vocab: number };
   effectiveLevel: string;
   levels: { level: string; pct: number }[];
+  /** Goods the player is carrying (name + qty). */
+  goods?: { name: string; qty: number }[];
   menuOpen: boolean;
 }
 
@@ -151,7 +153,8 @@ function menuNodes(vm: HudVM): UINode[] {
   const top = HUD_BAND_HEIGHT + 8;
   const margin = 24;
   const panelW = w - margin * 2;
-  const rows = 2 + vm.levels.length + 2; // skills title+row + levels + auth row
+  const goodsRows = vm.goods && vm.goods.length > 0 ? 2 : 0;
+  const rows = 2 + vm.levels.length + goodsRows + 2; // skills + levels + goods + auth
   const panelH = 24 + rows * 26;
 
   nodes.push({
@@ -205,6 +208,35 @@ function menuNodes(vm: HudVM): UINode[] {
       text: `${lv.level}   ${lv.pct}%`,
       fontSize: px(TYPE.label),
       color: COLOR.parchment,
+      depth: 66,
+    });
+    y += 26;
+  }
+
+  // Goods inventory (the merchant's stock).
+  if (vm.goods && vm.goods.length > 0) {
+    nodes.push({
+      kind: "text",
+      id: "menuGoodsTitle",
+      origin: "topleft",
+      x: margin + 14,
+      y: y + 6,
+      text: "Goods",
+      fontSize: px(TYPE.small),
+      color: COLOR.muted,
+      depth: 66,
+    });
+    y += 30;
+    nodes.push({
+      kind: "text",
+      id: "menuGoods",
+      origin: "topleft",
+      x: margin + 14,
+      y,
+      text: vm.goods.map((g) => `${g.name} ×${g.qty}`).join("   "),
+      fontSize: px(TYPE.label),
+      color: COLOR.gold,
+      wrapWidth: panelW - 28,
       depth: 66,
     });
     y += 26;

@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { CEFR_LEVELS } from "../domain/cefr";
 import { GameState, REGISTRY_KEY } from "../game/state";
-import type { Area } from "../content/world";
+import { GOOD_NAMES, type Area } from "../content/world";
 import { FOCUS_MAX } from "../domain/player";
 import { hudLayout, type HudVM } from "../ui/layouts/hud";
 import { bannerLayout } from "../ui/layouts/banner";
@@ -36,6 +36,9 @@ export class HudScene extends Phaser.Scene {
       level: l,
       pct: Math.round((prof.masteredCount(l) / prof.totalCount(l)) * 100),
     }));
+    const goods = Object.entries(ps.goods)
+      .filter(([, qty]) => qty > 0)
+      .map(([id, qty]) => ({ name: GOOD_NAMES[id] ?? id, qty }));
     return {
       authLabel: user.isGuest ? "Playing as guest" : `Signed in: ${user.displayName}`,
       authAction: user.isGuest ? "Sign in" : "Sign out",
@@ -45,6 +48,7 @@ export class HudScene extends Phaser.Scene {
       skills: ps.skills,
       effectiveLevel: prof.effectiveLevel() ?? "—",
       levels,
+      goods,
       menuOpen: this.menuOpen,
     };
   }
