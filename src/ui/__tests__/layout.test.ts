@@ -3,6 +3,11 @@ import { auditLayout } from "../assertions";
 import { dialogueLayout, type DialogueVM } from "../layouts/dialogue";
 import { conversationLayout, type ConversationVM } from "../layouts/conversation";
 import { hudLayout, type HudVM } from "../layouts/hud";
+import {
+  questionLayout,
+  resultLayout,
+  type QuestionVM,
+} from "../layouts/minigame";
 
 function baseDialogue(over: Partial<DialogueVM> = {}): DialogueVM {
   return {
@@ -134,5 +139,57 @@ describe("hud layout", () => {
       ),
     );
     expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);
+  });
+});
+
+function baseQuestion(over: Partial<QuestionVM> = {}): QuestionVM {
+  return {
+    lessonLabel: "Greetings",
+    canDo: "Greet people and say goodbye.",
+    index: 0,
+    total: 5,
+    prompt: "good afternoon",
+    options: ["buenas tardes", "hola", "adiós", "gracias"],
+    ...over,
+  };
+}
+
+describe("minigame layout", () => {
+  it("question screen is healthy", () => {
+    const issues = auditLayout(questionLayout(baseQuestion()));
+    expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);
+  });
+
+  it("question screen handles long options without overflow", () => {
+    const issues = auditLayout(
+      questionLayout(
+        baseQuestion({
+          prompt: "can you give me a discount?",
+          options: [
+            "¿me hace un descuento?",
+            "me lo llevo, gracias",
+            "demasiado caro",
+            "una docena por favor",
+          ],
+        }),
+      ),
+    );
+    expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);
+  });
+
+  it("answer buttons do not overlap each other", () => {
+    const overlap = auditLayout(questionLayout(baseQuestion())).filter(
+      (i) => i.rule === "no-interactive-overlap",
+    );
+    expect(overlap).toHaveLength(0);
+  });
+
+  it("result screen is healthy (pass and fail)", () => {
+    expect(
+      auditLayout(resultLayout({ passed: true, correct: 5, total: 5 })),
+    ).toHaveLength(0);
+    expect(
+      auditLayout(resultLayout({ passed: false, correct: 2, total: 5 })),
+    ).toHaveLength(0);
   });
 });

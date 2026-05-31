@@ -2,7 +2,9 @@ import Phaser from "phaser";
 import { objectiveById, CURRICULUM } from "../content/curriculum";
 import type { VocabEntry } from "../domain/cefr";
 import { GameState, REGISTRY_KEY } from "../game/state";
-import { FONT, TYPE, COLOR, MARGIN, TOUCH_TARGET, makeButton } from "../game/layout";
+import { COLOR } from "../game/layout";
+import { questionLayout, resultLayout } from "../ui/layouts/minigame";
+import { renderNodes, type RenderedUI } from "../ui/PhaserRenderer";
 
 interface Question {
   prompt: string; // English
@@ -28,7 +30,8 @@ export class MinigameScene extends Phaser.Scene {
   private quiz: Question[] = [];
   private index = 0;
   private correct = 0;
-  private layer!: Phaser.GameObjects.Container;
+  private answered = false;
+  private ui?: RenderedUI;
 
   constructor() {
     super("MinigameScene");
@@ -45,90 +48,43 @@ export class MinigameScene extends Phaser.Scene {
   }
 
   private renderQuestion() {
-    this.layer?.destroy();
-    const w = this.scale.width;
-    const h = this.scale.height;
+    this.ui?.destroy();
     const obj = objectiveById(this.objectiveId)!;
-
-    const dim = this.add.rectangle(0, 0, w, h, COLOR.ink, 0.92).setOrigin(0, 0);
-    const title = this.add
-      .text(w / 2, h * 0.12, `Lesson · ${obj.label}`, {
-        fontFamily: FONT,
-        fontSize: TYPE.title,
-        color: COLOR.gold,
-      })
-      .setOrigin(0.5);
-    const canDo = this.add
-      .text(w / 2, h * 0.12 + 36, obj.canDo, {
-        fontFamily: FONT,
-        fontSize: TYPE.label,
-        color: COLOR.green,
-        fontStyle: "italic",
-        wordWrap: { width: w - MARGIN * 4 },
-        align: "center",
-      })
-      .setOrigin(0.5);
-
     const q = this.quiz[this.index];
-    const progress = this.add
-      .text(w / 2, h * 0.12 + 78, `${this.index + 1} / ${this.quiz.length}`, {
-        fontFamily: FONT,
-        fontSize: TYPE.small,
-        color: COLOR.goldText,
-      })
-      .setOrigin(0.5);
 
-    const prompt = this.add
-      .text(w / 2, h * 0.3, `How do you say…\n“${q.prompt}”`, {
-        fontFamily: FONT,
-        fontSize: TYPE.heading,
-        color: COLOR.parchment,
-        align: "center",
-        wordWrap: { width: w - MARGIN * 3 },
-        lineSpacing: 8,
-      })
-      .setOrigin(0.5);
-
-    const children: Phaser.GameObjects.GameObject[] = [
-      dim,
-      title,
-      canDo,
-      progress,
-      prompt,
-    ];
-
-    // Full-width answer buttons, generously spaced for thumbs.
-    const btnW = w - MARGIN * 2;
-    const startY = h * 0.45;
-    const gap = TOUCH_TARGET + 18;
+    const handlers: Record<string, () => void> = {};
     q.options.forEach((opt, i) => {
-      const y = startY + i * gap;
-      const btn = this.add
-        .rectangle(w / 2, y, btnW, TOUCH_TARGET, COLOR.blue, 1)
-        .setStrokeStyle(2, COLOR.goldNum)
-        .setInteractive({ useHandCursor: true });
-      const txt = this.add
-        .text(w / 2, y, opt, {
-          fontFamily: FONT,
-          fontSize: TYPE.body,
-          color: "#ffffff",
-        })
-        .setOrigin(0.5);
-
-      btn.on("pointerover", () => btn.setFillStyle(0x4f73a3));
-      btn.on("pointerout", () => btn.setFillStyle(COLOR.blue));
-      btn.on("pointerdown", () => this.answer(opt === q.answer, btn));
-
-      children.push(btn, txt);
+      handlers[`answer-${i}`] = () => this.answer(opt === q.answer, i);
     });
 
-    this.layer = this.add.container(0, 0, children).setDepth(60);
+    this.ui = renderNodes(
+      this,
+      questionLayout({
+        lessonLabel: obj.label,
+        canDo: obj.canDo,
+        index: this.index,
+        total: this.quiz.length,
+        prompt: q.prompt,
+        options: q.options,
+      }),
+      handlers,
+    );
   }
 
-  private answer(isCorrect: boolean, btn: Phaser.GameObjects.Rectangle) {
-    btn.setFillStyle(isCorrect ? 0x4a7c59 : 0xb56576);
+  private answer(isCorrect: boolean, optionIndex: number) {
+    if (this.answered) return;
+    this.answered = true;
     if (isCorrect) this.correct++;
+
+    // Recolor the chosen option to show right/wrong.
+    const btn = this.ui?.byId.get(`option-${optionIndex}`) as
+      | Phaser.GameObjects.Container
+      | undefined;
+    const bg = btn?.list[0] as Phaser.GameObjects.Rectangle | undefined;
+    bg?.setFillStyle(isCorrect ? COLOR.greenFill : COLOR.roseFill);
+
     this.time.delayedCall(450, () => {
+      this.answered = false;
       if (this.index < this.quiz.length - 1) {
         this.index++;
         this.renderQuestion();
@@ -139,61 +95,21 @@ export class MinigameScene extends Phaser.Scene {
   }
 
   private finish() {
-    const w = this.scale.width;
-    const h = this.scale.height;
-    const ratio = this.correct / this.quiz.length;
-    const passed = ratio >= 0.8;
+    const passed = this.correct / this.quiz.length >= 0.8;
+    if (passed) this.state.proficiency.master(this.objectiveId);
 
-    this.layer?.destroy();
-    const dim = this.add.rectangle(0, 0, w, h, COLOR.ink, 0.92).setOrigin(0, 0);
-
-    if (passed) {
-      this.state.proficiency.master(this.objectiveId);
-    }
-
-    const headline = passed ? "¡Muy bien!" : "Casi…";
-    const sub = passed ? "Objective mastered." : "Try again when ready.";
-    const head = this.add
-      .text(w / 2, h / 2 - 70, headline, {
-        fontFamily: FONT,
-        fontSize: TYPE.display,
-        color: passed ? COLOR.green : COLOR.rose,
-      })
-      .setOrigin(0.5);
-    const subText = this.add
-      .text(w / 2, h / 2 - 30, sub, {
-        fontFamily: FONT,
-        fontSize: TYPE.body,
-        color: COLOR.parchment,
-      })
-      .setOrigin(0.5);
-    const score = this.add
-      .text(w / 2, h / 2 + 10, `Score: ${this.correct}/${this.quiz.length}`, {
-        fontFamily: FONT,
-        fontSize: TYPE.label,
-        color: COLOR.goldText,
-      })
-      .setOrigin(0.5);
-
-    this.layer = this.add.container(0, 0, [dim, head, subText, score]).setDepth(60);
-
-    const back = makeButton(
+    this.ui?.destroy();
+    this.ui = renderNodes(
       this,
-      w / 2,
-      h / 2 + 80,
-      "Return to the valley",
-      () => {
-        this.scene.stop();
-        this.scene.resume("WorldScene");
-      },
-      { width: 280, depth: 61 },
+      resultLayout({ passed, correct: this.correct, total: this.quiz.length }),
+      { return: () => this.exit() },
     );
-    this.layer.add(back.container);
 
-    // Keyboard still works on desktop.
-    this.input.keyboard!.once("keydown-SPACE", () => {
-      this.scene.stop();
-      this.scene.resume("WorldScene");
-    });
+    this.input.keyboard!.once("keydown-SPACE", () => this.exit());
+  }
+
+  private exit() {
+    this.scene.stop();
+    this.scene.resume("WorldScene");
   }
 }
