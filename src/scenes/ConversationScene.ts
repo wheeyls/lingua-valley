@@ -5,6 +5,7 @@ import { GameState, REGISTRY_KEY } from "../game/state";
 import { MicRecorder, playAudioBytes } from "../game/voice";
 import { transcribe, speak } from "../game/api";
 import { ConversationSession } from "../app/ConversationSession";
+import { FONT, TYPE, COLOR, MARGIN, makeButton } from "../game/layout";
 
 function findNpc(id: string): Npc | undefined {
   for (const a of AREAS) {
@@ -63,7 +64,7 @@ export class ConversationScene extends Phaser.Scene {
 
     if (!MicRecorder.isSupported()) {
       this.setStatus(
-        "Microphone not supported in this browser. Press ESC to leave.",
+        "Microphone not supported here. Tap Leave to go back.",
         "#b56576",
       );
       this.phase = "done";
@@ -78,13 +79,13 @@ export class ConversationScene extends Phaser.Scene {
   private buildUi() {
     const w = this.scale.width;
     const h = this.scale.height;
-    const dim = this.add.rectangle(0, 0, w, h, 0x0d0a12, 0.92).setOrigin(0, 0);
+    const dim = this.add.rectangle(0, 0, w, h, 0x0d0a12, 0.95).setOrigin(0, 0);
 
     const title = this.add
-      .text(w / 2, 36, `Conversation · ${this.npc.name}`, {
-        fontFamily: "Trebuchet MS",
-        fontSize: "24px",
-        color: "#ffe08a",
+      .text(w / 2, h * 0.06, this.npc.name, {
+        fontFamily: FONT,
+        fontSize: TYPE.title,
+        color: COLOR.gold,
       })
       .setOrigin(0.5);
 
@@ -92,99 +93,94 @@ export class ConversationScene extends Phaser.Scene {
       ? objectiveById(this.npc.teachesObjectiveId)
       : undefined;
     const goal = this.add
-      .text(w / 2, 68, obj ? `Goal: ${obj.canDo}` : "", {
-        fontFamily: "Trebuchet MS",
-        fontSize: "15px",
-        color: "#9bc995",
+      .text(w / 2, h * 0.06 + 34, obj ? obj.canDo : "", {
+        fontFamily: FONT,
+        fontSize: TYPE.label,
+        color: COLOR.green,
         fontStyle: "italic",
+        align: "center",
+        wordWrap: { width: w - MARGIN * 3 },
       })
       .setOrigin(0.5);
 
+    // NPC speech (the big focal text).
     this.npcText = this.add
-      .text(w / 2, 150, "", {
-        fontFamily: "Trebuchet MS",
-        fontSize: "24px",
-        color: "#f4ecd8",
+      .text(w / 2, h * 0.28, "", {
+        fontFamily: FONT,
+        fontSize: TYPE.title,
+        color: COLOR.parchment,
         align: "center",
-        wordWrap: { width: w - 160 },
+        wordWrap: { width: w - MARGIN * 3 },
+        lineSpacing: 8,
       })
       .setOrigin(0.5);
 
+    // What you said (transcript).
     this.transcriptText = this.add
-      .text(w / 2, 250, "", {
-        fontFamily: "Trebuchet MS",
-        fontSize: "18px",
-        color: "#9ec5ff",
+      .text(w / 2, h * 0.46, "", {
+        fontFamily: FONT,
+        fontSize: TYPE.body,
+        color: COLOR.blueLight,
         align: "center",
         fontStyle: "italic",
-        wordWrap: { width: w - 200 },
+        wordWrap: { width: w - MARGIN * 3 },
       })
       .setOrigin(0.5);
 
+    // Feedback / corrections / pesos.
     this.feedbackText = this.add
-      .text(w / 2, 330, "", {
-        fontFamily: "Trebuchet MS",
-        fontSize: "16px",
+      .text(w / 2, h * 0.56, "", {
+        fontFamily: FONT,
+        fontSize: TYPE.label,
         color: "#f2cc8f",
         align: "center",
-        wordWrap: { width: w - 200 },
+        wordWrap: { width: w - MARGIN * 3 },
       })
       .setOrigin(0.5);
 
+    // Status line just above the mic.
     this.statusText = this.add
-      .text(w / 2, h - 70, "", {
-        fontFamily: "Trebuchet MS",
-        fontSize: "18px",
-        color: "#d9b08c",
+      .text(w / 2, h * 0.68, "", {
+        fontFamily: FONT,
+        fontSize: TYPE.label,
+        color: COLOR.goldText,
         align: "center",
+        wordWrap: { width: w - MARGIN * 2 },
       })
       .setOrigin(0.5);
 
-    // Big hold-to-talk mic button (touch + mouse). Replaces hold-SPACE on phones;
-    // SPACE still works on desktop.
-    const micY = h - 130;
+    // Big hold-to-talk mic button — the primary interaction. Large + central.
+    const micY = h * 0.82;
+    const micR = 76;
     this.micButton = this.add
-      .circle(w / 2, micY, 56, 0x3d5a80, 1)
-      .setStrokeStyle(4, 0xd9b08c)
+      .circle(w / 2, micY, micR, COLOR.blue, 1)
+      .setStrokeStyle(5, COLOR.goldNum)
       .setDepth(71)
       .setInteractive({ useHandCursor: true });
     this.micIcon = this.add
-      .text(w / 2, micY, "🎤", { fontSize: "44px" })
+      .text(w / 2, micY, "🎤", { fontSize: "60px" })
       .setOrigin(0.5)
       .setDepth(72);
 
-    // Press-and-hold semantics via pointer events.
     this.micButton.on(Phaser.Input.Events.POINTER_DOWN, () => {
       if (this.phase === "awaitInput") void this.beginRecording();
+      else if (this.phase === "done") this.close();
     });
     const release = () => {
       if (this.phase === "recording") void this.endRecordingAndSend();
     };
     this.micButton.on(Phaser.Input.Events.POINTER_UP, release);
     this.micButton.on(Phaser.Input.Events.POINTER_OUT, release);
-    // When done, tapping the mic dismisses the scene.
-    this.micButton.on(Phaser.Input.Events.POINTER_DOWN, () => {
-      if (this.phase === "done") this.close();
-    });
 
     const help = this.add
-      .text(w / 2, h - 48, "Hold the mic to speak · release to send", {
-        fontFamily: "Trebuchet MS",
-        fontSize: "14px",
-        color: "#8a8290",
+      .text(w / 2, micY + micR + 24, "Hold the mic to speak · release to send", {
+        fontFamily: FONT,
+        fontSize: TYPE.small,
+        color: COLOR.muted,
         align: "center",
+        wordWrap: { width: w - MARGIN * 2 },
       })
       .setOrigin(0.5);
-    const leaveBtn = this.add
-      .text(w / 2, h - 24, "[ Leave ]", {
-        fontFamily: "Trebuchet MS",
-        fontSize: "14px",
-        color: "#b56576",
-      })
-      .setOrigin(0.5)
-      .setDepth(71)
-      .setInteractive({ useHandCursor: true });
-    leaveBtn.on(Phaser.Input.Events.POINTER_DOWN, () => this.close());
 
     this.add
       .container(0, 0, [
@@ -198,18 +194,26 @@ export class ConversationScene extends Phaser.Scene {
         this.micButton,
         this.micIcon,
         help,
-        leaveBtn,
       ])
       .setDepth(70);
+
+    // Leave button (top-left, always reachable).
+    makeButton(this, MARGIN + 56, h * 0.06, "Leave", () => this.close(), {
+      width: 100,
+      height: 44,
+      fill: COLOR.roseFill,
+      fontSize: TYPE.label,
+      depth: 73,
+    });
   }
 
   /** Reflect recording state on the mic button. */
   private setMicState(recording: boolean) {
-    this.micButton?.setFillStyle(recording ? 0xb56576 : 0x3d5a80);
+    this.micButton?.setFillStyle(recording ? COLOR.roseFill : COLOR.blue);
     if (this.micButton) this.micButton.setScale(recording ? 1.12 : 1);
   }
 
-  private setStatus(msg: string, color = "#d9b08c") {
+  private setStatus(msg: string, color: string = COLOR.goldText) {
     this.statusText.setText(msg).setColor(color);
   }
 
@@ -312,7 +316,7 @@ export class ConversationScene extends Phaser.Scene {
     } catch (err) {
       console.error(err);
       this.setStatus(
-        "Something went wrong reaching the language service. Press ESC.",
+        "Could not reach the language service. Tap Leave to go back.",
         "#b56576",
       );
       this.phase = "done";
