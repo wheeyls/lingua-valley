@@ -5,8 +5,10 @@ import { MinigameScene } from "./scenes/MinigameScene";
 import { ConversationScene } from "./scenes/ConversationScene";
 import { HudScene } from "./scenes/HudScene";
 import { DevScene } from "./scenes/DevScene";
+import { AuthScene } from "./scenes/AuthScene";
 import { GameState, REGISTRY_KEY } from "./game/state";
 import { composeApp } from "./app/composition";
+import { cloudConfigured } from "./app/composition";
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -26,6 +28,7 @@ const config: Phaser.Types.Core.GameConfig = {
     MinigameScene,
     ConversationScene,
     DevScene,
+    AuthScene,
   ],
 };
 
@@ -40,6 +43,10 @@ async function bootstrap() {
 
   if (app.adapters.fakes) {
     game.scene.start("DevScene");
+  }
+  // Show the login overlay whenever cloud auth is available.
+  if (cloudConfigured() || app.adapters.fakes) {
+    game.scene.start("AuthScene");
   }
   return game;
 }

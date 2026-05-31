@@ -39,6 +39,12 @@ export class PlayerService {
     return this.state;
   }
 
+  /** Replace the current state (e.g. after a guest→account claim) and notify. */
+  adopt(state: PlayerState): void {
+    this.state = state;
+    this.emit();
+  }
+
   subscribe(fn: Listener): () => void {
     this.listeners.add(fn);
     fn(this.state);

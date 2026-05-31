@@ -19,7 +19,12 @@ import {
   type AdapterProfile,
 } from "./adapters";
 import { PlayerService } from "./PlayerService";
+import { ClaimService } from "./ClaimService";
 import { supabaseEnv } from "../net/env";
+import { LocalPlayerRepository } from "../net/LocalPlayerRepository";
+import { SupabasePlayerRepository } from "../net/SupabasePlayerRepository";
+import { getSupabase } from "../net/supabaseClient";
+import { getOrCreateGuestId } from "../net/guest";
 
 export interface ComposedApp {
   adapters: Adapters;
@@ -49,7 +54,39 @@ export async function composeApp(profile = chooseProfile()): Promise<ComposedApp
     profile === "cloud" ? await resolveCloudAdapters() : makeAdapters(profile);
   const player = new PlayerService(adapters.repo, adapters.rewardGrader);
   await player.init();
+
+  // On the cloud profile, claim the guest's local progress into the account the
+  // first time they sign in, then adopt the merged state.
+  if (profile === "cloud") {
+    adapters.auth.onChange((user) => {
+      if (!user.isGuest) void claimGuestIntoAccount(user.id, player);
+    });
+  }
+
   return { adapters, player, profile };
+}
+
+/**
+ * Merge the local guest save into the freshly signed-in account, then adopt the
+ * merged state into the running PlayerService. Uses the domain merge rule via
+ * ClaimService. Safe no-op when Supabase isn't available or there's no guest save.
+ */
+async function claimGuestIntoAccount(
+  userId: string,
+  player: PlayerService,
+): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) return;
+  const guestId = getOrCreateGuestId();
+  const guestRepo = new LocalPlayerRepository(guestId);
+  const accountRepo = new SupabasePlayerRepository(sb, userId);
+
+  const claim = new ClaimService(accountRepo);
+  const merged = await claim.claim({
+    read: () => guestRepo.loadSync(),
+    clear: () => guestRepo.clear(),
+  });
+  player.adopt(merged);
 }
 
 export function cloudConfigured(): boolean {
