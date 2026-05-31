@@ -12,5 +12,6 @@
     "noEmit": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["**/*.ts", "../src/domain/**/*.ts", "../src/content/**/*.ts"]
+  "include": ["**/*.ts", "../src/domain/**/*.ts", "../src/content/**/*.ts"],
+  "exclude": ["../src/content/lessons/index.ts"]
 }

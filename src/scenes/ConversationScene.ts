@@ -5,6 +5,8 @@ import { GameState, REGISTRY_KEY } from "../game/state";
 import { MicRecorder, playAudioBytes } from "../game/voice";
 import { transcribe, speak } from "../game/api";
 import { ConversationSession } from "../app/ConversationSession";
+import { RolePlay } from "../domain/rolePlay";
+import { lessonBySlug } from "../content/lessons";
 import { COLOR } from "../game/layout";
 import { conversationLayout } from "../ui/layouts/conversation";
 import { renderNodes } from "../ui/PhaserRenderer";
@@ -44,6 +46,13 @@ export class ConversationScene extends Phaser.Scene {
     this.mastered = false;
 
     const obj = objectiveById(this.npc.teachesObjectiveId!)!;
+
+    // If this NPC is tied to a lesson, run that lesson's lab as a scripted
+    // role-play (NPC = role A, player = role B).
+    let rolePlay: RolePlay | undefined;
+    const lesson = this.npc.lessonSlug ? lessonBySlug(this.npc.lessonSlug) : undefined;
+    if (lesson) rolePlay = new RolePlay(lesson.lab);
+
     this.session = new ConversationSession(
       {
         npcId: this.npc.id,
@@ -52,6 +61,7 @@ export class ConversationScene extends Phaser.Scene {
         canDo: obj.canDo,
         vocab: obj.vocab.map((v) => ({ es: v.es, en: v.en })),
         skill: "speaking",
+        rolePlay,
       },
       this.state.adapters.conversationGrader,
       this.state.player,
@@ -128,11 +138,23 @@ export class ConversationScene extends Phaser.Scene {
   // --- Conversation flow ---------------------------------------------------
 
   private async startConversation() {
-    const opener = this.npc.conversation!.opener;
-    this.session.begin(opener);
-    await this.npcSay(opener);
+    // Role-play NPCs return their scripted opening line(s); free-form gates use
+    // the NPC's `conversation.opener`.
+    const lines = this.session.isRolePlay
+      ? this.session.begin()
+      : this.session.begin(this.npc.conversation?.opener ?? "¡Hola!");
+
+    for (const line of lines) await this.npcSay(line);
     this.phase = "awaitInput";
-    this.setStatus("Your turn — hold the mic and reply in Spanish.");
+    this.setStatus(this.turnPrompt());
+  }
+
+  /** Status prompt for the player's turn (shows the role-play goal if scripted). */
+  private turnPrompt(): string {
+    const goal = this.session.currentGoal;
+    return goal
+      ? `Your turn: ${goal}`
+      : "Your turn — hold the mic and reply in Spanish.";
   }
 
   /** Show + speak an NPC line. Falls back to text if TTS fails. */
@@ -216,10 +238,11 @@ export class ConversationScene extends Phaser.Scene {
         this.mastered = true;
         this.finish(true);
       } else if (outcome.complete) {
-        this.finish(false);
+        // Completing a scripted role-play to the end is itself a success.
+        this.finish(this.session.isRolePlay);
       } else {
         this.phase = "awaitInput";
-        this.setStatus("Keep going — hold the mic to reply.");
+        this.setStatus(this.turnPrompt());
       }
     } catch (err) {
       console.error(err);

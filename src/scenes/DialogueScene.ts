@@ -44,9 +44,9 @@ export class DialogueScene extends Phaser.Scene {
       const objId = this.npc.teachesObjectiveId;
       if (objId && !this.state.proficiency.isMastered(objId)) {
         this.scene.stop();
-        // Voiced conversation gate takes priority when configured; otherwise
+        // A scripted lesson role-play or a voiced gate takes priority; else
         // fall back to the multiple-choice mini-game.
-        if (this.npc.conversation) {
+        if (this.npc.lessonSlug || this.npc.conversation) {
           this.scene.launch("ConversationScene", { npcId: this.npc.id });
         } else {
           this.scene.launch("MinigameScene", { objectiveId: objId });

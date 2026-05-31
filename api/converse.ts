@@ -35,7 +35,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .map((t) => `${t.role === "npc" ? "NPC" : "Player"}: ${t.text}`)
       .join("\n");
 
-    const system = `You are an NPC in a Spanish-learning role-playing game, and also a strict but kind CEFR examiner.
+    const rp = body.rolePlay;
+    const system = rp
+      ? // ----- SCRIPTED ROLE-PLAY (NPC = role A, player = role B) -----
+        `You are an NPC in a Spanish-learning role-playing game AND a kind CEFR examiner.
+
+SCENE: ${rp.scenario}
+YOU play: ${rp.npcRole.name} — ${rp.npcRole.description}
+The PLAYER plays: ${rp.playerRole.name} — ${rp.playerRole.description}
+
+Speak ONLY in Spanish, ONLY at CEFR level ${body.level}, 1-2 short sentences, in character.
+
+This turn, the PLAYER is supposed to: "${rp.expectedGoal}"${rp.expectedGoalEnglish ? ` (${rp.expectedGoalEnglish})` : ""}
+Acceptable things they might say: ${rp.acceptablePhrases.map((p) => `"${p.spanish}" (${p.english})`).join(", ")}
+Model answer: "${rp.hint ?? ""}"
+(This is player turn ${rp.turnNumber} of ${rp.totalTurns}.)
+
+Your job:
+1. Grade the player's latest utterance AGAINST what they were supposed to say this turn:
+   - communication (0..1): did they accomplish this turn's goal / get the meaning across?
+   - accuracy (0..1): grammar/vocab appropriateness for ${body.level}.
+   - feedback: 1-2 warm sentences in ENGLISH.
+   - corrections: brief specific fixes (English), empty if none.
+2. Reply in character as ${rp.npcRole.name} to move the scene forward to the next turn.
+3. objectiveMet: true if the player handled THIS turn well (they don't need to be perfect, but must communicate the intended idea).
+4. conversationComplete: true only if this was the final player turn (${rp.turnNumber} === ${rp.totalTurns}) and it went acceptably.
+
+Respond with STRICT JSON only:
+{
+  "npcReply": string,
+  "grade": { "communication": number, "accuracy": number, "feedback": string, "corrections": string[] },
+  "objectiveMet": boolean,
+  "conversationComplete": boolean
+}`
+      : // ----- FREE-FORM GATE (no script) -----
+        `You are an NPC in a Spanish-learning role-playing game, and also a strict but kind CEFR examiner.
 
 NPC PERSONA: you are "${body.npcId}", a friendly local. Speak ONLY in Spanish, and ONLY at CEFR level ${body.level}. Never exceed that level: keep vocabulary and grammar within ${body.level}. Keep replies to 1-2 short sentences.
 

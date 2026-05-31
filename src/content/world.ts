@@ -33,6 +33,11 @@ export interface Npc {
    * multiple-choice mini-game. `opener` is the NPC's first spoken line.
    */
   conversation?: { opener: string };
+  /**
+   * If set, this NPC runs a SCRIPTED role-play from the named lesson's lab
+   * (NPC plays role A, player plays role B). Takes priority over `conversation`.
+   */
+  lessonSlug?: string;
 }
 
 export interface Area {
@@ -77,6 +82,7 @@ export const AREAS: Area[] = [
         color: 0xe07a5f,
         teachesObjectiveId: "a1.greetings",
         voice: "nova",
+        lessonSlug: "greetings",
         conversation: {
           opener: "¡Hola! Buenos días. ¿Cómo estás hoy?",
         },
@@ -165,6 +171,42 @@ export const AREAS: Area[] = [
             level: "A2",
             es: "El pan recién hecho huele increíble, ¿no le parece?",
             en: "The freshly baked bread smells incredible, don't you think?",
+          },
+        ],
+      },
+      {
+        id: "mesero",
+        name: "El Mesero",
+        tileX: 7,
+        tileY: AREA_H + 7,
+        color: 0x83c5be,
+        teachesObjectiveId: "a2.market.bargaining",
+        voice: "onyx",
+        lessonSlug: "restaurant",
+        conversation: { opener: "¡Buenas tardes! Bienvenido." },
+        lines: [
+          {
+            level: "A2",
+            es: "Bienvenido. ¿Mesa para cuántos?",
+            en: "Welcome. Table for how many?",
+          },
+        ],
+      },
+      {
+        id: "guia",
+        name: "La Guía",
+        tileX: 12,
+        tileY: AREA_H + 3,
+        color: 0xbc6c25,
+        teachesObjectiveId: "a2.market.food",
+        voice: "shimmer",
+        lessonSlug: "asking-for-directions",
+        conversation: { opener: "¿Buscas algo? Te puedo ayudar." },
+        lines: [
+          {
+            level: "A2",
+            es: "¿Necesitas direcciones? Pregúntame.",
+            en: "Need directions? Just ask me.",
           },
         ],
       },

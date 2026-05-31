@@ -175,3 +175,60 @@ describe("auth + guest claim", () => {
     expect(adapters.auth.current().isGuest).toBe(false);
   });
 });
+
+describe("scripted lesson role-play (NPC=A, player=B)", () => {
+  it("steps through a lab end-to-end against fakes", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { fileURLToPath } = await import("node:url");
+    const { dirname, join } = await import("node:path");
+    const { parseLesson } = await import("../../content/lessons/parser");
+    const { RolePlay } = await import("../../domain/rolePlay");
+
+    const here = dirname(fileURLToPath(import.meta.url));
+    const dataDir = join(here, "..", "..", "content", "lessons", "data");
+    const lesson = parseLesson(
+      readFileSync(join(dataDir, "02-restaurant.lesson"), "utf8"),
+      "02-restaurant.lesson",
+    ).data!;
+
+    const adapters = makeAdapters("test");
+    const player = new PlayerService(adapters.repo, adapters.rewardGrader);
+    await player.init();
+    adapters.fakes!.grader.setDefault({ communication: 0.85, accuracy: 0.8 });
+
+    const obj = objectiveById("a2.market.bargaining")!;
+    const session = new ConversationSession(
+      {
+        npcId: "mesero",
+        level: obj.level,
+        objectiveId: obj.id,
+        canDo: obj.canDo,
+        vocab: obj.vocab.map((v) => ({ es: v.es, en: v.en })),
+        skill: "speaking",
+        rolePlay: new RolePlay(lesson.lab),
+      },
+      adapters.conversationGrader,
+      player,
+    );
+
+    // Begin plays NPC lines up to the first player cue.
+    const opening = session.begin();
+    expect(opening.length).toBeGreaterThan(0);
+    expect(session.isRolePlay).toBe(true);
+    expect(session.currentGoal).toBeTruthy();
+
+    // Drive every player turn until the script completes.
+    let complete = false;
+    let turns = 0;
+    while (!complete && turns < 30) {
+      const outcome = await session.submit("(respuesta del jugador)");
+      complete = outcome.complete;
+      turns++;
+    }
+    expect(complete).toBe(true);
+    // The grader was asked with role-play context on at least one turn.
+    expect(adapters.fakes!.grader.calls.some((c) => c.rolePlay)).toBe(true);
+    // Player earned pesos along the way.
+    expect(player.getState().pesos).toBeGreaterThan(0);
+  });
+});

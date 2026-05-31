@@ -15,6 +15,30 @@ export interface ConversationTurn {
   text: string;
 }
 
+/**
+ * Role-play context for a SCRIPTED conversation, derived from a lesson's lab.
+ * When present, the NPC plays role A and the player plays role B; grading is
+ * against the current expected role-B turn.
+ */
+export interface RolePlayContext {
+  /** The lab scenario description (sets the scene). */
+  scenario: string;
+  /** Who the NPC is (role A name + description). */
+  npcRole: { name: string; description: string };
+  /** Who the player is (role B name + description). */
+  playerRole: { name: string; description: string };
+  /** What the player should accomplish THIS turn (role B goal). */
+  expectedGoal: string;
+  expectedGoalEnglish?: string;
+  /** Acceptable phrases for this turn (es/en). */
+  acceptablePhrases: { spanish: string; english: string }[];
+  /** Model answer for this turn. */
+  hint?: string;
+  /** 1-based index of this turn / total player turns, for progress. */
+  turnNumber: number;
+  totalTurns: number;
+}
+
 /** Request to /api/converse: the player just said something; get NPC reply + grade. */
 export interface ConverseRequest {
   /** Stable id of the NPC being spoken to (for persona + voice). */
@@ -31,6 +55,8 @@ export interface ConverseRequest {
   history: ConversationTurn[];
   /** The player's latest utterance (already transcribed by Whisper). */
   playerUtterance: string;
+  /** Present for scripted lesson role-plays; absent for free-form gates. */
+  rolePlay?: RolePlayContext;
 }
 
 /** The LLM's assessment of the player's latest utterance. */
