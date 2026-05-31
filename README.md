@@ -117,8 +117,48 @@ Other scripts:
 ```bash
 npm run build      # typecheck + production build
 npm run typecheck  # typechecks both src and api
-npm test           # domain unit tests (vitest)
+npm test           # domain + full gameplay scenario tests (vitest)
 ```
+
+## Adapter profiles & local-fakes (test without real services)
+
+The game is built **hexagonally**: the domain depends only on *ports* (interfaces),
+and adapters implement them. This means the entire game — economy, persistence,
+auth, and **multiplayer presence** — can run against in-memory fakes with no
+network, no Supabase, no OpenAI, and no websockets.
+
+`makeAdapters(profile)` (in `src/app/adapters.ts`) selects the implementation:
+
+| Profile        | Persistence | Grading (LLM)        | Multiplayer            | Clock        |
+|----------------|-------------|----------------------|------------------------|--------------|
+| `test`         | in-memory   | scripted fake        | in-process bus (fake)  | advanceable  |
+| `local-fakes`  | in-memory   | scripted fake        | in-process bus + ghosts| advanceable  |
+| `guest`        | localStorage| real `/api/converse` | none (noop)            | system       |
+| `cloud`        | (Supabase*) | real `/api`          | (Supabase Realtime*)   | system       |
+
+\* Real Supabase adapters slot in at the composition root when configured —
+that's the only place that changes.
+
+**Run the fully-faked sandbox** (no API keys, scriptable multiplayer):
+
+```
+npm run dev    then open  http://localhost:5173/?dev=fakes
+```
+
+A **dev harness** (`DevScene`) appears bottom-left with shortcuts:
+- `G` — spawn a wandering ghost player (tests remote avatars with no network)
+- `N` — advance the clock one day (tests Focus regen + SRS card maturation)
+- `P` / `F` — set the next conversation grade to PASS / FAIL
+- live readout of pesos, focus, skills, mastery
+
+You can also force a profile with `VITE_ADAPTER_PROFILE=local-fakes`.
+
+### Gameplay tests
+
+`src/app/__tests__/scenarios.test.ts` drives whole sessions against the fakes:
+single graded turn → rewards; multi-day practice → objective mastery; Focus
+budget exhaustion + next-day refill; presence join/move/leave + ghosts; auth
+guest→account. All deterministic, zero framework mocks.
 
 ## Extending
 
@@ -126,5 +166,13 @@ npm test           # domain unit tests (vitest)
 - **New areas/NPCs/dialogue:** add to `src/content/world.ts` (tag lines with a CEFR level).
 - **New mini-game types:** add a scene like `MinigameScene` and launch it from `DialogueScene`.
 - **Tune the gate difficulty:** edit `clarityFor` / `ACTIONABLE_THRESHOLD` in `comprehension.ts`.
+- **Tune the economy:** edit pure functions in `src/domain/economy.ts` / `srs.ts` (covered by tests).
+- **Add a real service:** implement the relevant port (`PlayerStateRepository`,
+  `PresenceGateway`, etc.) in `src/net/`, then wire it in `makeAdapters("cloud")`.
+  Nothing else changes — the domain and scenes are untouched.
 
-Progress is saved automatically to `localStorage` under `lingua-valley.mastered`.
+See `docs/DESIGN.md` for the economy, schema, and architecture, and `AGENTS.md`
+for the ports-and-adapters laws.
+
+Guest progress is saved to `localStorage`; signed-in progress will sync to
+Supabase (cloud profile) once configured.

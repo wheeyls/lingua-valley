@@ -1,13 +1,10 @@
 import Phaser from "phaser";
 import { AREAS, type Npc } from "../content/world";
 import { objectiveById } from "../content/curriculum";
-import {
-  gateShouldOpen,
-  type ConversationTurn,
-} from "../domain/conversation";
 import { GameState, REGISTRY_KEY } from "../game/state";
 import { MicRecorder, playAudioBytes } from "../game/voice";
-import { transcribe, converse, speak } from "../game/api";
+import { transcribe, speak } from "../game/api";
+import { ConversationSession } from "../app/ConversationSession";
 
 function findNpc(id: string): Npc | undefined {
   for (const a of AREAS) {
@@ -22,7 +19,7 @@ type Phase = "intro" | "npcSpeaking" | "awaitInput" | "recording" | "thinking" |
 export class ConversationScene extends Phaser.Scene {
   private state!: GameState;
   private npc!: Npc;
-  private history: ConversationTurn[] = [];
+  private session!: ConversationSession;
   private recorder = new MicRecorder();
   private phase: Phase = "intro";
   private statusText!: Phaser.GameObjects.Text;
@@ -39,9 +36,22 @@ export class ConversationScene extends Phaser.Scene {
   create(data: { npcId: string }) {
     this.state = this.registry.get(REGISTRY_KEY) as GameState;
     this.npc = findNpc(data.npcId)!;
-    this.history = [];
     this.phase = "intro";
     this.mastered = false;
+
+    const obj = objectiveById(this.npc.teachesObjectiveId!)!;
+    this.session = new ConversationSession(
+      {
+        npcId: this.npc.id,
+        level: obj.level,
+        objectiveId: obj.id,
+        canDo: obj.canDo,
+        vocab: obj.vocab.map((v) => ({ es: v.es, en: v.en })),
+        skill: "speaking",
+      },
+      this.state.adapters.conversationGrader,
+      this.state.player,
+    );
 
     this.buildUi();
     this.recordKey = this.input.keyboard!.addKey(
@@ -158,7 +168,7 @@ export class ConversationScene extends Phaser.Scene {
 
   private async startConversation() {
     const opener = this.npc.conversation!.opener;
-    this.history.push({ role: "npc", text: opener });
+    this.session.begin(opener);
     await this.npcSay(opener);
     this.phase = "awaitInput";
     this.setStatus("Your turn — hold SPACE and reply in Spanish.");
@@ -218,55 +228,30 @@ export class ConversationScene extends Phaser.Scene {
         return;
       }
       this.transcriptText.setText(`You: “${utterance}”`);
-      this.history.push({ role: "player", text: utterance });
-
       this.setStatus(`${this.npc.name} is thinking…`);
-      const obj = objectiveById(this.npc.teachesObjectiveId!)!;
-      const result = await converse({
-        npcId: this.npc.id,
-        level: obj.level,
-        objectiveId: obj.id,
-        canDo: obj.canDo,
-        vocab: obj.vocab.map((v) => ({ es: v.es, en: v.en })),
-        history: this.history,
-        playerUtterance: utterance,
-      });
 
-      // Grant resources for this turn through the RewardGrader port. The
-      // domain decides economy + mastery; the scene only renders the outcome.
-      const gateOpens = gateShouldOpen(result.objectiveMet, result.grade);
-      const applied = await this.state.player.completeActivity({
-        objectiveId: obj.id,
-        level: obj.level,
-        skill: "speaking",
-        wordIds: obj.vocab.map((v) => v.es),
-        communication: result.grade.communication,
-        accuracy: result.grade.accuracy,
-        objectiveMet: gateOpens,
-      });
+      // The session orchestrates grading + economy via ports. The scene only
+      // renders the outcome — no game rules here.
+      const outcome = await this.session.submit(utterance);
 
-      // Feedback + corrections, plus the reward earned.
       const corr =
-        result.grade.corrections.length > 0
-          ? "  (" + result.grade.corrections.join("; ") + ")"
+        outcome.grade.corrections.length > 0
+          ? "  (" + outcome.grade.corrections.join("; ") + ")"
           : "";
       const earned =
-        applied.reward && applied.reward.pesos > 0
-          ? `  +${applied.reward.pesos} pesos`
-          : applied.blockedReason === "insufficient-focus"
+        outcome.applied.reward && outcome.applied.reward.pesos > 0
+          ? `  +${outcome.applied.reward.pesos} pesos`
+          : outcome.applied.blockedReason === "insufficient-focus"
             ? "  (out of Focus — rest until tomorrow)"
             : "";
-      this.feedbackText.setText(result.grade.feedback + corr + earned);
+      this.feedbackText.setText(outcome.grade.feedback + corr + earned);
 
-      this.history.push({ role: "npc", text: result.npcReply });
-      await this.npcSay(result.npcReply);
+      await this.npcSay(outcome.npcReply);
 
-      // Mastery is authoritative from the domain reducer.
-      const nowMastered = applied.state.masteredObjectiveIds.includes(obj.id);
-      if (nowMastered) {
+      if (outcome.mastered) {
         this.mastered = true;
         this.finish(true);
-      } else if (result.conversationComplete) {
+      } else if (outcome.complete) {
         this.finish(false);
       } else {
         this.phase = "awaitInput";

@@ -21,6 +21,8 @@ const EASE_MIN = 1.3;
 const EASE_MAX = 2.8;
 const PASS_QUALITY = 0.6;
 const MATURE_REPS = 4;
+/** Cap so intervals (and dueAt) never overflow the Date range. ~1 year. */
+const MAX_INTERVAL_DAYS = 365;
 
 export function newCard(wordId: string, now: Date): VocabCard {
   return {
@@ -59,8 +61,9 @@ export function review(card: VocabCard, quality: number, now: Date): VocabCard {
 
   const reps = card.reps + 1;
   const ease = clamp(card.ease + (0.1 - (1 - q) * 0.4), EASE_MIN, EASE_MAX);
-  const intervalDays =
+  const rawInterval =
     reps === 1 ? 1 : reps === 2 ? 3 : Math.round(card.intervalDays * ease);
+  const intervalDays = Math.min(rawInterval, MAX_INTERVAL_DAYS);
   const state: CardState = reps >= MATURE_REPS ? "mature" : "growing";
 
   return {
@@ -87,4 +90,4 @@ function addDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * 86_400_000);
 }
 
-export { PASS_QUALITY, MATURE_REPS };
+export { PASS_QUALITY, MATURE_REPS, MAX_INTERVAL_DAYS };

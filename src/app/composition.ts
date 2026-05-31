@@ -1,45 +1,51 @@
 /**
  * Composition root (client side).
  *
- * This is the ONE place that constructs concrete adapters and injects them into
- * the application/domain. Scenes never new-up adapters.
+ * The ONE place that selects an adapter profile and constructs the application
+ * services. Scenes never new-up adapters — they receive these services.
  *
- * Adapter selection is environment-driven:
- *  - If Supabase env vars are present AND a user is signed in, use the
- *    server-authoritative path (HttpRewardClient + SupabasePlayerRepository).
- *  - Otherwise, use the guest path (LocalRewardGrader + LocalPlayerRepository),
- *    which runs the identical domain reducer locally. The game is fully
- *    playable offline this way.
+ * Profile selection:
+ *  - ?dev=fakes  or  VITE_ADAPTER_PROFILE=local-fakes  -> in-memory everything
+ *    (scriptable multiplayer + grading, advanceable clock). Great for local dev.
+ *  - Supabase env configured                            -> "cloud"
+ *  - otherwise                                           -> "guest" (local save,
+ *    real LLM grading, no multiplayer yet)
  */
 
-import { systemClock } from "../domain/ports";
-import { objectiveWordIds } from "../content/curriculum";
+import { makeAdapters, type Adapters, type AdapterProfile } from "./adapters";
 import { PlayerService } from "./PlayerService";
-import { LocalPlayerRepository } from "../net/LocalPlayerRepository";
-import { LocalRewardGrader } from "../net/LocalRewardGrader";
-import { getOrCreateGuestId } from "../net/guest";
 import { supabaseEnv } from "../net/env";
 
 export interface ComposedApp {
+  adapters: Adapters;
   player: PlayerService;
-  mode: "guest" | "cloud";
+  profile: AdapterProfile;
 }
 
-/**
- * Build the guest (local) application. Always available, no backend required.
- */
-export function composeGuestApp(): ComposedApp {
-  const guestId = getOrCreateGuestId();
-  const repo = new LocalPlayerRepository(guestId);
-  const grader = new LocalRewardGrader(repo, systemClock, objectiveWordIds);
-  return { player: new PlayerService(repo, grader), mode: "guest" };
+export function chooseProfile(): AdapterProfile {
+  // URL flag (browser only).
+  if (typeof location !== "undefined") {
+    const params = new URLSearchParams(location.search);
+    const dev = params.get("dev");
+    if (dev === "fakes" || dev === "1") return "local-fakes";
+  }
+  // Explicit env override.
+  const envProfile = import.meta.env.VITE_ADAPTER_PROFILE as
+    | AdapterProfile
+    | undefined;
+  if (envProfile) return envProfile;
+
+  return supabaseEnv().configured ? "cloud" : "guest";
 }
 
-/**
- * Whether cloud features (auth, sync, multiplayer) are configured. Used by the
- * UI to show/hide sign-in. The actual cloud adapters are wired only after a
- * successful sign-in (see net/auth.ts), keeping guest play the default.
- */
+/** Build and initialize the application for the chosen profile. */
+export async function composeApp(profile = chooseProfile()): Promise<ComposedApp> {
+  const adapters = makeAdapters(profile);
+  const player = new PlayerService(adapters.repo, adapters.rewardGrader);
+  await player.init();
+  return { adapters, player, profile };
+}
+
 export function cloudConfigured(): boolean {
   return supabaseEnv().configured;
 }

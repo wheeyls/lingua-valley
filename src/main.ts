@@ -4,8 +4,9 @@ import { DialogueScene } from "./scenes/DialogueScene";
 import { MinigameScene } from "./scenes/MinigameScene";
 import { ConversationScene } from "./scenes/ConversationScene";
 import { HudScene } from "./scenes/HudScene";
+import { DevScene } from "./scenes/DevScene";
 import { GameState, REGISTRY_KEY } from "./game/state";
-import { composeGuestApp } from "./app/composition";
+import { composeApp } from "./app/composition";
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -18,18 +19,28 @@ const config: Phaser.Types.Core.GameConfig = {
     default: "arcade",
     arcade: { debug: false },
   },
-  scene: [WorldScene, HudScene, DialogueScene, MinigameScene, ConversationScene],
+  scene: [
+    WorldScene,
+    HudScene,
+    DialogueScene,
+    MinigameScene,
+    ConversationScene,
+    DevScene,
+  ],
 };
 
-// Composition root: build the application (guest path today; cloud activates
-// when Supabase env vars + sign-in are present), then start the game once the
-// player's state has loaded.
+// Composition root: build the application for the chosen adapter profile, then
+// start the game once the player's state has loaded. The dev harness launches
+// automatically under the "local-fakes" profile (e.g. ?dev=fakes).
 async function bootstrap() {
-  const app = composeGuestApp();
-  await app.player.init();
+  const app = await composeApp();
 
   const game = new Phaser.Game(config);
-  game.registry.set(REGISTRY_KEY, new GameState(app.player));
+  game.registry.set(REGISTRY_KEY, new GameState(app.adapters, app.player));
+
+  if (app.adapters.fakes) {
+    game.scene.start("DevScene");
+  }
   return game;
 }
 

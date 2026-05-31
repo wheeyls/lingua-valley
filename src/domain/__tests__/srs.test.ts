@@ -57,4 +57,11 @@ describe("review", () => {
     expect(isDue(c, T0)).toBe(false);
     expect(isDue(c, daysLater(2))).toBe(true);
   });
+
+  it("caps the interval so dueAt never overflows under heavy review", () => {
+    let c = newCard("x", T0);
+    for (let i = 0; i < 50; i++) c = review(c, 1, T0); // pathological same-day reps
+    expect(c.intervalDays).toBeLessThanOrEqual(365);
+    expect(Number.isNaN(new Date(c.dueAt).getTime())).toBe(false);
+  });
 });

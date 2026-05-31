@@ -7,6 +7,7 @@
  */
 
 import type { PlayerState, ActivityResult, ApplyResult } from "./player";
+import type { ConverseRequest, ConverseResponse } from "./conversation";
 
 /** Time source, so domain logic stays deterministic and testable. */
 export interface Clock {
@@ -36,6 +37,34 @@ export interface PlayerStateRepository {
  */
 export interface RewardGrader {
   grant(activity: ActivityResult): Promise<ApplyResult>;
+}
+
+/**
+ * Produces a graded NPC turn for a player utterance. The real adapter calls the
+ * LLM (/api/converse); the fake returns scripted grades. Keeps OpenAI out of
+ * gameplay logic and tests.
+ */
+export interface ConversationGrader {
+  gradeTurn(req: ConverseRequest): Promise<ConverseResponse>;
+}
+
+/** Identity for the current session. Fake = instant scriptable users. */
+export interface AuthUser {
+  id: string;
+  displayName: string;
+  /** True for an anonymous guest (local-only), false for a real account. */
+  isGuest: boolean;
+}
+
+export interface AuthGateway {
+  /** The current user (guest by default). */
+  current(): AuthUser;
+  /** Sign in (real adapter does OAuth/magic-link; fake resolves instantly). */
+  signIn(): Promise<AuthUser>;
+  /** Sign out, returning to guest. */
+  signOut(): Promise<void>;
+  /** Subscribe to user changes. Returns unsubscribe. */
+  onChange(listener: (user: AuthUser) => void): () => void;
 }
 
 /** A remote player as the domain understands them (no transport details). */

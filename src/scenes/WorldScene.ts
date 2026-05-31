@@ -8,6 +8,9 @@ import {
   type Area,
   type Npc,
 } from "../content/world";
+import { GameState, REGISTRY_KEY } from "../game/state";
+import type { RemotePlayer } from "../domain/ports";
+
 interface NpcSprite {
   npc: Npc;
   container: Phaser.GameObjects.Container;
@@ -23,16 +26,26 @@ export class WorldScene extends Phaser.Scene {
   private currentArea?: Area;
   private busy = false; // true while a dialogue/minigame is open
 
+  // Multiplayer presence (via the PresenceGateway port).
+  private state!: GameState;
+  private remoteSprites = new Map<string, Phaser.GameObjects.Container>();
+  private unsubPresence: (() => void) | null = null;
+  private lastBroadcast = 0;
+  private facing: RemotePlayer["facing"] = "down";
+
   constructor() {
     super("WorldScene");
   }
 
   create() {
+    this.state = this.registry.get(REGISTRY_KEY) as GameState;
+
     this.drawWorld();
     this.spawnNpcs();
     this.spawnPlayer();
     this.setupInput();
     this.setupCamera();
+    this.setupPresence();
 
     this.scene.launch("HudScene");
 
@@ -40,6 +53,58 @@ export class WorldScene extends Phaser.Scene {
     this.events.on("resume", () => {
       this.busy = false;
     });
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.unsubPresence?.();
+      void this.state.adapters.presence.leave();
+    });
+  }
+
+  /** Join the presence channel and render remote players. Thin over the port. */
+  private setupPresence() {
+    const presence = this.state.adapters.presence;
+    const ps = this.state.player.getState();
+    const self: RemotePlayer = {
+      userId: this.state.adapters.auth.current().id,
+      displayName: ps.displayName,
+      color: ps.avatarColor,
+      x: this.player.x,
+      y: this.player.y,
+      facing: "down",
+    };
+    void presence.join("world", self);
+    this.unsubPresence = presence.onPlayers((players) =>
+      this.renderRemotePlayers(players),
+    );
+  }
+
+  private renderRemotePlayers(players: RemotePlayer[]) {
+    const seen = new Set<string>();
+    for (const p of players) {
+      seen.add(p.userId);
+      let sprite = this.remoteSprites.get(p.userId);
+      if (!sprite) {
+        const body = this.add.circle(0, 0, 11, p.color).setStrokeStyle(2, 0x1a1423, 1);
+        const tag = this.add
+          .text(0, -22, p.displayName, {
+            fontFamily: "Trebuchet MS",
+            fontSize: "11px",
+            color: "#cfe8ff",
+          })
+          .setOrigin(0.5);
+        sprite = this.add.container(p.x, p.y, [body, tag]).setDepth(10);
+        this.remoteSprites.set(p.userId, sprite);
+      }
+      // Smoothly move toward the reported position.
+      this.tweens.add({ targets: sprite, x: p.x, y: p.y, duration: 120 });
+    }
+    // Remove players who left.
+    for (const [id, sprite] of this.remoteSprites) {
+      if (!seen.has(id)) {
+        sprite.destroy();
+        this.remoteSprites.delete(id);
+      }
+    }
   }
 
   private drawWorld() {
@@ -162,8 +227,27 @@ export class WorldScene extends Phaser.Scene {
     else if (this.cursors.down.isDown || keys.S.isDown) vy = speed;
     this.playerBody.setVelocity(vx, vy);
 
+    if (vx < 0) this.facing = "left";
+    else if (vx > 0) this.facing = "right";
+    else if (vy < 0) this.facing = "up";
+    else if (vy > 0) this.facing = "down";
+
     this.updateAreaContext();
     this.handleInteraction();
+    this.broadcastMovement(vx !== 0 || vy !== 0);
+  }
+
+  /** Throttle movement broadcasts (~10Hz) through the presence port. */
+  private broadcastMovement(moving: boolean) {
+    if (!moving) return;
+    const now = this.time.now;
+    if (now - this.lastBroadcast < 100) return;
+    this.lastBroadcast = now;
+    this.state.adapters.presence.move({
+      x: this.player.x,
+      y: this.player.y,
+      facing: this.facing,
+    });
   }
 
   private updateAreaContext() {
