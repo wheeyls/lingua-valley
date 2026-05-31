@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { auditLayout } from "../assertions";
 import { dialogueLayout, type DialogueVM } from "../layouts/dialogue";
+import { conversationLayout, type ConversationVM } from "../layouts/conversation";
 
 function baseDialogue(over: Partial<DialogueVM> = {}): DialogueVM {
   return {
@@ -44,5 +45,49 @@ describe("dialogue layout", () => {
       (i) => i.rule === "no-interactive-overlap",
     );
     expect(overlapIssues).toHaveLength(0);
+  });
+});
+
+function baseConversation(over: Partial<ConversationVM> = {}): ConversationVM {
+  return {
+    npcName: "Rosa",
+    goal: "Greet people and say goodbye.",
+    npcSpeech: "¡Hola! Buenos días. ¿Cómo estás hoy?",
+    transcript: "",
+    feedback: "",
+    status: "Your turn — hold the mic and reply in Spanish.",
+    statusColor: "#d9b08c",
+    recording: false,
+    ...over,
+  };
+}
+
+describe("conversation layout", () => {
+  it("is healthy in the await-input state", () => {
+    const issues = auditLayout(conversationLayout(baseConversation()));
+    expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);
+  });
+
+  it("is healthy mid-conversation with transcript + feedback + recording", () => {
+    const issues = auditLayout(
+      conversationLayout(
+        baseConversation({
+          npcSpeech: "Muy bien. ¿Y de dónde eres? Cuéntame un poco más sobre ti.",
+          transcript: "You: “Hola, me llamo Miguel y soy de California.”",
+          feedback: "Great greeting!  +12 pesos",
+          status: "🔴 Recording… release to send.",
+          statusColor: "#b56576",
+          recording: true,
+        }),
+      ),
+    );
+    expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);
+  });
+
+  it("mic button meets the touch-target minimum", () => {
+    const issues = auditLayout(conversationLayout(baseConversation())).filter(
+      (i) => i.rule === "touch-target",
+    );
+    expect(issues).toHaveLength(0);
   });
 });

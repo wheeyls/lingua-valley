@@ -5,7 +5,9 @@ import { GameState, REGISTRY_KEY } from "../game/state";
 import { MicRecorder, playAudioBytes } from "../game/voice";
 import { transcribe, speak } from "../game/api";
 import { ConversationSession } from "../app/ConversationSession";
-import { FONT, TYPE, COLOR, MARGIN, makeButton } from "../game/layout";
+import { COLOR } from "../game/layout";
+import { conversationLayout } from "../ui/layouts/conversation";
+import { renderNodes } from "../ui/PhaserRenderer";
 
 function findNpc(id: string): Npc | undefined {
   for (const a of AREAS) {
@@ -29,7 +31,6 @@ export class ConversationScene extends Phaser.Scene {
   private feedbackText!: Phaser.GameObjects.Text;
   private recordKey!: Phaser.Input.Keyboard.Key;
   private micButton?: Phaser.GameObjects.Arc;
-  private micIcon?: Phaser.GameObjects.Text;
   private mastered = false;
 
   constructor() {
@@ -77,91 +78,32 @@ export class ConversationScene extends Phaser.Scene {
   // --- UI ------------------------------------------------------------------
 
   private buildUi() {
-    const w = this.scale.width;
-    const h = this.scale.height;
-    const dim = this.add.rectangle(0, 0, w, h, 0x0d0a12, 0.95).setOrigin(0, 0);
-
-    const title = this.add
-      .text(w / 2, h * 0.06, this.npc.name, {
-        fontFamily: FONT,
-        fontSize: TYPE.title,
-        color: COLOR.gold,
-      })
-      .setOrigin(0.5);
-
     const obj = this.npc.teachesObjectiveId
       ? objectiveById(this.npc.teachesObjectiveId)
       : undefined;
-    const goal = this.add
-      .text(w / 2, h * 0.06 + 34, obj ? obj.canDo : "", {
-        fontFamily: FONT,
-        fontSize: TYPE.label,
-        color: COLOR.green,
-        fontStyle: "italic",
-        align: "center",
-        wordWrap: { width: w - MARGIN * 3 },
-      })
-      .setOrigin(0.5);
 
-    // NPC speech (the big focal text).
-    this.npcText = this.add
-      .text(w / 2, h * 0.28, "", {
-        fontFamily: FONT,
-        fontSize: TYPE.title,
-        color: COLOR.parchment,
-        align: "center",
-        wordWrap: { width: w - MARGIN * 3 },
-        lineSpacing: 8,
-      })
-      .setOrigin(0.5);
+    // Render from the pure, tested conversation layout. We grab the live text
+    // and mic objects by id and keep updating them in place.
+    const nodes = conversationLayout({
+      npcName: this.npc.name,
+      goal: obj ? obj.canDo : "",
+      npcSpeech: "",
+      transcript: "",
+      feedback: "",
+      status: "",
+      statusColor: COLOR.goldText,
+      recording: false,
+    });
+    const ui = renderNodes(this, nodes, { leave: () => this.close() });
 
-    // What you said (transcript).
-    this.transcriptText = this.add
-      .text(w / 2, h * 0.46, "", {
-        fontFamily: FONT,
-        fontSize: TYPE.body,
-        color: COLOR.blueLight,
-        align: "center",
-        fontStyle: "italic",
-        wordWrap: { width: w - MARGIN * 3 },
-      })
-      .setOrigin(0.5);
+    this.npcText = ui.byId.get("npcSpeech") as Phaser.GameObjects.Text;
+    this.transcriptText = ui.byId.get("transcript") as Phaser.GameObjects.Text;
+    this.feedbackText = ui.byId.get("feedback") as Phaser.GameObjects.Text;
+    this.statusText = ui.byId.get("status") as Phaser.GameObjects.Text;
+    this.micButton = ui.byId.get("micButton") as Phaser.GameObjects.Arc;
 
-    // Feedback / corrections / pesos.
-    this.feedbackText = this.add
-      .text(w / 2, h * 0.56, "", {
-        fontFamily: FONT,
-        fontSize: TYPE.label,
-        color: "#f2cc8f",
-        align: "center",
-        wordWrap: { width: w - MARGIN * 3 },
-      })
-      .setOrigin(0.5);
-
-    // Status line just above the mic.
-    this.statusText = this.add
-      .text(w / 2, h * 0.68, "", {
-        fontFamily: FONT,
-        fontSize: TYPE.label,
-        color: COLOR.goldText,
-        align: "center",
-        wordWrap: { width: w - MARGIN * 2 },
-      })
-      .setOrigin(0.5);
-
-    // Big hold-to-talk mic button — the primary interaction. Large + central.
-    const micY = h * 0.82;
-    const micR = 76;
-    this.micButton = this.add
-      .circle(w / 2, micY, micR, COLOR.blue, 1)
-      .setStrokeStyle(5, COLOR.goldNum)
-      .setDepth(71)
-      .setInteractive({ useHandCursor: true });
-    this.micIcon = this.add
-      .text(w / 2, micY, "🎤", { fontSize: "60px" })
-      .setOrigin(0.5)
-      .setDepth(72);
-
+    // Hold-to-talk behavior on the rendered mic circle.
+    this.micButton.setInteractive({ useHandCursor: true });
     this.micButton.on(Phaser.Input.Events.POINTER_DOWN, () => {
       if (this.phase === "awaitInput") void this.beginRecording();
       else if (this.phase === "done") this.close();
@@ -171,40 +113,6 @@ export class ConversationScene extends Phaser.Scene {
     };
     this.micButton.on(Phaser.Input.Events.POINTER_UP, release);
     this.micButton.on(Phaser.Input.Events.POINTER_OUT, release);
-
-    const help = this.add
-      .text(w / 2, micY + micR + 24, "Hold the mic to speak · release to send", {
-        fontFamily: FONT,
-        fontSize: TYPE.small,
-        color: COLOR.muted,
-        align: "center",
-        wordWrap: { width: w - MARGIN * 2 },
-      })
-      .setOrigin(0.5);
-
-    this.add
-      .container(0, 0, [
-        dim,
-        title,
-        goal,
-        this.npcText,
-        this.transcriptText,
-        this.feedbackText,
-        this.statusText,
-        this.micButton,
-        this.micIcon,
-        help,
-      ])
-      .setDepth(70);
-
-    // Leave button (top-left, always reachable).
-    makeButton(this, MARGIN + 56, h * 0.06, "Leave", () => this.close(), {
-      width: 100,
-      height: 44,
-      fill: COLOR.roseFill,
-      fontSize: TYPE.label,
-      depth: 73,
-    });
   }
 
   /** Reflect recording state on the mic button. */
