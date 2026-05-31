@@ -53,10 +53,9 @@ async function bootstrap() {
   if (app.adapters.fakes) {
     game.scene.start("DevScene");
   }
-  // Show the login overlay whenever cloud auth is available.
-  if (cloudConfigured() || app.adapters.fakes) {
-    game.scene.start("AuthScene");
-  }
+  // Auth UI is now part of the HUD header (HudScene), so AuthScene is no longer
+  // launched separately. cloudConfigured retained for future use.
+  void cloudConfigured;
   return game;
 }
 

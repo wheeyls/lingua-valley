@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { auditLayout } from "../assertions";
 import { dialogueLayout, type DialogueVM } from "../layouts/dialogue";
 import { conversationLayout, type ConversationVM } from "../layouts/conversation";
+import { hudLayout, type HudVM } from "../layouts/hud";
 
 function baseDialogue(over: Partial<DialogueVM> = {}): DialogueVM {
   return {
@@ -89,5 +90,49 @@ describe("conversation layout", () => {
       (i) => i.rule === "touch-target",
     );
     expect(issues).toHaveLength(0);
+  });
+});
+
+function baseHud(over: Partial<HudVM> = {}): HudVM {
+  return {
+    authLabel: "Playing as guest",
+    authAction: "Sign in",
+    pesos: 0,
+    focus: 100,
+    focusMax: 100,
+    skills: { speaking: 0, listening: 0, vocab: 0 },
+    effectiveLevel: "—",
+    levels: [
+      { level: "A1", pct: 0 },
+      { level: "A2", pct: 0 },
+    ],
+    ...over,
+  };
+}
+
+describe("hud layout", () => {
+  it("is healthy for a fresh guest", () => {
+    const issues = auditLayout(hudLayout(baseHud()));
+    expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);
+  });
+
+  it("is healthy with large numbers + signed-in label", () => {
+    const issues = auditLayout(
+      hudLayout(
+        baseHud({
+          authLabel: "Signed in: miguel@example.com",
+          authAction: "Sign out",
+          pesos: 9999,
+          focus: 35,
+          skills: { speaking: 1200, listening: 800, vocab: 640 },
+          effectiveLevel: "A1",
+          levels: [
+            { level: "A1", pct: 100 },
+            { level: "A2", pct: 60 },
+          ],
+        }),
+      ),
+    );
+    expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);
   });
 });
