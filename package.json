@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.106.2",
     "openai": "^4.104.0",
     "phaser": "^3.80.1"
   },

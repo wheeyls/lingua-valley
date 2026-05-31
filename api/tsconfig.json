@@ -12,5 +12,5 @@
     "noEmit": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["**/*.ts", "../src/domain/conversation.ts", "../src/domain/cefr.ts"]
+  "include": ["**/*.ts", "../src/domain/**/*.ts", "../src/content/**/*.ts"]
 }

@@ -12,7 +12,12 @@
  *    real LLM grading, no multiplayer yet)
  */
 
-import { makeAdapters, type Adapters, type AdapterProfile } from "./adapters";
+import {
+  makeAdapters,
+  resolveCloudAdapters,
+  type Adapters,
+  type AdapterProfile,
+} from "./adapters";
 import { PlayerService } from "./PlayerService";
 import { supabaseEnv } from "../net/env";
 
@@ -40,7 +45,8 @@ export function chooseProfile(): AdapterProfile {
 
 /** Build and initialize the application for the chosen profile. */
 export async function composeApp(profile = chooseProfile()): Promise<ComposedApp> {
-  const adapters = makeAdapters(profile);
+  const adapters =
+    profile === "cloud" ? await resolveCloudAdapters() : makeAdapters(profile);
   const player = new PlayerService(adapters.repo, adapters.rewardGrader);
   await player.init();
   return { adapters, player, profile };

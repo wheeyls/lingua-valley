@@ -28,6 +28,11 @@ import { FakeConversationGrader } from "../net/fakes/FakeConversationGrader";
 import { FakePresenceGateway, PresenceBus } from "../net/fakes/FakePresenceGateway";
 import { FakeAuthGateway } from "../net/fakes/FakeAuthGateway";
 import { NoopPresenceGateway } from "../net/NoopPresenceGateway";
+import { getSupabase } from "../net/supabaseClient";
+import { SupabasePlayerRepository } from "../net/SupabasePlayerRepository";
+import { SupabaseAuthGateway } from "../net/SupabaseAuthGateway";
+import { SupabasePresenceGateway } from "../net/SupabasePresenceGateway";
+import { HttpRewardClient } from "../net/HttpRewardClient";
 
 export type AdapterProfile = "test" | "local-fakes" | "guest" | "cloud";
 
@@ -90,10 +95,9 @@ export function makeAdapters(profile: AdapterProfile): Adapters {
     }
 
     case "cloud": {
-      // Real services wired here at the last second. Until the Supabase
-      // adapters are implemented, fall back to the guest path so the game
-      // always runs. (SupabasePlayerRepository/Auth/Presence + HttpRewardClient
-      // will replace these lines.)
+      // Synchronous skeleton; composeApp upgrades to real Supabase adapters once
+      // the session is known (see resolveCloudAdapters). If Supabase isn't
+      // actually configured, this is just the guest path.
       const clock = systemClock;
       const repo = new LocalPlayerRepository(getOrCreateGuestIdSafe());
       const rewardGrader = new LocalRewardGrader(repo, clock, objectiveWordIds);
@@ -108,6 +112,55 @@ export function makeAdapters(profile: AdapterProfile): Adapters {
       };
     }
   }
+}
+
+/**
+ * Resolve real cloud adapters once the Supabase session is known.
+ *  - Signed in  -> SupabasePlayerRepository + HttpRewardClient (authoritative)
+ *                  + SupabasePresenceGateway + SupabaseAuthGateway.
+ *  - Signed out -> guest path (local save) but with real SupabaseAuthGateway so
+ *                  the player can sign in; presence stays noop until signed in.
+ * Used by composeApp; kept async + out of the sync factory so tests stay pure.
+ */
+export async function resolveCloudAdapters(): Promise<Adapters> {
+  const sb = getSupabase();
+  const guestId = getOrCreateGuestIdSafe();
+  const clock = systemClock;
+
+  if (!sb) {
+    // Supabase not configured after all — behave as guest.
+    return makeAdapters("guest");
+  }
+
+  const { data } = await sb.auth.getSession();
+  const userId = data.session?.user?.id ?? null;
+  const auth = new SupabaseAuthGateway(sb, guestId);
+  const conversationGrader = new HttpConversationGrader();
+
+  if (userId) {
+    const repo = new SupabasePlayerRepository(sb, userId);
+    return {
+      profile: "cloud",
+      clock,
+      repo,
+      rewardGrader: new HttpRewardClient(),
+      conversationGrader,
+      presence: new SupabasePresenceGateway(sb),
+      auth,
+    };
+  }
+
+  // Signed out: local guest save + real auth so sign-in is available.
+  const repo = new LocalPlayerRepository(guestId);
+  return {
+    profile: "cloud",
+    clock,
+    repo,
+    rewardGrader: new LocalRewardGrader(repo, clock, objectiveWordIds),
+    conversationGrader,
+    presence: new NoopPresenceGateway(),
+    auth,
+  };
 }
 
 /** Guest id in browser; stable constant under Node/tests (no localStorage). */
