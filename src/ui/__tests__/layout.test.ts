@@ -111,13 +111,19 @@ function baseHud(over: Partial<HudVM> = {}): HudVM {
       { level: "A1", pct: 0 },
       { level: "A2", pct: 0 },
     ],
+    menuOpen: false,
     ...over,
   };
 }
 
 describe("hud layout", () => {
-  it("is healthy for a fresh guest", () => {
+  it("is healthy for a fresh guest (collapsed bar)", () => {
     const issues = auditLayout(hudLayout(baseHud()));
+    expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);
+  });
+
+  it("is healthy with the menu open", () => {
+    const issues = auditLayout(hudLayout(baseHud({ menuOpen: true })));
     expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);
   });
 

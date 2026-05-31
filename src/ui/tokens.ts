@@ -13,6 +13,12 @@ export const TOUCH_TARGET = 56;
 /** Outer screen margin used consistently across panels. */
 export const MARGIN = 16;
 
+/**
+ * Height of the reserved HUD band at the top of the screen. The world camera
+ * fills the screen BELOW this, so the HUD never overlaps NPCs.
+ */
+export const HUD_BAND_HEIGHT = 96;
+
 export const FONT = '"Trebuchet MS", "Segoe UI", system-ui, sans-serif';
 
 /** Type scale, sized for legibility at phone arm's length. */

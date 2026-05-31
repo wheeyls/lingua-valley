@@ -11,6 +11,7 @@ export class HudScene extends Phaser.Scene {
   private state!: GameState;
   private ui?: RenderedUI;
   private banner?: RenderedUI;
+  private menuOpen = false;
 
   constructor() {
     super({ key: "HudScene", active: false });
@@ -44,6 +45,7 @@ export class HudScene extends Phaser.Scene {
       skills: ps.skills,
       effectiveLevel: prof.effectiveLevel() ?? "—",
       levels,
+      menuOpen: this.menuOpen,
     };
   }
 
@@ -51,6 +53,10 @@ export class HudScene extends Phaser.Scene {
     this.ui?.destroy();
     this.ui = renderNodes(this, hudLayout(this.viewModel()), {
       auth: () => this.onAuth(),
+      menu: () => {
+        this.menuOpen = !this.menuOpen;
+        this.renderHud();
+      },
     });
     this.ui.container.setScrollFactor(0);
   }

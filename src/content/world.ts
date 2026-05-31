@@ -50,9 +50,16 @@ export interface Area {
 export const TILE = 32;
 
 /**
- * The vertical slice: two areas side by side, separated by a visible threshold.
- * Plaza (A1) on the left, Mercado (A2) on the right.
+ * Portrait world: areas are tall and STACKED VERTICALLY so the map fills a phone
+ * screen. Plaza del Saludo (A1) is on top; you walk DOWN through the threshold
+ * into El Mercado (A2). Each area is 15 tiles wide (480px) × 16 tiles tall
+ * (512px); the world is 480×1024 — taller than the 540×960 viewport.
+ *
+ * NPC tileX/tileY are in WORLD tile coordinates (not area-local).
  */
+const AREA_W = 15; // tiles
+const AREA_H = 16; // tiles
+
 export const AREAS: Area[] = [
   {
     id: "plaza",
@@ -60,13 +67,13 @@ export const AREAS: Area[] = [
     level: "A1",
     groundColor: 0x4a7c59,
     accentColor: 0x9bc995,
-    bounds: { x: 0, y: 0, width: 20 * TILE, height: 18 * TILE },
+    bounds: { x: 0, y: 0, width: AREA_W * TILE, height: AREA_H * TILE },
     npcs: [
       {
         id: "rosa",
         name: "Rosa",
         tileX: 4,
-        tileY: 5,
+        tileY: 4,
         color: 0xe07a5f,
         teachesObjectiveId: "a1.greetings",
         voice: "nova",
@@ -85,8 +92,8 @@ export const AREAS: Area[] = [
       {
         id: "mateo",
         name: "Mateo",
-        tileX: 12,
-        tileY: 4,
+        tileX: 11,
+        tileY: 5,
         color: 0x3d5a80,
         teachesObjectiveId: "a1.introductions",
         lines: [
@@ -97,8 +104,8 @@ export const AREAS: Area[] = [
       {
         id: "lucia",
         name: "Lucía",
-        tileX: 7,
-        tileY: 12,
+        tileX: 4,
+        tileY: 11,
         color: 0xf2cc8f,
         teachesObjectiveId: "a1.numbers",
         lines: [
@@ -108,8 +115,8 @@ export const AREAS: Area[] = [
       {
         id: "don_pablo",
         name: "Don Pablo",
-        tileX: 15,
-        tileY: 13,
+        tileX: 11,
+        tileY: 12,
         color: 0x81b29a,
         teachesObjectiveId: "a1.courtesy",
         lines: [
@@ -124,13 +131,13 @@ export const AREAS: Area[] = [
     level: "A2",
     groundColor: 0x6d597a,
     accentColor: 0xb56576,
-    bounds: { x: 20 * TILE, y: 0, width: 20 * TILE, height: 18 * TILE },
+    bounds: { x: 0, y: AREA_H * TILE, width: AREA_W * TILE, height: AREA_H * TILE },
     npcs: [
       {
         id: "vendedora",
         name: "La Vendedora",
-        tileX: 24,
-        tileY: 6,
+        tileX: 4,
+        tileY: AREA_H + 4,
         color: 0xeaac8b,
         teachesObjectiveId: "a2.market.quantities",
         lines: [
@@ -149,8 +156,8 @@ export const AREAS: Area[] = [
       {
         id: "panadero",
         name: "El Panadero",
-        tileX: 32,
-        tileY: 10,
+        tileX: 11,
+        tileY: AREA_H + 10,
         color: 0xd4a373,
         teachesObjectiveId: "a2.market.food",
         lines: [

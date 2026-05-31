@@ -10,6 +10,7 @@ import {
 } from "../content/world";
 import { GameState, REGISTRY_KEY } from "../game/state";
 import type { RemotePlayer } from "../domain/ports";
+import { HUD_BAND_HEIGHT } from "../ui/tokens";
 
 interface NpcSprite {
   npc: Npc;
@@ -140,16 +141,18 @@ export class WorldScene extends Phaser.Scene {
         .setDepth(5);
     }
 
-    // The threshold between Plaza (A1) and Mercado (A2): a visible archway.
-    const thresholdX = AREAS[0].bounds.x + AREAS[0].bounds.width;
+    // The threshold between Plaza (A1, top) and Mercado (A2, below): a HORIZONTAL
+    // archway you walk DOWN through.
+    const thresholdY = AREAS[0].bounds.y + AREAS[0].bounds.height;
     const arch = this.add.graphics();
     arch.fillStyle(0x2b2024, 1);
-    arch.fillRect(thresholdX - 6, 0, 12, WORLD_HEIGHT);
+    arch.fillRect(0, thresholdY - 6, WORLD_WIDTH, 12);
     arch.fillStyle(0xd9b08c, 1);
-    arch.fillRect(thresholdX - 10, WORLD_HEIGHT / 2 - 48, 20, 96); // gateway gap
+    arch.fillRect(WORLD_WIDTH / 2 - 48, thresholdY - 10, 96, 20); // gateway gap
+    arch.setDepth(4);
     this.add
-      .text(thresholdX, 24, "⟶", {
-        fontSize: "28px",
+      .text(WORLD_WIDTH / 2, thresholdY, "▼", {
+        fontSize: "26px",
         color: "#f4ecd8",
       })
       .setOrigin(0.5)
@@ -183,8 +186,8 @@ export class WorldScene extends Phaser.Scene {
 
   private spawnPlayer() {
     const start = AREAS[0];
-    const px = start.bounds.x + 3 * TILE;
-    const py = start.bounds.y + start.bounds.height / 2;
+    const px = start.bounds.x + start.bounds.width / 2;
+    const py = start.bounds.y + 3 * TILE;
 
     const body = this.add.circle(0, 0, 11, 0xf4ecd8);
     body.setStrokeStyle(2, 0x1a1423, 1);
@@ -255,9 +258,18 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private setupCamera() {
+    const cam = this.cameras.main;
     this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-    this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-    this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+    cam.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+    // Reserve a slim HUD band at the top; the world camera fills the rest of the
+    // portrait screen below it. Zoom so the (480px-wide) world fills the width.
+    const band = HUD_BAND_HEIGHT;
+    const viewW = this.scale.width;
+    const viewH = this.scale.height - band;
+    cam.setViewport(0, band, viewW, viewH);
+    cam.setZoom(viewW / WORLD_WIDTH); // 540/480 = 1.125 — fills width exactly
+    cam.startFollow(this.player, true, 0.12, 0.12);
   }
 
   update() {
