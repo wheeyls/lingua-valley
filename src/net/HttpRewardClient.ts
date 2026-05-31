@@ -1,6 +1,6 @@
 /**
  * HttpRewardClient — the server-authoritative RewardGrader. Posts the graded
- * activity to /api/activity/complete with the user's JWT; the server recomputes
+ * activity to /api/activity-complete with the user's JWT; the server recomputes
  * the economy (same domain functions) and persists, returning the authoritative
  * new state. The client never grants itself resources.
  */
@@ -12,7 +12,7 @@ import { getAccessToken } from "./supabaseClient";
 export class HttpRewardClient implements RewardGrader {
   async grant(activity: ActivityResult): Promise<ApplyResult> {
     const token = await getAccessToken();
-    const res = await fetch("/api/activity/complete", {
+    const res = await fetch("/api/activity-complete", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -20,7 +20,7 @@ export class HttpRewardClient implements RewardGrader {
       },
       body: JSON.stringify({ activity }),
     });
-    if (!res.ok) throw new Error(`activity/complete failed: ${res.status}`);
+    if (!res.ok) throw new Error(`activity-complete failed: ${res.status}`);
     return (await res.json()) as ApplyResult;
   }
 }

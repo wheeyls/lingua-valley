@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getAdminClient, userIdFromAuthHeader } from "../_lib/supabaseAdmin.js";
-import { applyActivity, initialPlayerState, type ActivityResult } from "../../src/domain/player.js";
-import { objectiveWordIds } from "../../src/content/curriculum.js";
+import { getAdminClient, userIdFromAuthHeader } from "./_lib/supabaseAdmin.js";
+import { applyActivity, initialPlayerState, type ActivityResult } from "../src/domain/player.js";
+import { objectiveWordIds } from "../src/content/curriculum.js";
 import {
   rowsToPlayerState,
   playerStateToRow,
@@ -9,7 +9,7 @@ import {
   type ProfileRow,
   type PlayerStateRow,
   type VocabCardRow,
-} from "../../src/net/supabaseMappers.js";
+} from "../src/net/supabaseMappers.js";
 
 export const config = { api: { bodyParser: { sizeLimit: "1mb" } } };
 

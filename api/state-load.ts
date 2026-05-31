@@ -1,12 +1,12 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getAdminClient, userIdFromAuthHeader } from "../_lib/supabaseAdmin.js";
-import { initialPlayerState } from "../../src/domain/player.js";
+import { getAdminClient, userIdFromAuthHeader } from "./_lib/supabaseAdmin.js";
+import { initialPlayerState } from "../src/domain/player.js";
 import {
   rowsToPlayerState,
   type ProfileRow,
   type PlayerStateRow,
   type VocabCardRow,
-} from "../../src/net/supabaseMappers.js";
+} from "../src/net/supabaseMappers.js";
 
 export const config = { api: { bodyParser: { sizeLimit: "1mb" } } };
 
