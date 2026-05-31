@@ -6,8 +6,7 @@
  * the composition root. The domain never imports a vendor SDK.
  */
 
-import type { PlayerState, ActivityResult } from "./player";
-import type { ActivityReward } from "./economy";
+import type { PlayerState, ActivityResult, ApplyResult } from "./player";
 
 /** Time source, so domain logic stays deterministic and testable. */
 export interface Clock {
@@ -36,11 +35,7 @@ export interface PlayerStateRepository {
  * and receives the new authoritative state.
  */
 export interface RewardGrader {
-  grant(activity: ActivityResult): Promise<{
-    state: PlayerState;
-    reward: ActivityReward | null;
-    blockedReason?: string;
-  }>;
+  grant(activity: ActivityResult): Promise<ApplyResult>;
 }
 
 /** A remote player as the domain understands them (no transport details). */

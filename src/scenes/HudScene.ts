@@ -3,9 +3,13 @@ import { CEFR_LEVELS } from "../domain/cefr";
 import { GameState, REGISTRY_KEY } from "../game/state";
 import type { Area } from "../content/world";
 
+import { FOCUS_MAX } from "../domain/player";
+import type { PlayerState } from "../domain/player";
+
 export class HudScene extends Phaser.Scene {
   private state!: GameState;
   private panel!: Phaser.GameObjects.Container;
+  private resourcePanel!: Phaser.GameObjects.Container;
   private areaBanner?: Phaser.GameObjects.Text;
 
   constructor() {
@@ -17,7 +21,62 @@ export class HudScene extends Phaser.Scene {
     this.renderHud();
 
     this.state.proficiency.subscribe(() => this.renderHud());
+    this.state.player.subscribe((ps) => this.renderResources(ps));
     this.game.events.on("areaChanged", (area: Area) => this.showArea(area));
+  }
+
+  /** Top-right resource strip: Pesos, Focus, skills. Pure rendering of state. */
+  private renderResources(ps: PlayerState) {
+    this.resourcePanel?.destroy();
+    const w = this.scale.width;
+    const children: Phaser.GameObjects.GameObject[] = [];
+
+    const panelW = 210;
+    const x = w - panelW - 8;
+    const bg = this.add
+      .rectangle(x, 8, panelW, 104, 0x1a1423, 0.82)
+      .setOrigin(0, 0)
+      .setStrokeStyle(2, 0xd9b08c);
+    children.push(bg);
+
+    const pesos = this.add.text(x + 12, 16, `💰 ${ps.pesos} pesos`, {
+      fontFamily: "Trebuchet MS",
+      fontSize: "15px",
+      color: "#ffe08a",
+    });
+    children.push(pesos);
+
+    // Focus bar.
+    const focusLabel = this.add.text(x + 12, 42, "Focus", {
+      fontFamily: "Trebuchet MS",
+      fontSize: "12px",
+      color: "#9ec5ff",
+    });
+    const barBg = this.add
+      .rectangle(x + 64, 49, 130, 10, 0x3a2f42)
+      .setOrigin(0, 0.5);
+    const barFill = this.add
+      .rectangle(x + 64, 49, 130 * (ps.focus / FOCUS_MAX), 10, 0x6db1ff)
+      .setOrigin(0, 0.5);
+    const focusNum = this.add.text(x + 12, 58, `${ps.focus}/${FOCUS_MAX}`, {
+      fontFamily: "Trebuchet MS",
+      fontSize: "10px",
+      color: "#8a8290",
+    });
+    children.push(focusLabel, barBg, barFill, focusNum);
+
+    const skills = this.add.text(
+      x + 12,
+      76,
+      `🗣 ${ps.skills.speaking}  👂 ${ps.skills.listening}  📖 ${ps.skills.vocab}`,
+      { fontFamily: "Trebuchet MS", fontSize: "12px", color: "#9bc995" },
+    );
+    children.push(skills);
+
+    this.resourcePanel = this.add
+      .container(0, 0, children)
+      .setScrollFactor(0)
+      .setDepth(41);
   }
 
   private renderHud() {

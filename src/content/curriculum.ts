@@ -125,3 +125,11 @@ export function curriculumByLevel(): Map<CefrLevel, LearningObjective[]> {
 export function objectiveById(id: string): LearningObjective | undefined {
   return CURRICULUM.find((o) => o.id === id);
 }
+
+/**
+ * Stable word ids for an objective's vocab (the Spanish phrase is the id).
+ * Used by the domain economy reducer to advance/score SRS cards.
+ */
+export function objectiveWordIds(objectiveId: string): string[] {
+  return objectiveById(objectiveId)?.vocab.map((v) => v.es) ?? [];
+}

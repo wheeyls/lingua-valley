@@ -5,6 +5,7 @@ import { MinigameScene } from "./scenes/MinigameScene";
 import { ConversationScene } from "./scenes/ConversationScene";
 import { HudScene } from "./scenes/HudScene";
 import { GameState, REGISTRY_KEY } from "./game/state";
+import { composeGuestApp } from "./app/composition";
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -20,9 +21,18 @@ const config: Phaser.Types.Core.GameConfig = {
   scene: [WorldScene, HudScene, DialogueScene, MinigameScene, ConversationScene],
 };
 
-const game = new Phaser.Game(config);
+// Composition root: build the application (guest path today; cloud activates
+// when Supabase env vars + sign-in are present), then start the game once the
+// player's state has loaded.
+async function bootstrap() {
+  const app = composeGuestApp();
+  await app.player.init();
 
-// One shared domain state for the whole game.
-game.registry.set(REGISTRY_KEY, new GameState());
+  const game = new Phaser.Game(config);
+  game.registry.set(REGISTRY_KEY, new GameState(app.player));
+  return game;
+}
 
-export default game;
+const gamePromise = bootstrap();
+
+export default gamePromise;

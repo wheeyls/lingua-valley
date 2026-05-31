@@ -232,20 +232,39 @@ export class ConversationScene extends Phaser.Scene {
         playerUtterance: utterance,
       });
 
-      // Feedback + corrections.
+      // Grant resources for this turn through the RewardGrader port. The
+      // domain decides economy + mastery; the scene only renders the outcome.
+      const gateOpens = gateShouldOpen(result.objectiveMet, result.grade);
+      const applied = await this.state.player.completeActivity({
+        objectiveId: obj.id,
+        level: obj.level,
+        skill: "speaking",
+        wordIds: obj.vocab.map((v) => v.es),
+        communication: result.grade.communication,
+        accuracy: result.grade.accuracy,
+        objectiveMet: gateOpens,
+      });
+
+      // Feedback + corrections, plus the reward earned.
       const corr =
         result.grade.corrections.length > 0
           ? "  (" + result.grade.corrections.join("; ") + ")"
           : "";
-      this.feedbackText.setText(result.grade.feedback + corr);
+      const earned =
+        applied.reward && applied.reward.pesos > 0
+          ? `  +${applied.reward.pesos} pesos`
+          : applied.blockedReason === "insufficient-focus"
+            ? "  (out of Focus — rest until tomorrow)"
+            : "";
+      this.feedbackText.setText(result.grade.feedback + corr + earned);
 
       this.history.push({ role: "npc", text: result.npcReply });
       await this.npcSay(result.npcReply);
 
-      // Decide whether the gate opens.
-      if (gateShouldOpen(result.objectiveMet, result.grade)) {
+      // Mastery is authoritative from the domain reducer.
+      const nowMastered = applied.state.masteredObjectiveIds.includes(obj.id);
+      if (nowMastered) {
         this.mastered = true;
-        this.state.proficiency.master(obj.id);
         this.finish(true);
       } else if (result.conversationComplete) {
         this.finish(false);

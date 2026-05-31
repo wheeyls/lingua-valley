@@ -1,36 +1,27 @@
 /**
- * Shared game state bridging the pure domain (Proficiency) and Phaser scenes.
- * A single instance is created in main.ts and passed via the Phaser registry.
+ * Shared game state bridging the domain/application layer and Phaser scenes.
+ * Constructed once at the composition root (main.ts) and passed via the
+ * Phaser registry. Holds no game rules — it wires PlayerService to the
+ * Proficiency view the comprehension gate consumes.
  */
 
 import { Proficiency } from "../domain/proficiency";
 import { curriculumByLevel } from "../content/curriculum";
-
-const STORAGE_KEY = "lingua-valley.mastered";
-
-function loadMastered(): string[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch {
-    return [];
-  }
-}
+import type { PlayerService } from "../app/PlayerService";
 
 export class GameState {
+  /** Proficiency view kept in sync with the player's mastered objectives. */
   readonly proficiency: Proficiency;
 
-  constructor() {
-    this.proficiency = new Proficiency(curriculumByLevel(), loadMastered());
-    // Persist on every change.
-    this.proficiency.subscribe((snap) => {
-      try {
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify(snap.masteredObjectiveIds),
-        );
-      } catch {
-        /* ignore storage errors */
+  constructor(readonly player: PlayerService) {
+    this.proficiency = new Proficiency(
+      curriculumByLevel(),
+      player.getState().masteredObjectiveIds,
+    );
+    // Keep the comprehension gate's view in sync with authoritative mastery.
+    player.subscribe((state) => {
+      for (const id of state.masteredObjectiveIds) {
+        this.proficiency.master(id);
       }
     });
   }
