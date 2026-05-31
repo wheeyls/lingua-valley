@@ -5,11 +5,13 @@ import {
   WORLD_WIDTH,
   WORLD_HEIGHT,
   areaAt,
+  townOfNpc,
   type Area,
   type Npc,
 } from "../content/world";
 import { GameState, REGISTRY_KEY } from "../game/state";
 import type { RemotePlayer } from "../domain/ports";
+import { isTownUnlocked } from "../domain/town";
 import { HUD_BAND_HEIGHT } from "../ui/tokens";
 
 interface NpcSprite {
@@ -58,6 +60,7 @@ export class WorldScene extends Phaser.Scene {
     // Resume flag when overlay scenes close.
     this.events.on("resume", () => {
       this.busy = false;
+      this.refreshNpcLocks(); // a gatekeeper may have just unlocked producers
     });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -181,6 +184,19 @@ export class WorldScene extends Phaser.Scene {
         container.setDepth(10);
         this.npcs.push({ npc, container, label });
       }
+    }
+    this.refreshNpcLocks();
+  }
+
+  /** Dim + mark locked producer NPCs (until the town's gatekeeper is beaten). */
+  private refreshNpcLocks() {
+    const state = this.state.player.getState();
+    for (const sprite of this.npcs) {
+      if (sprite.npc.role !== "producer") continue;
+      const town = townOfNpc(sprite.npc.id);
+      const unlocked = !!town && isTownUnlocked(state, town.id);
+      sprite.container.setAlpha(unlocked ? 1 : 0.45);
+      sprite.label.setText(unlocked ? sprite.npc.name : `🔒 ${sprite.npc.name}`);
     }
   }
 

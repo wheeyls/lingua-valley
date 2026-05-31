@@ -1,10 +1,11 @@
 import Phaser from "phaser";
-import { AREAS, type Npc } from "../content/world";
+import { AREAS, townOfNpc, type Npc } from "../content/world";
 import { comprehend } from "../domain/comprehension";
 import { objectiveById } from "../content/curriculum";
 import { GameState, REGISTRY_KEY } from "../game/state";
 import { dialogueLayout, type DialogueVM } from "../ui/layouts/dialogue";
 import { renderNodes, type RenderedUI } from "../ui/PhaserRenderer";
+import { isTownUnlocked } from "../domain/town";
 
 function findNpc(id: string): Npc | undefined {
   for (const a of AREAS) {
@@ -86,8 +87,21 @@ export class DialogueScene extends Phaser.Scene {
           : "Done"
         : "Continue ▶",
       lessonLabel: teachable ? objectiveById(objId!)?.label : undefined,
-      canTrade: !!this.npc.trades && this.npc.trades.length > 0,
+      canTrade: this.canTrade(),
     };
+  }
+
+  /**
+   * Whether trading is offered. Producers are locked until the town's gatekeeper
+   * is beaten; middlemen/others trade freely if they have goods.
+   */
+  private canTrade(): boolean {
+    if (!this.npc.trades || this.npc.trades.length === 0) return false;
+    if (this.npc.role === "producer") {
+      const town = townOfNpc(this.npc.id);
+      return !!town && isTownUnlocked(this.state.player.getState(), town.id);
+    }
+    return true;
   }
 
   private renderLine() {

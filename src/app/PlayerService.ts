@@ -45,6 +45,17 @@ export class PlayerService {
     this.emit();
   }
 
+  /** Apply a pure state transform (e.g. unlockTown) and persist if it changed. */
+  async update(transform: (state: PlayerState) => PlayerState): Promise<PlayerState> {
+    const next = transform(this.state);
+    if (next !== this.state) {
+      this.state = next;
+      await this.repo.save(this.state);
+      this.emit();
+    }
+    return this.state;
+  }
+
   subscribe(fn: Listener): () => void {
     this.listeners.add(fn);
     fn(this.state);

@@ -52,6 +52,9 @@ export interface PlayerState {
 
   /** Tradeable goods inventory: good id -> quantity. */
   goods: Record<string, number>;
+
+  /** Town ids whose gatekeeper the player has beaten (producers unlocked). */
+  townsUnlocked: string[];
 }
 
 export const FOCUS_MAX = 100;
@@ -72,6 +75,7 @@ export function initialPlayerState(
     cards: {},
     rapport: {},
     goods: {},
+    townsUnlocked: [],
   };
 }
 
@@ -229,6 +233,9 @@ export function mergeStates(account: PlayerState, guest: PlayerState): PlayerSta
   for (const [good, qty] of Object.entries(guest.goods)) {
     goods[good] = (goods[good] ?? 0) + qty;
   }
+  const townsUnlocked = [
+    ...new Set([...account.townsUnlocked, ...guest.townsUnlocked]),
+  ];
   return {
     ...account,
     pesos: account.pesos + guest.pesos,
@@ -237,5 +244,6 @@ export function mergeStates(account: PlayerState, guest: PlayerState): PlayerSta
     cards,
     rapport,
     goods,
+    townsUnlocked,
   };
 }

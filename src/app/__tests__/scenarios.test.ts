@@ -232,3 +232,33 @@ describe("scripted lesson role-play (NPC=A, player=B)", () => {
     expect(player.getState().pesos).toBeGreaterThan(0);
   });
 });
+
+describe("gatekeeper unlocks producers (the journey)", () => {
+  it("beating the capstone unlocks the town's producers", async () => {
+    const { unlockTown, producerAccessible } = await import("../../domain/town");
+
+    const adapters = makeAdapters("test");
+    const player = new PlayerService(adapters.repo, adapters.rewardGrader);
+    await player.init();
+
+    // Before: producers locked.
+    expect(producerAccessible(player.getState(), "mercado")).toBe(false);
+
+    // Simulate beating the gatekeeper (capstone passed) by unlocking the town
+    // through the same pure transform the scene uses.
+    await player.update((s) => unlockTown(s, "mercado"));
+
+    // After: producers accessible + persisted.
+    expect(producerAccessible(player.getState(), "mercado")).toBe(true);
+    expect((await adapters.repo.load())!.townsUnlocked).toContain("mercado");
+  });
+
+  it("producer goods are cheaper than middleman goods (direct access pays off)", async () => {
+    const { buyPrice } = await import("../../domain/trade");
+    // Middleman apples (vendedora) base 8 vs producer maíz base 5 — producers
+    // carry cheaper staples; the merchant arbitrage is real.
+    const apple = { id: "manzanas", name: "Manzanas", baseValue: 8, requiresTier: "stranger" as const };
+    const maiz = { id: "maiz", name: "Maíz", baseValue: 5, requiresTier: "stranger" as const };
+    expect(buyPrice(maiz, "friend")).toBeLessThan(buyPrice(apple, "friend"));
+  });
+});

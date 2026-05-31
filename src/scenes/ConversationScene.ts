@@ -8,6 +8,8 @@ import { ConversationSession } from "../app/ConversationSession";
 import { RolePlay } from "../domain/rolePlay";
 import { HoldToTalk, type HoldAction } from "../domain/holdToTalk";
 import { tierFor, tierLabel } from "../domain/friendship";
+import { townOfNpc } from "../content/world";
+import { isTownUnlocked, capstonePassed, unlockTown } from "../domain/town";
 import { lessonBySlug } from "../content/lessons";
 import { COLOR } from "../game/layout";
 import { conversationLayout } from "../ui/layouts/conversation";
@@ -36,6 +38,11 @@ export class ConversationScene extends Phaser.Scene {
   private recordKey!: Phaser.Input.Keyboard.Key;
   private micButton?: Phaser.GameObjects.Arc;
   private mastered = false;
+
+  // Running average quality across the conversation (for gatekeeper capstones).
+  private qualitySum = 0;
+  private qualityTurns = 0;
+  private townUnlockedThisVisit = false;
 
   // Press-and-hold state machine (pure, tested). Robust to async mic startup
   // and touch jitter.
@@ -289,13 +296,20 @@ export class ConversationScene extends Phaser.Scene {
           : "";
       this.feedbackText.setText(outcome.grade.feedback + corr + earned + rapport);
 
+      // Track quality for gatekeeper capstones (0.6 communication / 0.4 accuracy).
+      this.qualitySum +=
+        0.6 * outcome.grade.communication + 0.4 * outcome.grade.accuracy;
+      this.qualityTurns += 1;
+
       await this.npcSay(outcome.npcReply);
 
       if (outcome.mastered) {
         this.mastered = true;
+        await this.maybeUnlockTown();
         this.finish(true);
       } else if (outcome.complete) {
         // Completing a scripted role-play to the end is itself a success.
+        await this.maybeUnlockTown();
         this.finish(this.session.isRolePlay);
       } else {
         this.phase = "awaitInput";
@@ -311,9 +325,36 @@ export class ConversationScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * If this NPC is a town's gatekeeper and the player cleared the capstone
+   * quality bar, unlock the town's producers.
+   */
+  private async maybeUnlockTown() {
+    const town = townOfNpc(this.npc.id);
+    if (
+      !town?.gatekeeper ||
+      town.gatekeeper.npcId !== this.npc.id ||
+      this.qualityTurns === 0
+    ) {
+      return;
+    }
+    if (isTownUnlocked(this.state.player.getState(), town.id)) return;
+
+    const avgQuality = this.qualitySum / this.qualityTurns;
+    if (capstonePassed(town.gatekeeper, avgQuality)) {
+      await this.state.player.update((s) => unlockTown(s, town.id));
+      this.townUnlockedThisVisit = true;
+    }
+  }
+
   private finish(passed: boolean) {
     this.phase = "done";
-    if (passed) {
+    if (this.townUnlockedThisVisit) {
+      this.setStatus(
+        "¡Te ganaste su confianza! The community opens — producers unlocked. Tap to continue.",
+        "#9bc995",
+      );
+    } else if (passed) {
       this.setStatus("¡Excelente! You demonstrated the skill. Tap to continue.", "#9bc995");
     } else {
       this.setStatus("Good practice — try again when ready. Tap to continue.", "#f2cc8f");

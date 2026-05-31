@@ -44,6 +44,15 @@ export interface Npc {
    * better prices. Presence of `trades` makes the NPC a merchant.
    */
   trades?: Good[];
+  /**
+   * Role in the town economy:
+   *  - "middleman": always accessible, but marks goods up (steep markup).
+   *  - "producer": a farmer/maker — accessible ONLY after the town's gatekeeper
+   *    is beaten; far better prices + exclusive goods.
+   *  - "gatekeeper": runs the capstone role-play that unlocks the producers.
+   *  - undefined: a regular townsperson (practice/friendship only).
+   */
+  role?: "middleman" | "producer" | "gatekeeper";
 }
 
 export interface Area {
@@ -56,6 +65,13 @@ export interface Area {
   /** Pixel bounds of this area within the shared world. */
   bounds: { x: number; y: number; width: number; height: number };
   npcs: Npc[];
+  /**
+   * Journey metadata. An Area IS a town. depth 0 = metropolis; englishAvailability
+   * 1 = lots of English help, 0 = remote. `gatekeeper` names the capstone NPC.
+   */
+  depth: number;
+  englishAvailability: number;
+  gatekeeper?: { npcId: string; lessonSlug: string; passQuality: number };
 }
 
 export const TILE = 32;
@@ -79,6 +95,10 @@ export const AREAS: Area[] = [
     groundColor: 0x4a7c59,
     accentColor: 0x9bc995,
     bounds: { x: 0, y: 0, width: AREA_W * TILE, height: AREA_H * TILE },
+    // The metropolis: lots of English help, forgiving. No gatekeeper — it's the
+    // friendly starting town where you learn the ropes.
+    depth: 0,
+    englishAvailability: 1,
     npcs: [
       {
         id: "rosa",
@@ -144,6 +164,16 @@ export const AREAS: Area[] = [
     groundColor: 0x6d597a,
     accentColor: 0xb56576,
     bounds: { x: 0, y: AREA_H * TILE, width: AREA_W * TILE, height: AREA_H * TILE },
+    // A remoter market town: less English, stricter. La Vendedora & El Panadero
+    // are MIDDLEMEN (marked-up). Beat the gatekeeper (Doña Carmen) to reach the
+    // direct producer, El Granjero.
+    depth: 1,
+    englishAvailability: 0.5,
+    gatekeeper: {
+      npcId: "carmen",
+      lessonSlug: "asking-for-directions",
+      passQuality: 0.7,
+    },
     npcs: [
       {
         id: "vendedora",
@@ -151,6 +181,7 @@ export const AREAS: Area[] = [
         tileX: 4,
         tileY: AREA_H + 4,
         color: 0xeaac8b,
+        role: "middleman",
         teachesObjectiveId: "a2.market.quantities",
         trades: [
           { id: "manzanas", name: "Manzanas", baseValue: 8, requiresTier: "stranger" },
@@ -177,6 +208,7 @@ export const AREAS: Area[] = [
         tileX: 11,
         tileY: AREA_H + 10,
         color: 0xd4a373,
+        role: "middleman",
         teachesObjectiveId: "a2.market.food",
         trades: [
           { id: "pan", name: "Pan dulce", baseValue: 6, requiresTier: "stranger" },
@@ -210,20 +242,47 @@ export const AREAS: Area[] = [
         ],
       },
       {
-        id: "guia",
-        name: "La Guía",
+        id: "carmen",
+        name: "Doña Carmen",
         tileX: 12,
         tileY: AREA_H + 3,
-        color: 0xbc6c25,
+        color: 0x9b2226,
+        role: "gatekeeper",
         teachesObjectiveId: "a2.market.food",
         voice: "shimmer",
         lessonSlug: "asking-for-directions",
-        conversation: { opener: "¿Buscas algo? Te puedo ayudar." },
+        conversation: {
+          opener:
+            "Soy Doña Carmen. Si quieres conocer a nuestra gente, primero muéstrame que hablas bien.",
+        },
         lines: [
           {
             level: "A2",
-            es: "¿Necesitas direcciones? Pregúntame.",
-            en: "Need directions? Just ask me.",
+            es: "Para llegar con los productores, primero habla conmigo.",
+            en: "To reach the producers, first you talk with me.",
+          },
+        ],
+      },
+      {
+        id: "granjero",
+        name: "El Granjero",
+        tileX: 7,
+        tileY: AREA_H + 12,
+        color: 0x386641,
+        role: "producer",
+        teachesObjectiveId: "a2.market.quantities",
+        trades: [
+          // Direct-from-farm: cheaper base + goods middlemen never carry.
+          { id: "maiz", name: "Maíz criollo", baseValue: 5, requiresTier: "stranger" },
+          { id: "aguacate", name: "Aguacates", baseValue: 9, requiresTier: "stranger" },
+          { id: "miel", name: "Miel de abeja", baseValue: 35, requiresTier: "acquaintance" },
+          { id: "cafe", name: "Café de altura", baseValue: 120, requiresTier: "friend" },
+        ],
+        lines: [
+          {
+            level: "A2",
+            es: "Doña Carmen me dijo que eres de confianza. Pasa, pasa.",
+            en: "Doña Carmen told me you're trustworthy. Come in, come in.",
           },
         ],
       },
@@ -239,6 +298,11 @@ export function areaAt(x: number, y: number): Area | undefined {
       y >= a.bounds.y &&
       y < a.bounds.y + a.bounds.height,
   );
+}
+
+/** The town (Area) an NPC belongs to. */
+export function townOfNpc(npcId: string): Area | undefined {
+  return AREAS.find((a) => a.npcs.some((n) => n.id === npcId));
 }
 
 /** Map of every tradeable good id -> display name, across all NPCs. */

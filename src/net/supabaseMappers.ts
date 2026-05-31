@@ -23,6 +23,7 @@ export interface PlayerStateRow {
   mastered_ids: string[] | null;
   rapport: Record<string, number> | null;
   goods: Record<string, number> | null;
+  towns_unlocked: string[] | null;
 }
 
 export interface VocabCardRow {
@@ -73,6 +74,7 @@ export function rowsToPlayerState(
     cards: cardMap,
     rapport: state.rapport ?? {},
     goods: state.goods ?? {},
+    townsUnlocked: state.towns_unlocked ?? [],
   };
 }
 
@@ -86,6 +88,7 @@ export function playerStateToRow(userId: string, s: PlayerState): PlayerStateRow
     mastered_ids: s.masteredObjectiveIds,
     rapport: s.rapport,
     goods: s.goods,
+    towns_unlocked: s.townsUnlocked,
   };
 }
 
