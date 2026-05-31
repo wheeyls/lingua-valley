@@ -57,6 +57,13 @@ describe("dialogue layout", () => {
     const issues = auditLayout(dialogueLayout(baseDialogue({ canTrade: true })));
     expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);
   });
+
+  it("stays healthy in a remote town (no English help)", () => {
+    const issues = auditLayout(
+      dialogueLayout(baseDialogue({ showEnglishHint: false })),
+    );
+    expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);
+  });
 });
 
 function baseConversation(over: Partial<ConversationVM> = {}): ConversationVM {

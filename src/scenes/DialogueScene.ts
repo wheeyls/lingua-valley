@@ -65,17 +65,27 @@ export class DialogueScene extends Phaser.Scene {
   /** Build the pure view-model the layout consumes. */
   private viewModel(): DialogueVM {
     const line = this.npc.lines[this.lineIndex];
-    const result = comprehend(line.es, line.level, this.state.proficiency);
+    const town = townOfNpc(this.npc.id);
+    const englishAvail = town?.englishAvailability ?? 1;
+    const result = comprehend(
+      line.es,
+      line.level,
+      this.state.proficiency,
+      englishAvail,
+    );
     const objId = this.npc.teachesObjectiveId;
     const teachable =
       !!objId && !this.state.proficiency.isMastered(objId) && result.actionable;
     const isLast = this.lineIndex >= this.npc.lines.length - 1;
+    // Remote towns hide the English crutch even when comprehension is high.
+    const showEnglish = englishAvail >= 0.5;
 
     return {
       npcName: this.npc.name,
       spanish: result.rendered,
       actionable: result.actionable,
       clarity: result.clarity,
+      showEnglishHint: showEnglish,
       englishHint: line.en,
       overLevelNote:
         "Too advanced to follow — learn more in an earlier area first.",

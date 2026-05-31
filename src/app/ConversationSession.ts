@@ -28,6 +28,8 @@ export interface ConversationConfig {
   skill: SkillTrack;
   /** Optional scripted role-play; when set, the session steps through it. */
   rolePlay?: RolePlay;
+  /** Grading strictness (>=1) from the town's difficulty. Defaults to 1. */
+  strictness?: number;
 }
 
 export interface TurnOutcome {
@@ -117,7 +119,11 @@ export class ConversationSession {
       rolePlay: this.pendingCue ?? undefined,
     });
 
-    const gateOpens = gateShouldOpen(res.objectiveMet, res.grade);
+    const gateOpens = gateShouldOpen(
+      res.objectiveMet,
+      res.grade,
+      this.config.strictness ?? 1,
+    );
 
     // For role-plays, advance the script FIRST so we know whether this turn
     // completed the scene (which is when friendship grows).

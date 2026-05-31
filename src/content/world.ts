@@ -8,6 +8,7 @@
 
 import type { CefrLevel } from "../domain/cefr.js";
 import type { Good } from "../domain/trade.js";
+import type { TownInfo } from "../domain/town.js";
 
 export interface DialogueLine {
   /** CEFR level this line is written at (drives comprehension/garbling). */
@@ -303,6 +304,18 @@ export function areaAt(x: number, y: number): Area | undefined {
 /** The town (Area) an NPC belongs to. */
 export function townOfNpc(npcId: string): Area | undefined {
   return AREAS.find((a) => a.npcs.some((n) => n.id === npcId));
+}
+
+/** Project an Area onto the domain TownInfo shape (for difficulty rules). */
+export function townInfoOf(area: Area): TownInfo {
+  return {
+    id: area.id,
+    name: area.name,
+    depth: area.depth,
+    level: area.level,
+    englishAvailability: area.englishAvailability,
+    gatekeeper: area.gatekeeper,
+  };
 }
 
 /** Map of every tradeable good id -> display name, across all NPCs. */

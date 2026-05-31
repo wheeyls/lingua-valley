@@ -96,15 +96,19 @@ export const PASS_ACCURACY = 0.6;
 
 /**
  * Local guardrail: even if the model says objectiveMet, require the latest
- * grade to clear thresholds. Pure function so it's unit-testable.
+ * grade to clear thresholds. `strictness` (>=1, from a town's difficulty) raises
+ * the bar in remoter towns; thresholds are clamped to stay achievable. Pure.
  */
 export function gateShouldOpen(
   modelSaysMet: boolean,
   grade: UtteranceGrade,
+  strictness = 1,
 ): boolean {
+  const commBar = Math.min(0.95, PASS_COMMUNICATION * strictness);
+  const accBar = Math.min(0.9, PASS_ACCURACY * strictness);
   return (
     modelSaysMet &&
-    grade.communication >= PASS_COMMUNICATION &&
-    grade.accuracy >= PASS_ACCURACY
+    grade.communication >= commBar &&
+    grade.accuracy >= accBar
   );
 }

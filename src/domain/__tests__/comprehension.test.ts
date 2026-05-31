@@ -57,3 +57,18 @@ describe("comprehension soft gate", () => {
     expect(garble("hola, amigo!", 0)).toContain("!");
   });
 });
+
+describe("town difficulty (englishAvailability)", () => {
+  it("remote towns garble over-level speech harder", () => {
+    const prof = freshProficiency(allA1); // effective A1
+    // A2 line: not yet comfortable. Metropolis (1) vs remote (0.2).
+    const metro = clarityFor("A2", prof, 1);
+    const remote = clarityFor("A2", prof, 0.2);
+    expect(remote).toBeLessThan(metro);
+  });
+
+  it("mastered-level lines stay fully clear regardless of town", () => {
+    const prof = freshProficiency(allA1);
+    expect(clarityFor("A1", prof, 0.2)).toBe(1);
+  });
+});

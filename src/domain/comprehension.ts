@@ -40,8 +40,9 @@ export function comprehend(
   text: string,
   lineLevel: CefrLevel,
   prof: Proficiency,
+  englishAvailability = 1,
 ): ComprehensionResult {
-  const clarity = clarityFor(lineLevel, prof);
+  const clarity = clarityFor(lineLevel, prof, englishAvailability);
   return {
     clarity,
     rendered: garble(text, clarity),
@@ -49,7 +50,25 @@ export function comprehend(
   };
 }
 
-export function clarityFor(lineLevel: CefrLevel, prof: Proficiency): number {
+/**
+ * Compute clarity for a line. `englishAvailability` (0..1) is the town's help
+ * level — the metropolis (1) is fully forgiving; remote towns (lower) apply a
+ * comprehension penalty so over-level speech garbles harder. Lines AT or under
+ * the player's established level stay fully clear regardless (you've earned it).
+ */
+export function clarityFor(
+  lineLevel: CefrLevel,
+  prof: Proficiency,
+  englishAvailability = 1,
+): number {
+  const base = baseClarity(lineLevel, prof);
+  if (base >= 1) return 1; // mastered content is always clear
+  // Remote towns sap clarity of not-yet-comfortable speech.
+  const penalty = 0.5 * (1 - clampUnit(englishAvailability));
+  return clampUnit(base * (1 - penalty));
+}
+
+function baseClarity(lineLevel: CefrLevel, prof: Proficiency): number {
   const effective = prof.effectiveLevel();
   const lineRank = levelRank(lineLevel);
 
@@ -57,22 +76,17 @@ export function clarityFor(lineLevel: CefrLevel, prof: Proficiency): number {
   const ownMastery = prof.levelMastery(lineLevel);
 
   if (effective === null) {
-    // No level fully completed yet. Comprehension of this level's lines tracks
-    // partial mastery of that very level, but only if it's the entry level.
     if (lineRank === 0) return ownMastery;
-    // Higher levels are essentially noise until A1 is done.
     return Math.max(0, ownMastery * 0.2 - 0.05 * lineRank);
   }
 
   const effRank = levelRank(effective);
   const gap = lineRank - effRank;
 
-  if (gap <= 0) return 1; // At/under your established level — fully clear.
+  if (gap <= 0) return 1;
   if (gap === 1) {
-    // The "next" level you're working toward: clarity grows as you master it.
     return clampUnit(0.25 + 0.55 * ownMastery);
   }
-  // Two or more levels above — speaks well over your head.
   return clampUnit(0.05 * ownMastery);
 }
 

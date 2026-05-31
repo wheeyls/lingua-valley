@@ -14,6 +14,8 @@ export interface DialogueVM {
   actionable: boolean;
   clarity: number;
   englishHint: string;
+  /** Whether the town offers English help (hidden in remote towns). */
+  showEnglishHint?: boolean;
   overLevelNote: string;
   /** Progress dots. */
   lineIndex: number;
@@ -95,19 +97,27 @@ export function dialogueLayout(vm: DialogueVM): UINode[] {
   };
   nodes.push(spanish);
 
+  const understood = vm.clarity >= 0.6;
+  const showEnglish = vm.showEnglishHint ?? true;
   const hintY = top + 60 + estimateTextHeight(spanish) + 14;
+  // Hint text:
+  //  - understood + town gives help  -> English translation
+  //  - understood + remote town      -> "(no translation here — you're on your own)"
+  //  - not understood                -> over-level note
+  const hintText = understood
+    ? showEnglish
+      ? `“${vm.englishHint}”`
+      : "(no translation out here — listen closely)"
+    : vm.overLevelNote;
   nodes.push({
     kind: "text",
     id: "hint",
     origin: "topleft",
     x: pad,
     y: hintY,
-    text:
-      vm.clarity >= 0.6
-        ? `“${vm.englishHint}”`
-        : vm.overLevelNote,
+    text: hintText,
     fontSize: px(TYPE.label),
-    color: vm.clarity >= 0.6 ? COLOR.green : COLOR.rose,
+    color: understood ? (showEnglish ? COLOR.green : COLOR.muted) : COLOR.rose,
     italic: true,
     wrapWidth: contentW,
     depth: 51,

@@ -31,3 +31,16 @@ describe("gateShouldOpen", () => {
     expect(gateShouldOpen(true, grade(PASS_COMMUNICATION, PASS_ACCURACY))).toBe(true);
   });
 });
+
+describe("gate strictness (town difficulty)", () => {
+  it("higher strictness requires a higher grade to pass", () => {
+    const goodGrade = grade(0.72, 0.62); // clears default bars
+    expect(gateShouldOpen(true, goodGrade, 1)).toBe(true);
+    // At 1.3x strictness the bars rise; this grade no longer passes.
+    expect(gateShouldOpen(true, goodGrade, 1.3)).toBe(false);
+  });
+
+  it("a strong grade still passes a strict town", () => {
+    expect(gateShouldOpen(true, grade(0.95, 0.9), 1.3)).toBe(true);
+  });
+});

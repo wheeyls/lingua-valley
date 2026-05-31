@@ -8,8 +8,13 @@ import { ConversationSession } from "../app/ConversationSession";
 import { RolePlay } from "../domain/rolePlay";
 import { HoldToTalk, type HoldAction } from "../domain/holdToTalk";
 import { tierFor, tierLabel } from "../domain/friendship";
-import { townOfNpc } from "../content/world";
-import { isTownUnlocked, capstonePassed, unlockTown } from "../domain/town";
+import { townOfNpc, townInfoOf } from "../content/world";
+import {
+  isTownUnlocked,
+  capstonePassed,
+  unlockTown,
+  gradingStrictness,
+} from "../domain/town";
 import { lessonBySlug } from "../content/lessons";
 import { COLOR } from "../game/layout";
 import { conversationLayout } from "../ui/layouts/conversation";
@@ -43,6 +48,7 @@ export class ConversationScene extends Phaser.Scene {
   private qualitySum = 0;
   private qualityTurns = 0;
   private townUnlockedThisVisit = false;
+  private strictness = 1;
 
   // Press-and-hold state machine (pure, tested). Robust to async mic startup
   // and touch jitter.
@@ -67,6 +73,10 @@ export class ConversationScene extends Phaser.Scene {
     const lesson = this.npc.lessonSlug ? lessonBySlug(this.npc.lessonSlug) : undefined;
     if (lesson) rolePlay = new RolePlay(lesson.lab);
 
+    // Remoter towns grade stricter.
+    const town = townOfNpc(this.npc.id);
+    this.strictness = town ? gradingStrictness(townInfoOf(town)) : 1;
+
     this.session = new ConversationSession(
       {
         npcId: this.npc.id,
@@ -76,6 +86,7 @@ export class ConversationScene extends Phaser.Scene {
         vocab: obj.vocab.map((v) => ({ es: v.es, en: v.en })),
         skill: "speaking",
         rolePlay,
+        strictness: this.strictness,
       },
       this.state.adapters.conversationGrader,
       this.state.player,
