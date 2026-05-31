@@ -3,7 +3,8 @@ import { AREAS, type Npc } from "../content/world";
 import { comprehend } from "../domain/comprehension";
 import { objectiveById } from "../content/curriculum";
 import { GameState, REGISTRY_KEY } from "../game/state";
-import { FONT, TYPE, COLOR, MARGIN, makeButton } from "../game/layout";
+import { dialogueLayout, type DialogueVM } from "../ui/layouts/dialogue";
+import { renderNodes, type RenderedUI } from "../ui/PhaserRenderer";
 
 function findNpc(id: string): Npc | undefined {
   for (const a of AREAS) {
@@ -17,7 +18,7 @@ export class DialogueScene extends Phaser.Scene {
   private state!: GameState;
   private npc!: Npc;
   private lineIndex = 0;
-  private container!: Phaser.GameObjects.Container;
+  private ui?: RenderedUI;
 
   constructor() {
     super("DialogueScene");
@@ -61,119 +62,40 @@ export class DialogueScene extends Phaser.Scene {
     this.scene.resume("WorldScene");
   }
 
-  private renderLine() {
-    this.container?.destroy();
-
+  /** Build the pure view-model the layout consumes. */
+  private viewModel(): DialogueVM {
     const line = this.npc.lines[this.lineIndex];
     const result = comprehend(line.es, line.level, this.state.proficiency);
-
-    const w = this.scale.width;
-    const h = this.scale.height;
-
-    // Bottom-sheet panel sized for portrait: tall enough for big type + buttons.
-    const panelH = 320;
-    const top = h - panelH;
-    const pad = MARGIN + 8;
-    const contentW = w - pad * 2;
-
-    const children: Phaser.GameObjects.GameObject[] = [];
-
-    const panel = this.add
-      .rectangle(0, top, w, panelH, COLOR.panel, 0.96)
-      .setOrigin(0, 0)
-      .setStrokeStyle(3, COLOR.goldNum);
-    children.push(panel);
-
-    const nameTag = this.add.text(pad, top + 18, this.npc.name, {
-      fontFamily: FONT,
-      fontSize: TYPE.heading,
-      color: COLOR.gold,
-    });
-    children.push(nameTag);
-
-    // Progress dots (which line of the exchange).
-    const dots = this.npc.lines
-      .map((_, i) => (i === this.lineIndex ? "●" : "○"))
-      .join(" ");
-    const dotText = this.add
-      .text(w - pad, top + 24, dots, {
-        fontFamily: FONT,
-        fontSize: TYPE.small,
-        color: COLOR.muted,
-      })
-      .setOrigin(1, 0.5);
-    children.push(dotText);
-
-    const esText = this.add.text(pad, top + 60, result.rendered, {
-      fontFamily: FONT,
-      fontSize: TYPE.heading,
-      color: result.actionable ? COLOR.parchment : COLOR.muted,
-      wordWrap: { width: contentW },
-      lineSpacing: 6,
-    });
-    children.push(esText);
-
-    // English hint / over-level notice below the Spanish.
-    const hintY = top + 60 + esText.height + 14;
-    if (result.clarity >= 0.6) {
-      children.push(
-        this.add.text(pad, hintY, `“${line.en}”`, {
-          fontFamily: FONT,
-          fontSize: TYPE.label,
-          color: COLOR.green,
-          fontStyle: "italic",
-          wordWrap: { width: contentW },
-        }),
-      );
-    } else {
-      children.push(
-        this.add.text(
-          pad,
-          hintY,
-          "Too advanced to follow — learn more in an earlier area first.",
-          {
-            fontFamily: FONT,
-            fontSize: TYPE.label,
-            color: COLOR.rose,
-            fontStyle: "italic",
-            wordWrap: { width: contentW },
-          },
-        ),
-      );
-    }
-
-    // Lesson tease when actionable.
     const objId = this.npc.teachesObjectiveId;
-    if (objId && result.actionable && !this.state.proficiency.isMastered(objId)) {
-      const obj = objectiveById(objId);
-      children.push(
-        this.add.text(pad, hintY + 30, `▶ Lesson: ${obj?.label}`, {
-          fontFamily: FONT,
-          fontSize: TYPE.label,
-          color: COLOR.gold,
-        }),
-      );
-    }
-
-    this.container = this.add.container(0, 0, children).setDepth(50);
-
-    // Action buttons (thumb-reachable at the bottom of the sheet).
+    const teachable =
+      !!objId && !this.state.proficiency.isMastered(objId) && result.actionable;
     const isLast = this.lineIndex >= this.npc.lines.length - 1;
-    const continueLabel = isLast
-      ? objId && !this.state.proficiency.isMastered(objId) && result.actionable
-        ? "Start lesson ▶"
-        : "Done"
-      : "Continue ▶";
-    const btnY = h - 44;
-    const cont = makeButton(this, w / 2 + 70, btnY, continueLabel, () => this.advance(), {
-      width: 180,
-      depth: 51,
+
+    return {
+      npcName: this.npc.name,
+      spanish: result.rendered,
+      actionable: result.actionable,
+      clarity: result.clarity,
+      englishHint: line.en,
+      overLevelNote:
+        "Too advanced to follow — learn more in an earlier area first.",
+      lineIndex: this.lineIndex,
+      lineCount: this.npc.lines.length,
+      continueLabel: isLast
+        ? teachable
+          ? "Start lesson ▶"
+          : "Done"
+        : "Continue ▶",
+      lessonLabel: teachable ? objectiveById(objId!)?.label : undefined,
+    };
+  }
+
+  private renderLine() {
+    this.ui?.destroy();
+    const nodes = dialogueLayout(this.viewModel());
+    this.ui = renderNodes(this, nodes, {
+      continue: () => this.advance(),
+      leave: () => this.close(),
     });
-    const leave = makeButton(this, MARGIN + 70, btnY, "Leave", () => this.close(), {
-      width: 120,
-      fill: COLOR.roseFill,
-      depth: 51,
-    });
-    this.container.add([cont.container, leave.container]);
   }
 }
