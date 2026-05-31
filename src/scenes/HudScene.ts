@@ -4,12 +4,13 @@ import { GameState, REGISTRY_KEY } from "../game/state";
 import type { Area } from "../content/world";
 import { FOCUS_MAX } from "../domain/player";
 import { hudLayout, type HudVM } from "../ui/layouts/hud";
+import { bannerLayout } from "../ui/layouts/banner";
 import { renderNodes, type RenderedUI } from "../ui/PhaserRenderer";
 
 export class HudScene extends Phaser.Scene {
   private state!: GameState;
   private ui?: RenderedUI;
-  private areaBanner?: Phaser.GameObjects.Text;
+  private banner?: RenderedUI;
 
   constructor() {
     super({ key: "HudScene", active: false });
@@ -61,7 +62,7 @@ export class HudScene extends Phaser.Scene {
   }
 
   private showArea(area: Area) {
-    this.areaBanner?.destroy();
+    this.banner?.destroy();
     const clear = this.state.proficiency.effectiveLevel();
     const overLevel =
       clear === null
@@ -69,27 +70,18 @@ export class HudScene extends Phaser.Scene {
         : CEFR_LEVELS.indexOf(area.level) > CEFR_LEVELS.indexOf(clear);
 
     const msg = overLevel
-      ? `Entering ${area.name} — they speak ${area.level} here. It's over your head…`
+      ? `Entering ${area.name} — they speak ${area.level} here, over your head…`
       : `Entering ${area.name}`;
 
-    this.areaBanner = this.add
-      .text(this.scale.width / 2, this.scale.height / 2 - 60, msg, {
-        fontFamily: "Trebuchet MS",
-        fontSize: "16px",
-        color: overLevel ? "#b56576" : "#9bc995",
-        backgroundColor: "rgba(26,20,35,0.85)",
-        padding: { x: 12, y: 6 },
-      })
-      .setOrigin(0.5, 0)
-      .setScrollFactor(0)
-      .setDepth(45);
+    this.banner = renderNodes(this, bannerLayout({ message: msg, overLevel }));
+    this.banner.container.setScrollFactor(0);
 
     this.tweens.add({
-      targets: this.areaBanner,
+      targets: this.banner.container,
       alpha: { from: 1, to: 0 },
       delay: 2200,
       duration: 800,
-      onComplete: () => this.areaBanner?.destroy(),
+      onComplete: () => this.banner?.destroy(),
     });
   }
 }

@@ -193,3 +193,20 @@ describe("minigame layout", () => {
     ).toHaveLength(0);
   });
 });
+
+describe("banner layout", () => {
+  it("is healthy for normal and over-level entries", async () => {
+    const { bannerLayout } = await import("../layouts/banner");
+    expect(
+      auditLayout(bannerLayout({ message: "Entering Plaza del Saludo", overLevel: false })),
+    ).toHaveLength(0);
+    expect(
+      auditLayout(
+        bannerLayout({
+          message: "Entering El Mercado — they speak A2 here, over your head…",
+          overLevel: true,
+        }),
+      ),
+    ).toHaveLength(0);
+  });
+});

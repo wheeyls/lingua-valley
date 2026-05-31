@@ -49,6 +49,19 @@ function createNode(
 ): Phaser.GameObjects.GameObject {
   switch (node.kind) {
     case "panel": {
+      // Rounded panels are drawn with Graphics for a softer, polished feel.
+      if (node.radius && node.radius > 0) {
+        const g = scene.add.graphics();
+        const x = node.origin === "topleft" ? node.x : node.x - node.width / 2;
+        const y = node.origin === "topleft" ? node.y : node.y - node.height / 2;
+        g.fillStyle(node.fill, node.alpha ?? 1);
+        g.fillRoundedRect(x, y, node.width, node.height, node.radius);
+        if (node.stroke) {
+          g.lineStyle(node.stroke.width, node.stroke.color, 1);
+          g.strokeRoundedRect(x, y, node.width, node.height, node.radius);
+        }
+        return g;
+      }
       const r = scene.add.rectangle(
         node.x,
         node.y,

@@ -39,6 +39,7 @@ export function hudLayout(vm: HudVM): UINode[] {
     fill: COLOR.panel,
     alpha: 0.82,
     stroke: { color: COLOR.goldNum, width: 1 },
+    radius: 10,
     depth: 60,
   });
   nodes.push({
@@ -81,6 +82,7 @@ export function hudLayout(vm: HudVM): UINode[] {
     fill: COLOR.panel,
     alpha: 0.82,
     stroke: { color: COLOR.goldNum, width: 2 },
+    radius: 12,
     depth: 41,
   });
   nodes.push({
@@ -132,6 +134,7 @@ export function hudLayout(vm: HudVM): UINode[] {
     fill: COLOR.panel,
     alpha: 0.82,
     stroke: { color: COLOR.goldNum, width: 2 },
+    radius: 12,
     depth: 40,
   });
   nodes.push({
