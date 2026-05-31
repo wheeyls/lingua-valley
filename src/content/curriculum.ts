@@ -109,6 +109,47 @@ export const CURRICULUM: LearningObjective[] = [
       { es: "me lo llevo", en: "I'll take it" },
     ],
   },
+
+  // ---------------------------------------------------------------- B1 -------
+  {
+    id: "b1.family",
+    level: "B1",
+    label: "Family",
+    canDo: "Talk about your family and relatives.",
+    vocab: [
+      { es: "la familia", en: "family" },
+      { es: "el abuelo / la abuela", en: "grandfather / grandmother" },
+      { es: "el hermano mayor", en: "older brother" },
+      { es: "¿tienes hijos?", en: "do you have children?" },
+      { es: "estoy casado/a", en: "I'm married" },
+    ],
+  },
+  {
+    id: "b1.past_week",
+    level: "B1",
+    label: "Your week",
+    canDo: "Describe what you did this past week.",
+    vocab: [
+      { es: "esta semana", en: "this week" },
+      { es: "trabajé mucho", en: "I worked a lot" },
+      { es: "fui a…", en: "I went to…", example: "Fui al mercado." },
+      { es: "ayer", en: "yesterday" },
+      { es: "estuvo bien", en: "it was good" },
+    ],
+  },
+  {
+    id: "b1.weekend_plans",
+    level: "B1",
+    label: "Weekend plans",
+    canDo: "Make plans for the weekend.",
+    vocab: [
+      { es: "este fin de semana", en: "this weekend" },
+      { es: "vamos a…", en: "we're going to…", example: "Vamos a la playa." },
+      { es: "¿qué vas a hacer?", en: "what are you going to do?" },
+      { es: "tal vez", en: "maybe" },
+      { es: "¡suena bien!", en: "sounds good!" },
+    ],
+  },
 ];
 
 /** Group curriculum objectives by level for fast lookup. */

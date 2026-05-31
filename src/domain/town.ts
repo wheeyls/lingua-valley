@@ -88,6 +88,19 @@ export function showsEnglishHelp(town: TownInfo): boolean {
   return town.englishAvailability >= 0.5;
 }
 
+/**
+ * Travel gating: a deeper town is "reachable" only once the PREVIOUS town's
+ * gatekeeper has been beaten. The first town (no previous gatekeeper) is always
+ * reachable. `prevTown` is the town one step shallower (depth-1), or null.
+ */
+export function townReachable(
+  state: PlayerState,
+  prevTown: TownInfo | null,
+): boolean {
+  if (!prevTown || !prevTown.gatekeeper) return true;
+  return isTownUnlocked(state, prevTown.id);
+}
+
 function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n));
 }

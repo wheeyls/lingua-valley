@@ -6,6 +6,7 @@ import {
   unlockTown,
   gradingStrictness,
   showsEnglishHelp,
+  townReachable,
   type Gatekeeper,
   type TownInfo,
 } from "../town";
@@ -58,5 +59,23 @@ describe("towns & gatekeepers", () => {
     expect(gradingStrictness(remote)).toBeGreaterThan(gradingStrictness(metro));
     expect(showsEnglishHelp(metro)).toBe(true);
     expect(showsEnglishHelp(remote)).toBe(false);
+  });
+});
+
+describe("travel gating", () => {
+  const metro: TownInfo = { id: "plaza", name: "Plaza", depth: 0, level: "A1", englishAvailability: 1 };
+  const mercado: TownInfo = { id: "mercado", name: "Mercado", depth: 1, level: "A2", englishAvailability: 0.5, gatekeeper };
+
+  it("the first town is always reachable", () => {
+    const s = initialPlayerState("T", 1, "2025-06-01");
+    expect(townReachable(s, null)).toBe(true);
+    expect(townReachable(s, metro)).toBe(true); // metro has no gatekeeper
+  });
+
+  it("a deeper town is reachable only after the previous gatekeeper is beaten", () => {
+    const s = initialPlayerState("T", 1, "2025-06-01");
+    expect(townReachable(s, mercado)).toBe(false);
+    const unlocked = unlockTown(s, "mercado");
+    expect(townReachable(unlocked, mercado)).toBe(true);
   });
 });

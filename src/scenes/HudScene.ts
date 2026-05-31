@@ -1,7 +1,8 @@
 import Phaser from "phaser";
 import { CEFR_LEVELS } from "../domain/cefr";
 import { GameState, REGISTRY_KEY } from "../game/state";
-import { GOOD_NAMES, type Area } from "../content/world";
+import { AREAS, GOOD_NAMES, townInfoOf, type Area } from "../content/world";
+import { townReachable } from "../domain/town";
 import { FOCUS_MAX } from "../domain/player";
 import { hudLayout, type HudVM } from "../ui/layouts/hud";
 import { bannerLayout } from "../ui/layouts/banner";
@@ -79,11 +80,24 @@ export class HudScene extends Phaser.Scene {
         ? area.level !== "A1"
         : CEFR_LEVELS.indexOf(area.level) > CEFR_LEVELS.indexOf(clear);
 
-    const msg = overLevel
-      ? `Entering ${area.name} — they speak ${area.level} here, over your head…`
-      : `Entering ${area.name}`;
+    // Travel gating: have you earned your way into this town (beaten the
+    // previous town's gatekeeper)?
+    const prev = AREAS.find((a) => a.depth === area.depth - 1) ?? null;
+    const reachable = townReachable(
+      this.state.player.getState(),
+      prev ? townInfoOf(prev) : null,
+    );
 
-    this.banner = renderNodes(this, bannerLayout({ message: msg, overLevel }));
+    const msg = !reachable
+      ? `${area.name}: you haven't earned the community's trust yet — go back and prove yourself.`
+      : overLevel
+        ? `Entering ${area.name} — they speak ${area.level} here, over your head…`
+        : `Entering ${area.name}`;
+
+    this.banner = renderNodes(
+      this,
+      bannerLayout({ message: msg, overLevel: overLevel || !reachable }),
+    );
     this.banner.container.setScrollFactor(0);
 
     this.tweens.add({

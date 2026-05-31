@@ -144,22 +144,24 @@ export class WorldScene extends Phaser.Scene {
         .setDepth(5);
     }
 
-    // The threshold between Plaza (A1, top) and Mercado (A2, below): a HORIZONTAL
-    // archway you walk DOWN through.
-    const thresholdY = AREAS[0].bounds.y + AREAS[0].bounds.height;
+    // A HORIZONTAL archway between each pair of stacked towns — you walk DOWN
+    // through them as you journey from metropolis to remote towns.
     const arch = this.add.graphics();
-    arch.fillStyle(0x2b2024, 1);
-    arch.fillRect(0, thresholdY - 6, WORLD_WIDTH, 12);
-    arch.fillStyle(0xd9b08c, 1);
-    arch.fillRect(WORLD_WIDTH / 2 - 48, thresholdY - 10, 96, 20); // gateway gap
     arch.setDepth(4);
-    this.add
-      .text(WORLD_WIDTH / 2, thresholdY, "▼", {
-        fontSize: "26px",
-        color: "#f4ecd8",
-      })
-      .setOrigin(0.5)
-      .setDepth(6);
+    for (let i = 0; i < AREAS.length - 1; i++) {
+      const thresholdY = AREAS[i].bounds.y + AREAS[i].bounds.height;
+      arch.fillStyle(0x2b2024, 1);
+      arch.fillRect(0, thresholdY - 6, WORLD_WIDTH, 12);
+      arch.fillStyle(0xd9b08c, 1);
+      arch.fillRect(WORLD_WIDTH / 2 - 48, thresholdY - 10, 96, 20); // gateway gap
+      this.add
+        .text(WORLD_WIDTH / 2, thresholdY, "▼", {
+          fontSize: "26px",
+          color: "#f4ecd8",
+        })
+        .setOrigin(0.5)
+        .setDepth(6);
+    }
   }
 
   private spawnNpcs() {
