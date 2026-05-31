@@ -8,12 +8,16 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 export function getAdminClient(): SupabaseClient {
   const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) {
+  // Accept either env name; value should be a modern sb_secret_... key
+  // (or a legacy service_role JWT). Both bypass RLS via the service_role role.
+  const secretKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY;
+  if (!url || !secretKey) {
     throw new Error("Supabase admin env not configured");
   }
-  return createClient(url, serviceKey, {
+  return createClient(url, secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
+    global: { headers: { apikey: secretKey } },
   });
 }
 
