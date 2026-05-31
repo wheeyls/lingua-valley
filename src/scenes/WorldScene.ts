@@ -26,6 +26,11 @@ export class WorldScene extends Phaser.Scene {
   private currentArea?: Area;
   private busy = false; // true while a dialogue/minigame is open
 
+  // Touch: tap-to-move destination + optional NPC to interact with on arrival.
+  private moveTarget: { x: number; y: number } | null = null;
+  private pendingNpc: NpcSprite | null = null;
+  private moveMarker?: Phaser.GameObjects.Arc;
+
   // Multiplayer presence (via the PresenceGateway port).
   private state!: GameState;
   private remoteSprites = new Map<string, Phaser.GameObjects.Container>();
@@ -200,6 +205,53 @@ export class WorldScene extends Phaser.Scene {
     );
     // WASD support.
     this.input.keyboard!.addKeys("W,A,S,D");
+
+    // Touch / mouse: tap to walk toward a point. Tapping near an NPC queues an
+    // interaction on arrival. This is a driving adapter — no game rules here.
+    this.input.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      (pointer: Phaser.Input.Pointer) => {
+        if (this.busy) return;
+        const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+
+        // Did they tap (near) an NPC? If so, walk to it and interact on arrival.
+        const tappedNpc = this.npcAtWorldPoint(world.x, world.y);
+        this.pendingNpc = tappedNpc ?? null;
+        this.moveTarget = tappedNpc
+          ? { x: tappedNpc.container.x, y: tappedNpc.container.y }
+          : { x: world.x, y: world.y };
+        this.showMoveMarker(this.moveTarget.x, this.moveTarget.y);
+      },
+    );
+  }
+
+  /** Nearest NPC within tap radius of a world point, if any. */
+  private npcAtWorldPoint(x: number, y: number): NpcSprite | undefined {
+    let best: NpcSprite | undefined;
+    let bestDist = 40; // tap forgiveness radius
+    for (const n of this.npcs) {
+      const d = Phaser.Math.Distance.Between(x, y, n.container.x, n.container.y);
+      if (d < bestDist) {
+        best = n;
+        bestDist = d;
+      }
+    }
+    return best;
+  }
+
+  private showMoveMarker(x: number, y: number) {
+    this.moveMarker?.destroy();
+    this.moveMarker = this.add
+      .circle(x, y, 8, 0xffe08a, 0.5)
+      .setStrokeStyle(2, 0xffe08a)
+      .setDepth(9);
+    this.tweens.add({
+      targets: this.moveMarker,
+      scale: { from: 1.4, to: 0.6 },
+      alpha: { from: 0.8, to: 0 },
+      duration: 600,
+      onComplete: () => this.moveMarker?.destroy(),
+    });
   }
 
   private setupCamera() {
@@ -225,6 +277,39 @@ export class WorldScene extends Phaser.Scene {
     else if (this.cursors.right.isDown || keys.D.isDown) vx = speed;
     if (this.cursors.up.isDown || keys.W.isDown) vy = -speed;
     else if (this.cursors.down.isDown || keys.S.isDown) vy = speed;
+
+    // Keyboard input cancels any tap-to-move destination.
+    if (vx !== 0 || vy !== 0) {
+      this.moveTarget = null;
+      this.pendingNpc = null;
+    } else if (this.moveTarget) {
+      const dist = Phaser.Math.Distance.Between(
+        this.player.x,
+        this.player.y,
+        this.moveTarget.x,
+        this.moveTarget.y,
+      );
+      // Arrived? Stop, and fire any queued NPC interaction.
+      const arriveRadius = this.pendingNpc ? 44 : 8;
+      if (dist <= arriveRadius) {
+        this.moveTarget = null;
+        if (this.pendingNpc) {
+          const npc = this.pendingNpc;
+          this.pendingNpc = null;
+          this.startDialogue(npc);
+        }
+      } else {
+        const angle = Phaser.Math.Angle.Between(
+          this.player.x,
+          this.player.y,
+          this.moveTarget.x,
+          this.moveTarget.y,
+        );
+        vx = Math.cos(angle) * speed;
+        vy = Math.sin(angle) * speed;
+      }
+    }
+
     this.playerBody.setVelocity(vx, vy);
 
     if (vx < 0) this.facing = "left";
@@ -285,9 +370,15 @@ export class WorldScene extends Phaser.Scene {
     }
 
     if (near && Phaser.Input.Keyboard.JustDown(this.interactKey)) {
-      this.busy = true;
-      this.scene.pause();
-      this.scene.launch("DialogueScene", { npcId: near.npc.id });
+      this.startDialogue(near);
     }
+  }
+
+  /** Open dialogue with an NPC (shared by keyboard SPACE + tap-to-interact). */
+  private startDialogue(npc: NpcSprite) {
+    if (this.busy) return;
+    this.busy = true;
+    this.scene.pause();
+    this.scene.launch("DialogueScene", { npcId: npc.npc.id });
   }
 }

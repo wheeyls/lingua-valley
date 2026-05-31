@@ -27,6 +27,8 @@ export class ConversationScene extends Phaser.Scene {
   private npcText!: Phaser.GameObjects.Text;
   private feedbackText!: Phaser.GameObjects.Text;
   private recordKey!: Phaser.Input.Keyboard.Key;
+  private micButton?: Phaser.GameObjects.Arc;
+  private micIcon?: Phaser.GameObjects.Text;
   private mastered = false;
 
   constructor() {
@@ -138,13 +140,51 @@ export class ConversationScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    // Big hold-to-talk mic button (touch + mouse). Replaces hold-SPACE on phones;
+    // SPACE still works on desktop.
+    const micY = h - 130;
+    this.micButton = this.add
+      .circle(w / 2, micY, 56, 0x3d5a80, 1)
+      .setStrokeStyle(4, 0xd9b08c)
+      .setDepth(71)
+      .setInteractive({ useHandCursor: true });
+    this.micIcon = this.add
+      .text(w / 2, micY, "🎤", { fontSize: "44px" })
+      .setOrigin(0.5)
+      .setDepth(72);
+
+    // Press-and-hold semantics via pointer events.
+    this.micButton.on(Phaser.Input.Events.POINTER_DOWN, () => {
+      if (this.phase === "awaitInput") void this.beginRecording();
+    });
+    const release = () => {
+      if (this.phase === "recording") void this.endRecordingAndSend();
+    };
+    this.micButton.on(Phaser.Input.Events.POINTER_UP, release);
+    this.micButton.on(Phaser.Input.Events.POINTER_OUT, release);
+    // When done, tapping the mic dismisses the scene.
+    this.micButton.on(Phaser.Input.Events.POINTER_DOWN, () => {
+      if (this.phase === "done") this.close();
+    });
+
     const help = this.add
-      .text(w / 2, h - 30, "Hold [SPACE] to speak · release to send · [ESC] leave", {
+      .text(w / 2, h - 48, "Hold the mic to speak · release to send", {
         fontFamily: "Trebuchet MS",
-        fontSize: "13px",
+        fontSize: "14px",
         color: "#8a8290",
+        align: "center",
       })
       .setOrigin(0.5);
+    const leaveBtn = this.add
+      .text(w / 2, h - 24, "[ Leave ]", {
+        fontFamily: "Trebuchet MS",
+        fontSize: "14px",
+        color: "#b56576",
+      })
+      .setOrigin(0.5)
+      .setDepth(71)
+      .setInteractive({ useHandCursor: true });
+    leaveBtn.on(Phaser.Input.Events.POINTER_DOWN, () => this.close());
 
     this.add
       .container(0, 0, [
@@ -155,9 +195,18 @@ export class ConversationScene extends Phaser.Scene {
         this.transcriptText,
         this.feedbackText,
         this.statusText,
+        this.micButton,
+        this.micIcon,
         help,
+        leaveBtn,
       ])
       .setDepth(70);
+  }
+
+  /** Reflect recording state on the mic button. */
+  private setMicState(recording: boolean) {
+    this.micButton?.setFillStyle(recording ? 0xb56576 : 0x3d5a80);
+    if (this.micButton) this.micButton.setScale(recording ? 1.12 : 1);
   }
 
   private setStatus(msg: string, color = "#d9b08c") {
@@ -171,7 +220,7 @@ export class ConversationScene extends Phaser.Scene {
     this.session.begin(opener);
     await this.npcSay(opener);
     this.phase = "awaitInput";
-    this.setStatus("Your turn — hold SPACE and reply in Spanish.");
+    this.setStatus("Your turn — hold the mic and reply in Spanish.");
   }
 
   /** Show + speak an NPC line. Falls back to text if TTS fails. */
@@ -206,24 +255,27 @@ export class ConversationScene extends Phaser.Scene {
     this.phase = "recording";
     this.feedbackText.setText("");
     this.transcriptText.setText("");
+    this.setMicState(true);
     try {
       await this.recorder.start();
-      this.setStatus("🔴 Recording… release SPACE when done.", "#b56576");
+      this.setStatus("🔴 Recording… release to send.", "#b56576");
     } catch {
-      this.setStatus("Microphone permission denied. Press ESC.", "#b56576");
+      this.setStatus("Microphone permission denied.", "#b56576");
+      this.setMicState(false);
       this.phase = "done";
     }
   }
 
   private async endRecordingAndSend() {
     this.phase = "thinking";
+    this.setMicState(false);
     this.setStatus("Transcribing…");
     try {
       const { audioBase64, mimeType } = await this.recorder.stop();
       const utterance = await transcribe(audioBase64, mimeType);
 
       if (!utterance.trim()) {
-        this.setStatus("I didn't catch that — hold SPACE and try again.");
+        this.setStatus("I didn't catch that — hold the mic and try again.");
         this.phase = "awaitInput";
         return;
       }
@@ -255,7 +307,7 @@ export class ConversationScene extends Phaser.Scene {
         this.finish(false);
       } else {
         this.phase = "awaitInput";
-        this.setStatus("Keep going — hold SPACE to reply.");
+        this.setStatus("Keep going — hold the mic to reply.");
       }
     } catch (err) {
       console.error(err);
@@ -270,9 +322,9 @@ export class ConversationScene extends Phaser.Scene {
   private finish(passed: boolean) {
     this.phase = "done";
     if (passed) {
-      this.setStatus("¡Excelente! You demonstrated the skill. [SPACE] to continue.", "#9bc995");
+      this.setStatus("¡Excelente! You demonstrated the skill. Tap to continue.", "#9bc995");
     } else {
-      this.setStatus("Good practice — try again when ready. [SPACE] to continue.", "#f2cc8f");
+      this.setStatus("Good practice — try again when ready. Tap to continue.", "#f2cc8f");
     }
   }
 

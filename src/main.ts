@@ -9,14 +9,23 @@ import { AuthScene } from "./scenes/AuthScene";
 import { GameState, REGISTRY_KEY } from "./game/state";
 import { composeApp } from "./app/composition";
 import { cloudConfigured } from "./app/composition";
+import { VIEW_WIDTH, VIEW_HEIGHT } from "./game/layout";
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   parent: "game",
-  width: 960,
-  height: 600,
+  width: VIEW_WIDTH,
+  height: VIEW_HEIGHT,
   backgroundColor: "#1a1423",
   pixelArt: true,
+  // Responsive: fit the portrait canvas to any screen, centered.
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: VIEW_WIDTH,
+    height: VIEW_HEIGHT,
+  },
+  input: { activePointers: 3 }, // multi-touch (joystick-less, but tap + hold mic)
   physics: {
     default: "arcade",
     arcade: { debug: false },
