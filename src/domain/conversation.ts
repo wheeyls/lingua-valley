@@ -6,7 +6,7 @@
  * both sides compile against the same definitions.
  */
 
-import type { CefrLevel } from "./cefr";
+import type { CefrLevel } from "./cefr.js";
 
 /** A single turn in an ongoing conversation with an NPC. */
 export interface ConversationTurn {

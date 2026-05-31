@@ -4,9 +4,9 @@
  * The domain never imports these row types.
  */
 
-import type { PlayerState, Skills } from "../domain/player";
-import { initialPlayerState, utcDay } from "../domain/player";
-import type { VocabCard, CardState } from "../domain/srs";
+import type { PlayerState, Skills } from "../domain/player.js";
+import { initialPlayerState, utcDay } from "../domain/player.js";
+import type { VocabCard, CardState } from "../domain/srs.js";
 
 export interface ProfileRow {
   id: string;

@@ -8,7 +8,7 @@
  * mini-games draw on.
  */
 
-import type { CefrLevel, LearningObjective } from "../domain/cefr";
+import type { CefrLevel, LearningObjective } from "../domain/cefr.js";
 
 export const CURRICULUM: LearningObjective[] = [
   // ---------------------------------------------------------------- A1 -------

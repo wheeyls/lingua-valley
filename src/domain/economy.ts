@@ -7,9 +7,9 @@
  * downstream — callers re-derive from the raw grade.
  */
 
-import type { CefrLevel } from "./cefr";
-import { levelRank } from "./cefr";
-import { FOCUS_MAX } from "./player";
+import type { CefrLevel } from "./cefr.js";
+import { levelRank } from "./cefr.js";
+import { FOCUS_MAX } from "./player.js";
 
 export const BASE_PESOS = 10;
 export const ACTIVITY_FOCUS_COST = 5;

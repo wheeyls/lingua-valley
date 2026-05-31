@@ -6,15 +6,15 @@
  * ever speaks in these terms.
  */
 
-import type { CefrLevel } from "./cefr";
-import type { VocabCard } from "./srs";
-import { newCard, review } from "./srs";
+import type { CefrLevel } from "./cefr.js";
+import type { VocabCard } from "./srs.js";
+import { newCard, review } from "./srs.js";
 import {
   computeReward,
   spendFocus,
   ACTIVITY_FOCUS_COST,
   type ActivityReward,
-} from "./economy";
+} from "./economy.js";
 
 /** Skill tracks fed by activities (Stardew-style XP tracks). */
 export interface Skills {

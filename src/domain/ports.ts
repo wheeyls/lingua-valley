@@ -6,8 +6,8 @@
  * the composition root. The domain never imports a vendor SDK.
  */
 
-import type { PlayerState, ActivityResult, ApplyResult } from "./player";
-import type { ConverseRequest, ConverseResponse } from "./conversation";
+import type { PlayerState, ActivityResult, ApplyResult } from "./player.js";
+import type { ConverseRequest, ConverseResponse } from "./conversation.js";
 
 /** Time source, so domain logic stays deterministic and testable. */
 export interface Clock {

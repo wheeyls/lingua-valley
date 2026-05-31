@@ -6,8 +6,8 @@
  * proving you can do things in Spanish.
  */
 
-import type { CefrLevel, LearningObjective } from "./cefr";
-import { CEFR_LEVELS, levelRank } from "./cefr";
+import type { CefrLevel, LearningObjective } from "./cefr.js";
+import { CEFR_LEVELS, levelRank } from "./cefr.js";
 
 export interface ProficiencySnapshot {
   /** IDs of every objective the player has mastered. */

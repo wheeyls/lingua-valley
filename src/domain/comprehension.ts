@@ -11,9 +11,9 @@
  * head until you learn.
  */
 
-import type { CefrLevel } from "./cefr";
-import { levelRank } from "./cefr";
-import type { Proficiency } from "./proficiency";
+import type { CefrLevel } from "./cefr.js";
+import { levelRank } from "./cefr.js";
+import type { Proficiency } from "./proficiency.js";
 
 export interface ComprehensionResult {
   /** 0..1 — how much of the line the player understands. */

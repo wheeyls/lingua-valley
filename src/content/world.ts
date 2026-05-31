@@ -6,7 +6,7 @@
  * garbles it — the soft gate.
  */
 
-import type { CefrLevel } from "../domain/cefr";
+import type { CefrLevel } from "../domain/cefr.js";
 
 export interface DialogueLine {
   /** CEFR level this line is written at (drives comprehension/garbling). */
