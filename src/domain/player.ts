@@ -15,6 +15,7 @@ import {
   ACTIVITY_FOCUS_COST,
   type ActivityReward,
 } from "./economy.js";
+import { rapportGain } from "./friendship.js";
 
 /** Skill tracks fed by activities (Stardew-style XP tracks). */
 export interface Skills {
@@ -45,6 +46,12 @@ export interface PlayerState {
 
   /** Spaced-repetition cards, keyed by wordId. */
   cards: Record<string, VocabCard>;
+
+  /** Rapport points per NPC id (drives friendship tier + trade quality). */
+  rapport: Record<string, number>;
+
+  /** Tradeable goods inventory: good id -> quantity. */
+  goods: Record<string, number>;
 }
 
 export const FOCUS_MAX = 100;
@@ -63,6 +70,8 @@ export function initialPlayerState(
     skills: { speaking: 0, listening: 0, vocab: 0 },
     masteredObjectiveIds: [],
     cards: {},
+    rapport: {},
+    goods: {},
   };
 }
 
@@ -90,6 +99,13 @@ export interface ActivityResult {
    * (Decided upstream by the conversation gate's `gateShouldOpen`.)
    */
   objectiveMet: boolean;
+  /** The NPC this conversation was with (for rapport). */
+  npcId?: string;
+  /**
+   * True when a SCRIPTED role-play conversation reached its end — the moment
+   * friendship grows. Repeating the same role-play repeatedly is the loop.
+   */
+  rolePlayComplete?: boolean;
 }
 
 /** What `applyActivity` returns: the new state plus what was awarded. */
@@ -98,6 +114,8 @@ export interface ApplyResult {
   /** Null when the activity was blocked (e.g. not enough focus). */
   reward: ActivityReward | null;
   blockedReason?: "insufficient-focus";
+  /** Rapport gained with the NPC this turn (0 unless a role-play completed). */
+  rapportGained?: number;
 }
 
 /**
@@ -158,6 +176,15 @@ export function applyActivity(
     }
   }
 
+  // 6. Friendship: completing a role-play with an NPC builds rapport, scaled by
+  //    quality. Repetition is the loop — every completion counts.
+  const rapport: Record<string, number> = { ...prev.rapport };
+  let rapportGained = 0;
+  if (activity.rolePlayComplete && activity.npcId) {
+    rapportGained = rapportGain(reward.quality);
+    rapport[activity.npcId] = (rapport[activity.npcId] ?? 0) + rapportGained;
+  }
+
   return {
     state: {
       ...prev,
@@ -167,8 +194,10 @@ export function applyActivity(
       skills,
       cards,
       masteredObjectiveIds,
+      rapport,
     },
     reward,
+    rapportGained,
   };
 }
 
@@ -191,11 +220,22 @@ export function mergeStates(account: PlayerState, guest: PlayerState): PlayerSta
     const aCard = cards[wordId];
     cards[wordId] = !aCard || gCard.reps > aCard.reps ? gCard : aCard;
   }
+  // Rapport: max per NPC. Goods: sum quantities.
+  const rapport: Record<string, number> = { ...account.rapport };
+  for (const [npc, pts] of Object.entries(guest.rapport)) {
+    rapport[npc] = Math.max(rapport[npc] ?? 0, pts);
+  }
+  const goods: Record<string, number> = { ...account.goods };
+  for (const [good, qty] of Object.entries(guest.goods)) {
+    goods[good] = (goods[good] ?? 0) + qty;
+  }
   return {
     ...account,
     pesos: account.pesos + guest.pesos,
     skills,
     masteredObjectiveIds,
     cards,
+    rapport,
+    goods,
   };
 }

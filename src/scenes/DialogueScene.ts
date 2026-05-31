@@ -39,18 +39,17 @@ export class DialogueScene extends Phaser.Scene {
       this.lineIndex++;
       this.renderLine();
     } else {
-      // End of dialogue. If this NPC teaches something the player hasn't
-      // mastered, and the line was comprehensible, start the learning challenge.
+      // End of dialogue, decide the learning challenge.
       const objId = this.npc.teachesObjectiveId;
-      if (objId && !this.state.proficiency.isMastered(objId)) {
+      const isRolePlay = !!(this.npc.lessonSlug || this.npc.conversation);
+      // Role-play/voiced NPCs are ALWAYS replayable — repeating the same
+      // conversation is how you build friendship. Quiz NPCs stop once mastered.
+      if (isRolePlay) {
         this.scene.stop();
-        // A scripted lesson role-play or a voiced gate takes priority; else
-        // fall back to the multiple-choice mini-game.
-        if (this.npc.lessonSlug || this.npc.conversation) {
-          this.scene.launch("ConversationScene", { npcId: this.npc.id });
-        } else {
-          this.scene.launch("MinigameScene", { objectiveId: objId });
-        }
+        this.scene.launch("ConversationScene", { npcId: this.npc.id });
+      } else if (objId && !this.state.proficiency.isMastered(objId)) {
+        this.scene.stop();
+        this.scene.launch("MinigameScene", { objectiveId: objId });
       } else {
         this.close();
       }

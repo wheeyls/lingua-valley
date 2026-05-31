@@ -57,6 +57,7 @@ describe("dialogue layout", () => {
 function baseConversation(over: Partial<ConversationVM> = {}): ConversationVM {
   return {
     npcName: "Rosa",
+    friendship: "Acquaintance",
     goal: "Greet people and say goodbye.",
     npcSpeech: "¡Hola! Buenos días. ¿Cómo estás hoy?",
     transcript: "",

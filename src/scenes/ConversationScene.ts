@@ -7,6 +7,7 @@ import { transcribe, speak } from "../game/api";
 import { ConversationSession } from "../app/ConversationSession";
 import { RolePlay } from "../domain/rolePlay";
 import { HoldToTalk, type HoldAction } from "../domain/holdToTalk";
+import { tierFor, tierLabel } from "../domain/friendship";
 import { lessonBySlug } from "../content/lessons";
 import { COLOR } from "../game/layout";
 import { conversationLayout } from "../ui/layouts/conversation";
@@ -100,8 +101,10 @@ export class ConversationScene extends Phaser.Scene {
 
     // Render from the pure, tested conversation layout. We grab the live text
     // and mic objects by id and keep updating them in place.
+    const rapport = this.state.player.getState().rapport[this.npc.id] ?? 0;
     const nodes = conversationLayout({
       npcName: this.npc.name,
+      friendship: tierLabel(tierFor(rapport)),
       goal: obj ? obj.canDo : "",
       npcSpeech: "",
       transcript: "",
@@ -280,7 +283,11 @@ export class ConversationScene extends Phaser.Scene {
           : outcome.applied.blockedReason === "insufficient-focus"
             ? "  (out of Focus — rest until tomorrow)"
             : "";
-      this.feedbackText.setText(outcome.grade.feedback + corr + earned);
+      const rapport =
+        outcome.applied.rapportGained && outcome.applied.rapportGained > 0
+          ? `  ♥ +${outcome.applied.rapportGained} friendship`
+          : "";
+      this.feedbackText.setText(outcome.grade.feedback + corr + earned + rapport);
 
       await this.npcSay(outcome.npcReply);
 

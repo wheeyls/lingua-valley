@@ -119,6 +119,17 @@ export class ConversationSession {
 
     const gateOpens = gateShouldOpen(res.objectiveMet, res.grade);
 
+    // For role-plays, advance the script FIRST so we know whether this turn
+    // completed the scene (which is when friendship grows).
+    let complete = res.conversationComplete;
+    let npcReply = res.npcReply;
+    if (this.config.rolePlay) {
+      this.history.push({ role: "npc", text: res.npcReply });
+      const more = this.advanceScript();
+      complete = this.pendingCue === null; // script exhausted
+      npcReply = [res.npcReply, ...more].join(" ");
+    }
+
     const applied = await this.player.completeActivity({
       objectiveId: this.config.objectiveId,
       level: this.config.level,
@@ -127,28 +138,16 @@ export class ConversationSession {
       communication: res.grade.communication,
       accuracy: res.grade.accuracy,
       objectiveMet: gateOpens,
+      npcId: this.config.npcId,
+      rolePlayComplete: !!this.config.rolePlay && complete,
     });
 
-    // For role-plays, advance the script: the grader's reply is the NPC's line,
-    // then play any further NPC lines up to the next player cue.
-    let complete = res.conversationComplete;
-    if (this.config.rolePlay) {
+    if (!this.config.rolePlay) {
       this.history.push({ role: "npc", text: res.npcReply });
-      const more = this.advanceScript();
-      // If the script is exhausted (no pending cue), the role-play is complete.
-      complete = this.pendingCue === null;
-      return {
-        npcReply: [res.npcReply, ...more].join(" "),
-        grade: res.grade,
-        applied,
-        mastered: applied.state.masteredObjectiveIds.includes(this.config.objectiveId),
-        complete,
-      };
     }
 
-    this.history.push({ role: "npc", text: res.npcReply });
     return {
-      npcReply: res.npcReply,
+      npcReply,
       grade: res.grade,
       applied,
       mastered: applied.state.masteredObjectiveIds.includes(this.config.objectiveId),

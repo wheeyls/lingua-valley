@@ -8,6 +8,8 @@ import type { UINode } from "../nodes";
 
 export interface ConversationVM {
   npcName: string;
+  /** Friendship tier label with this NPC, e.g. "Acquaintance". */
+  friendship?: string;
   goal: string;
   npcSpeech: string;
   transcript: string;
@@ -44,18 +46,31 @@ export function conversationLayout(vm: ConversationVM): UINode[] {
     kind: "text",
     id: "title",
     x: w / 2,
-    y: h * 0.08,
+    y: h * 0.06,
     text: vm.npcName,
     fontSize: px(TYPE.title),
     color: COLOR.gold,
     align: "center",
     depth: 71,
   });
+  if (vm.friendship) {
+    nodes.push({
+      kind: "text",
+      id: "friendship",
+      x: w / 2,
+      y: h * 0.06 + 30,
+      text: `♥ ${vm.friendship}`,
+      fontSize: px(TYPE.small),
+      color: COLOR.rose,
+      align: "center",
+      depth: 71,
+    });
+  }
   nodes.push({
     kind: "text",
     id: "goal",
     x: w / 2,
-    y: h * 0.08 + 36,
+    y: h * 0.06 + 56,
     text: vm.goal,
     fontSize: px(TYPE.label),
     color: COLOR.green,

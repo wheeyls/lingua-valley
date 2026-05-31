@@ -21,6 +21,8 @@ export interface PlayerStateRow {
   focus_day: string; // date
   skills: Partial<Skills> | null;
   mastered_ids: string[] | null;
+  rapport: Record<string, number> | null;
+  goods: Record<string, number> | null;
 }
 
 export interface VocabCardRow {
@@ -69,6 +71,8 @@ export function rowsToPlayerState(
     },
     masteredObjectiveIds: state.mastered_ids ?? [],
     cards: cardMap,
+    rapport: state.rapport ?? {},
+    goods: state.goods ?? {},
   };
 }
 
@@ -80,6 +84,8 @@ export function playerStateToRow(userId: string, s: PlayerState): PlayerStateRow
     focus_day: s.focusDay,
     skills: s.skills,
     mastered_ids: s.masteredObjectiveIds,
+    rapport: s.rapport,
+    goods: s.goods,
   };
 }
 

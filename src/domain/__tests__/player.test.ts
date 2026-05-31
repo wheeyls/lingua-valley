@@ -114,3 +114,41 @@ describe("mergeStates (guest claim)", () => {
     expect(merged.cards["hola"].reps).toBe(4); // guest's more-advanced card wins
   });
 });
+
+describe("friendship via repeated role-plays", () => {
+  it("grows rapport each time a role-play completes, building tiers", () => {
+    let s = initialPlayerState("T", 1, "2025-06-01");
+    const npcId = "rosa";
+
+    // Repeat the same completed role-play across days; rapport accumulates.
+    let day = 1;
+    for (let i = 0; i < 12; i++) {
+      const now = new Date(`2025-06-${String(day).padStart(2, "0")}T12:00:00.000Z`);
+      const res = applyActivity(
+        s,
+        activity({
+          npcId,
+          rolePlayComplete: true,
+          communication: 0.9,
+          accuracy: 0.85,
+        }),
+        now,
+      );
+      s = res.state;
+      expect(res.rapportGained).toBeGreaterThan(0);
+      day++;
+    }
+    expect(s.rapport[npcId]).toBeGreaterThan(0);
+  });
+
+  it("does not grant rapport for an incomplete role-play turn", () => {
+    const s0 = initialPlayerState("T", 1, "2025-06-01");
+    const res = applyActivity(
+      s0,
+      activity({ npcId: "rosa", rolePlayComplete: false }),
+      NOW,
+    );
+    expect(res.rapportGained).toBe(0);
+    expect(res.state.rapport["rosa"]).toBeUndefined();
+  });
+});
