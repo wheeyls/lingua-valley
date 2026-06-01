@@ -9,14 +9,13 @@ import { estimateTextHeight } from "../nodes";
 
 export interface DialogueVM {
   npcName: string;
-  /** The (possibly garbled) Spanish line as perceived. */
+  /** The NPC's Spanish line — always plain, never garbled. */
   spanish: string;
-  actionable: boolean;
-  clarity: number;
+  /** Whether to render the Spanish as on-screen text (vs. audio-only towns). */
+  showSpanish?: boolean;
   englishHint: string;
   /** Whether the town offers English help (hidden in remote towns). */
   showEnglishHint?: boolean;
-  overLevelNote: string;
   /** Progress dots. */
   lineIndex: number;
   lineCount: number;
@@ -82,46 +81,43 @@ export function dialogueLayout(vm: DialogueVM): UINode[] {
     depth: 51,
   });
 
+  // Spanish line — always plain (never garbled). In audio-only towns the
+  // subtitle is hidden; we show a small "listen" prompt instead.
+  const showSpanish = vm.showSpanish ?? true;
   const spanish: UINode = {
     kind: "text",
     id: "spanish",
     origin: "topleft",
     x: pad,
     y: top + 60,
-    text: vm.spanish,
+    text: showSpanish ? vm.spanish : "🔊 (listen — no subtitles out here)",
     fontSize: px(TYPE.heading),
-    color: vm.actionable ? COLOR.parchment : COLOR.muted,
+    color: showSpanish ? COLOR.parchment : COLOR.muted,
+    italic: !showSpanish,
     wrapWidth: contentW,
     lineSpacing: 6,
     depth: 51,
   };
   nodes.push(spanish);
 
-  const understood = vm.clarity >= 0.6;
+  // English translation hint — only where the town offers that help.
   const showEnglish = vm.showEnglishHint ?? true;
   const hintY = top + 60 + estimateTextHeight(spanish) + 14;
-  // Hint text:
-  //  - understood + town gives help  -> English translation
-  //  - understood + remote town      -> "(no translation here — you're on your own)"
-  //  - not understood                -> over-level note
-  const hintText = understood
-    ? showEnglish
-      ? `“${vm.englishHint}”`
-      : "(no translation out here — listen closely)"
-    : vm.overLevelNote;
-  nodes.push({
-    kind: "text",
-    id: "hint",
-    origin: "topleft",
-    x: pad,
-    y: hintY,
-    text: hintText,
-    fontSize: px(TYPE.label),
-    color: understood ? (showEnglish ? COLOR.green : COLOR.muted) : COLOR.rose,
-    italic: true,
-    wrapWidth: contentW,
-    depth: 51,
-  });
+  if (showEnglish) {
+    nodes.push({
+      kind: "text",
+      id: "hint",
+      origin: "topleft",
+      x: pad,
+      y: hintY,
+      text: `“${vm.englishHint}”`,
+      fontSize: px(TYPE.label),
+      color: COLOR.green,
+      italic: true,
+      wrapWidth: contentW,
+      depth: 51,
+    });
+  }
 
   if (vm.lessonLabel) {
     nodes.push({
@@ -129,7 +125,7 @@ export function dialogueLayout(vm: DialogueVM): UINode[] {
       id: "lesson",
       origin: "topleft",
       x: pad,
-      y: hintY + 30,
+      y: (showEnglish ? hintY + 30 : hintY),
       text: `▶ Lesson: ${vm.lessonLabel}`,
       fontSize: px(TYPE.label),
       color: COLOR.gold,

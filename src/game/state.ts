@@ -2,7 +2,7 @@
  * Shared game state bridging the application layer and Phaser scenes.
  * Constructed once at the composition root (main.ts) and passed via the Phaser
  * registry. Holds no game rules — it wires PlayerService to the Proficiency
- * view the comprehension gate consumes, and exposes the adapters scenes need.
+ * view (level progress / mastery) and exposes the adapters + services scenes need.
  */
 
 import { Proficiency } from "../domain/proficiency";

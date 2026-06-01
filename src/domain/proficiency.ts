@@ -54,7 +54,7 @@ export class Proficiency {
 
   /**
    * Fraction (0..1) of a level's objectives the player has mastered.
-   * Used to drive the "comprehension" of dialogue at that level.
+   * Used by the HUD level bars and to compute the effective level.
    */
   levelMastery(level: CefrLevel): number {
     const total = this.totalCount(level);

@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { AREAS, townOfNpc, type Npc } from "../content/world";
-import { comprehend } from "../domain/comprehension";
+import { scaffoldingFor } from "../domain/scaffolding";
 import { objectiveById } from "../content/curriculum";
 import { GameState, REGISTRY_KEY } from "../game/state";
 import { dialogueLayout, type DialogueVM } from "../ui/layouts/dialogue";
@@ -75,28 +75,21 @@ export class DialogueScene extends Phaser.Scene {
     const line = this.npc.lines[this.lineIndex];
     const town = townOfNpc(this.npc.id);
     const englishAvail = town?.englishAvailability ?? 1;
-    const result = comprehend(
-      line.es,
-      line.level,
-      this.state.proficiency,
-      englishAvail,
-    );
+    // Training wheels by town: easier towns show Spanish subtitles + English;
+    // remoter towns take them off (Spanish-only, then audio-only). No garbling,
+    // no comprehension gate — you pass by performing, not by understanding.
+    const scaffold = scaffoldingFor(englishAvail);
+
     const objId = this.npc.teachesObjectiveId;
-    const teachable =
-      !!objId && !this.state.proficiency.isMastered(objId) && result.actionable;
+    const teachable = !!objId && !this.state.proficiency.isMastered(objId);
     const isLast = this.lineIndex >= this.npc.lines.length - 1;
-    // Remote towns hide the English crutch even when comprehension is high.
-    const showEnglish = englishAvail >= 0.5;
 
     return {
       npcName: this.npc.name,
-      spanish: result.rendered,
-      actionable: result.actionable,
-      clarity: result.clarity,
-      showEnglishHint: showEnglish,
+      spanish: line.es,
+      showSpanish: scaffold.spanishSubtitles,
+      showEnglishHint: scaffold.englishHints,
       englishHint: line.en,
-      overLevelNote:
-        "Too advanced to follow — learn more in an earlier area first.",
       lineIndex: this.lineIndex,
       lineCount: this.npc.lines.length,
       continueLabel: isLast

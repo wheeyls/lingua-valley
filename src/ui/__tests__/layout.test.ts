@@ -13,10 +13,9 @@ function baseDialogue(over: Partial<DialogueVM> = {}): DialogueVM {
   return {
     npcName: "Rosa",
     spanish: "¡Hola! Buenos días. ¿Cómo estás hoy?",
-    actionable: true,
-    clarity: 1,
+    showSpanish: true,
     englishHint: "Hello! Good morning. How are you today?",
-    overLevelNote: "Too advanced to follow — learn more in an earlier area first.",
+    showEnglishHint: true,
     lineIndex: 0,
     lineCount: 2,
     continueLabel: "Continue ▶",
@@ -30,16 +29,24 @@ describe("dialogue layout", () => {
     expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);
   });
 
-  it("stays healthy with a long over-level (garbled) line + lesson tease", () => {
+  it("stays healthy with a long Spanish line + lesson tease", () => {
     const issues = auditLayout(
       dialogueLayout(
         baseDialogue({
-          spanish: "···· ···· ····, ¿···· ···· ····? ···· ···· ····!",
-          actionable: false,
-          clarity: 0.2,
+          spanish:
+            "Un kilo cuesta diez pesos, pero le puedo hacer un buen descuento hoy.",
           lessonLabel: "Market quantities and bargaining",
           continueLabel: "Start lesson ▶",
         }),
+      ),
+    );
+    expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);
+  });
+
+  it("stays healthy audio-only (no subtitles, no English)", () => {
+    const issues = auditLayout(
+      dialogueLayout(
+        baseDialogue({ showSpanish: false, showEnglishHint: false }),
       ),
     );
     expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);

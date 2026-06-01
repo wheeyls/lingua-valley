@@ -1,9 +1,10 @@
 /**
  * World definition: areas, NPCs, and their dialogue.
  *
- * Each Area is bound to a CEFR level. NPC dialogue is authored at that level,
- * so when the player wanders into an over-level area the comprehension model
- * garbles it — the soft gate.
+ * Each Area is a town bound to a CEFR level. NPC Spanish is always shown plainly
+ * — no garbling. Difficulty comes from the language itself + how much scaffolding
+ * a town offers (Spanish subtitles / English hints), driven by its
+ * englishAvailability (see domain/scaffolding.ts).
  */
 
 import type { CefrLevel } from "../domain/cefr.js";
@@ -11,10 +12,10 @@ import type { Good } from "../domain/trade.js";
 import type { TownInfo } from "../domain/town.js";
 
 export interface DialogueLine {
-  /** CEFR level this line is written at (drives comprehension/garbling). */
+  /** CEFR level this line is written at (informational / future use). */
   level: CefrLevel;
   es: string;
-  /** English shown as a "hint" only when clarity is high enough. */
+  /** English translation, shown as a hint where the town offers English help. */
   en: string;
 }
 
