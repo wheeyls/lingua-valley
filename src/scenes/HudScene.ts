@@ -3,6 +3,7 @@ import { CEFR_LEVELS } from "../domain/cefr";
 import { GameState, REGISTRY_KEY } from "../game/state";
 import { AREAS, GOOD_NAMES, townInfoOf, type Area } from "../content/world";
 import { townReachable } from "../domain/town";
+import { QUESTS } from "../content/quests";
 import { FOCUS_MAX } from "../domain/player";
 import { hudLayout, type HudVM } from "../ui/layouts/hud";
 import { bannerLayout } from "../ui/layouts/banner";
@@ -50,8 +51,27 @@ export class HudScene extends Phaser.Scene {
       effectiveLevel: prof.effectiveLevel() ?? "—",
       levels,
       goods,
+      quest: this.activeQuestVM(),
       menuOpen: this.menuOpen,
     };
+  }
+
+  /** Active quest summary for the HUD (title + step done states), if any. */
+  private activeQuestVM(): HudVM["quest"] {
+    const ps = this.state.player.getState();
+    for (const quest of QUESTS) {
+      const prog = ps.quests[quest.id];
+      if (!prog || prog.phase === "done" || prog.phase === "offered") continue;
+      return {
+        title: quest.title,
+        phase: prog.phase,
+        steps: quest.steps.map((s) => ({
+          label: s.description,
+          done: prog.completedStepIds.includes(s.id),
+        })),
+      };
+    }
+    return undefined;
   }
 
   private renderHud() {

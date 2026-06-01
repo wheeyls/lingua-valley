@@ -8,6 +8,8 @@ import { ConversationSession } from "../app/ConversationSession";
 import { RolePlay } from "../domain/rolePlay";
 import { HoldToTalk, type HoldAction } from "../domain/holdToTalk";
 import { tierFor, tierLabel } from "../domain/friendship";
+import { lessonForPhase } from "../domain/quest";
+import { questById } from "../content/quests";
 import { townOfNpc, townInfoOf } from "../content/world";
 import {
   isTownUnlocked,
@@ -49,6 +51,10 @@ export class ConversationScene extends Phaser.Scene {
   private qualityTurns = 0;
   private townUnlockedThisVisit = false;
   private strictness = 1;
+  private quest?: import("../domain/quest").Quest;
+  private questPhaseAtStart?: import("../domain/quest").QuestPhase;
+  private questOutcome?: "activated" | "completed";
+  private questReward = 0;
 
   // Press-and-hold state machine (pure, tested). Robust to async mic startup
   // and touch jitter.
@@ -67,10 +73,21 @@ export class ConversationScene extends Phaser.Scene {
 
     const obj = objectiveById(this.npc.teachesObjectiveId!)!;
 
+    // Quest-giver? Choose the lesson by quest phase: future-tense plan when
+    // offered, past-tense recap when reporting back. Remember which for the
+    // post-conversation transition.
+    this.quest = this.npc.givesQuest ? questById(this.npc.givesQuest) : undefined;
+    let slug = this.npc.lessonSlug;
+    if (this.quest) {
+      const prog = this.state.quests.progressFor(this.quest.id);
+      this.questPhaseAtStart = prog.phase;
+      slug = lessonForPhase(this.quest, prog) ?? slug;
+    }
+
     // If this NPC is tied to a lesson, run that lesson's lab as a scripted
     // role-play (NPC = role A, player = role B).
     let rolePlay: RolePlay | undefined;
-    const lesson = this.npc.lessonSlug ? lessonBySlug(this.npc.lessonSlug) : undefined;
+    const lesson = slug ? lessonBySlug(slug) : undefined;
     if (lesson) rolePlay = new RolePlay(lesson.lab);
 
     // Remoter towns grade stricter.
@@ -317,10 +334,12 @@ export class ConversationScene extends Phaser.Scene {
       if (outcome.mastered) {
         this.mastered = true;
         await this.maybeUnlockTown();
+        await this.maybeAdvanceQuest();
         this.finish(true);
       } else if (outcome.complete) {
         // Completing a scripted role-play to the end is itself a success.
         await this.maybeUnlockTown();
+        await this.maybeAdvanceQuest();
         this.finish(this.session.isRolePlay);
       } else {
         this.phase = "awaitInput";
@@ -358,9 +377,36 @@ export class ConversationScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Advance the quest after a quest-giver conversation completes:
+   *  - finished the future-tense PLAN -> activate (go do your steps)
+   *  - finished the past-tense RECAP  -> complete the quest + award reward
+   */
+  private async maybeAdvanceQuest() {
+    if (!this.quest) return;
+    if (this.questPhaseAtStart === "offered" || this.questPhaseAtStart === "planning") {
+      await this.state.quests.activate(this.quest.id);
+      this.questOutcome = "activated";
+    } else if (this.questPhaseAtStart === "recap") {
+      const reward = await this.state.quests.finishRecap(this.quest);
+      this.questReward = reward;
+      this.questOutcome = "completed";
+    }
+  }
+
   private finish(passed: boolean) {
     this.phase = "done";
-    if (this.townUnlockedThisVisit) {
+    if (this.questOutcome === "activated") {
+      this.setStatus(
+        "¡Buen plan! Now go do it — talk to the people you mentioned, then come back. Tap to continue.",
+        "#9bc995",
+      );
+    } else if (this.questOutcome === "completed") {
+      this.setStatus(
+        `¡Bien hecho! Quest complete — +${this.questReward} pesos. Tap to continue.`,
+        "#9bc995",
+      );
+    } else if (this.townUnlockedThisVisit) {
       this.setStatus(
         "¡Te ganaste su confianza! The community opens — producers unlocked. Tap to continue.",
         "#9bc995",

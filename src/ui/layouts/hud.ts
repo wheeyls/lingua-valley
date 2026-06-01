@@ -20,6 +20,12 @@ export interface HudVM {
   levels: { level: string; pct: number }[];
   /** Goods the player is carrying (name + qty). */
   goods?: { name: string; qty: number }[];
+  /** Active quest summary, if any. */
+  quest?: {
+    title: string;
+    phase: string;
+    steps: { label: string; done: boolean }[];
+  };
   menuOpen: boolean;
 }
 
@@ -154,7 +160,8 @@ function menuNodes(vm: HudVM): UINode[] {
   const margin = 24;
   const panelW = w - margin * 2;
   const goodsRows = vm.goods && vm.goods.length > 0 ? 2 : 0;
-  const rows = 2 + vm.levels.length + goodsRows + 2; // skills + levels + goods + auth
+  const questRows = vm.quest ? 1 + vm.quest.steps.length : 0;
+  const rows = 2 + vm.levels.length + goodsRows + questRows + 2;
   const panelH = 24 + rows * 26;
 
   nodes.push({
@@ -240,6 +247,37 @@ function menuNodes(vm: HudVM): UINode[] {
       depth: 66,
     });
     y += 26;
+  }
+
+  // Active quest tracker.
+  if (vm.quest) {
+    nodes.push({
+      kind: "text",
+      id: "menuQuestTitle",
+      origin: "topleft",
+      x: margin + 14,
+      y: y + 6,
+      text: `Quest: ${vm.quest.title}`,
+      fontSize: px(TYPE.small),
+      color: COLOR.muted,
+      depth: 66,
+    });
+    y += 28;
+    for (const step of vm.quest.steps) {
+      nodes.push({
+        kind: "text",
+        id: `menuQuestStep-${step.label}`,
+        origin: "topleft",
+        x: margin + 14,
+        y,
+        text: `${step.done ? "✓" : "○"} ${step.label}`,
+        fontSize: px(TYPE.label),
+        color: step.done ? COLOR.green : COLOR.parchment,
+        wrapWidth: panelW - 28,
+        depth: 66,
+      });
+      y += 26;
+    }
   }
 
   // Account row + auth button.

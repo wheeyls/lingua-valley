@@ -31,6 +31,10 @@ export class DialogueScene extends Phaser.Scene {
     this.lineIndex = 0;
     this.renderLine();
 
+    // Talking to an NPC counts as "doing" any active quest step that targets
+    // them. The HUD quest tracker reflects completion.
+    void this.state.quests.noteInteraction(this.npc.id);
+
     this.input.keyboard!.on("keydown-SPACE", () => this.advance());
     this.input.keyboard!.on("keydown-ESC", () => this.close());
   }
@@ -42,7 +46,11 @@ export class DialogueScene extends Phaser.Scene {
     } else {
       // End of dialogue, decide the learning challenge.
       const objId = this.npc.teachesObjectiveId;
-      const isRolePlay = !!(this.npc.lessonSlug || this.npc.conversation);
+      const isRolePlay = !!(
+        this.npc.lessonSlug ||
+        this.npc.conversation ||
+        this.npc.givesQuest
+      );
       // Role-play/voiced NPCs are ALWAYS replayable — repeating the same
       // conversation is how you build friendship. Quiz NPCs stop once mastered.
       if (isRolePlay) {

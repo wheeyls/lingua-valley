@@ -54,6 +54,8 @@ export interface Npc {
    *  - undefined: a regular townsperson (practice/friendship only).
    */
   role?: "middleman" | "producer" | "gatekeeper";
+  /** If set, this NPC gives (and receives the recap for) the named quest. */
+  givesQuest?: string;
 }
 
 export interface Area {
@@ -168,6 +170,19 @@ export const AREAS: Area[] = [
         conversation: { opener: "¡Ey! ¿Qué onda? ¡Cuánto tiempo!" },
         lines: [
           { level: "A1", es: "¡Hola! Practiquemos saludar entre amigos.", en: "Hi! Let's practice greeting as friends." },
+        ],
+      },
+      {
+        id: "marisol",
+        name: "Marisol",
+        tileX: 3,
+        tileY: 12,
+        color: 0x2a9d8f,
+        teachesObjectiveId: "b1.weekend_plans",
+        voice: "nova",
+        givesQuest: "market-errands",
+        lines: [
+          { level: "A2", es: "¿Qué vas a hacer hoy? Cuéntame tus planes.", en: "What are you going to do today? Tell me your plans." },
         ],
       },
     ],

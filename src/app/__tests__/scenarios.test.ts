@@ -262,3 +262,48 @@ describe("gatekeeper unlocks producers (the journey)", () => {
     expect(buyPrice(maiz, "friend")).toBeLessThan(buyPrice(apple, "friend"));
   });
 });
+
+describe("quest arc: plan (future) -> do -> recap (past)", () => {
+  it("activates, completes steps by interacting, then awards the reward on recap", async () => {
+    const { QuestService } = await import("../QuestService");
+    const { questById } = await import("../../content/quests");
+
+    const adapters = makeAdapters("test");
+    const player = new PlayerService(adapters.repo, adapters.rewardGrader);
+    await player.init();
+    const quests = new QuestService(player);
+    const quest = questById("market-errands")!;
+
+    // 1. Plan stated (future tense) -> activate.
+    await quests.activate(quest.id);
+    expect(quests.progressFor(quest.id).phase).toBe("active");
+
+    // 2. Do the errands by interacting with the target NPCs.
+    for (const step of quest.steps) {
+      await quests.noteInteraction(step.targetNpcId);
+    }
+    expect(quests.progressFor(quest.id).phase).toBe("recap");
+
+    // 3. Report back (past tense) -> complete + reward.
+    const before = player.getState().pesos;
+    const reward = await quests.finishRecap(quest);
+    expect(reward).toBe(quest.reward);
+    expect(player.getState().pesos).toBe(before + quest.reward);
+    expect(quests.progressFor(quest.id).phase).toBe("done");
+    // Persisted.
+    expect((await adapters.repo.load())!.quests[quest.id].phase).toBe("done");
+  });
+
+  it("interacting with an unrelated NPC doesn't complete steps", async () => {
+    const { QuestService } = await import("../QuestService");
+    const { questById } = await import("../../content/quests");
+    const adapters = makeAdapters("test");
+    const player = new PlayerService(adapters.repo, adapters.rewardGrader);
+    await player.init();
+    const quests = new QuestService(player);
+    const quest = questById("market-errands")!;
+    await quests.activate(quest.id);
+    await quests.noteInteraction("rosa"); // not a target
+    expect(quests.progressFor(quest.id).completedStepIds).toHaveLength(0);
+  });
+});

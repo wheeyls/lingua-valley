@@ -16,6 +16,7 @@ import {
   type ActivityReward,
 } from "./economy.js";
 import { rapportGain } from "./friendship.js";
+import type { QuestProgress } from "./quest.js";
 
 /** Skill tracks fed by activities (Stardew-style XP tracks). */
 export interface Skills {
@@ -55,6 +56,9 @@ export interface PlayerState {
 
   /** Town ids whose gatekeeper the player has beaten (producers unlocked). */
   townsUnlocked: string[];
+
+  /** Per-quest progress, keyed by quest id. */
+  quests: Record<string, QuestProgress>;
 }
 
 export const FOCUS_MAX = 100;
@@ -76,6 +80,7 @@ export function initialPlayerState(
     rapport: {},
     goods: {},
     townsUnlocked: [],
+    quests: {},
   };
 }
 
@@ -111,6 +116,7 @@ export function normalizePlayerState(value: unknown): PlayerState {
     townsUnlocked: Array.isArray(v.townsUnlocked)
       ? v.townsUnlocked.filter((x) => typeof x === "string")
       : [],
+    quests: isObject(v.quests) ? (v.quests as PlayerState["quests"]) : {},
   };
 }
 
@@ -278,6 +284,25 @@ export function mergeStates(account: PlayerState, guest: PlayerState): PlayerSta
   const townsUnlocked = [
     ...new Set([...account.townsUnlocked, ...guest.townsUnlocked]),
   ];
+  // Quests: keep the more-advanced progress per quest (by phase rank, then steps).
+  const phaseRank: Record<string, number> = {
+    offered: 0,
+    planning: 1,
+    active: 2,
+    recap: 3,
+    done: 4,
+  };
+  const quests: PlayerState["quests"] = { ...account.quests };
+  for (const [id, gp] of Object.entries(guest.quests)) {
+    const ap = quests[id];
+    if (
+      !ap ||
+      phaseRank[gp.phase] > phaseRank[ap.phase] ||
+      gp.completedStepIds.length > ap.completedStepIds.length
+    ) {
+      quests[id] = gp;
+    }
+  }
   return {
     ...account,
     pesos: account.pesos + guest.pesos,
@@ -287,5 +312,6 @@ export function mergeStates(account: PlayerState, guest: PlayerState): PlayerSta
     rapport,
     goods,
     townsUnlocked,
+    quests,
   };
 }

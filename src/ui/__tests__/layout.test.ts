@@ -141,6 +141,25 @@ describe("hud layout", () => {
     expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);
   });
 
+  it("is healthy with the menu open + an active quest tracker", () => {
+    const issues = auditLayout(
+      hudLayout(
+        baseHud({
+          menuOpen: true,
+          quest: {
+            title: "Market Errands",
+            phase: "active",
+            steps: [
+              { label: "buy produce from La Vendedora", done: true },
+              { label: "get bread from El Panadero", done: false },
+            ],
+          },
+        }),
+      ),
+    );
+    expect(issues, JSON.stringify(issues, null, 2)).toHaveLength(0);
+  });
+
   it("is healthy with large numbers + signed-in label", () => {
     const issues = auditLayout(
       hudLayout(
