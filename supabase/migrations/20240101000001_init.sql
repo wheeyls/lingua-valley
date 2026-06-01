@@ -57,14 +57,22 @@ alter table public.vocab_cards  enable row level security;
 alter table public.activity_log enable row level security;
 
 -- Owners can read their own rows.
+-- (drop-if-exists makes this migration safely re-runnable; CREATE POLICY has no
+--  IF NOT EXISTS.)
+drop policy if exists "own profile read" on public.profiles;
 create policy "own profile read"  on public.profiles     for select using (auth.uid() = id);
+drop policy if exists "own state read" on public.player_state;
 create policy "own state read"    on public.player_state for select using (auth.uid() = user_id);
+drop policy if exists "own cards read" on public.vocab_cards;
 create policy "own cards read"    on public.vocab_cards  for select using (auth.uid() = user_id);
+drop policy if exists "own log read" on public.activity_log;
 create policy "own log read"      on public.activity_log for select using (auth.uid() = user_id);
 
 -- Owners can insert/update their own profile + (non-authoritative) reads.
+drop policy if exists "own profile write" on public.profiles;
 create policy "own profile write" on public.profiles
   for insert with check (auth.uid() = id);
+drop policy if exists "own profile update" on public.profiles;
 create policy "own profile update" on public.profiles
   for update using (auth.uid() = id);
 
