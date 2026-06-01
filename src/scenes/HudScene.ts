@@ -88,8 +88,36 @@ export class HudScene extends Phaser.Scene {
 
   private async onAuth() {
     const auth = this.state.adapters.auth;
-    if (auth.current().isGuest) await auth.signIn();
-    else await auth.signOut();
+    if (!auth.current().isGuest) {
+      await auth.signOut();
+      return;
+    }
+    // Magic-link sign-in: ask for an email, then send the link.
+    const email = window.prompt(
+      "Sign in — enter your email and we'll send you a magic link:",
+    );
+    if (!email) return;
+    try {
+      await auth.signIn(email.trim());
+      this.flashBanner("✉️ Check your email for a sign-in link.", false);
+    } catch (err) {
+      console.error("[auth] sign-in failed", err);
+      this.flashBanner("Sign-in failed — please try again.", true);
+    }
+  }
+
+  /** Show a transient HUD banner (reuses the area-banner rendering). */
+  private flashBanner(message: string, isError: boolean) {
+    this.banner?.destroy();
+    this.banner = renderNodes(this, bannerLayout({ message, overLevel: isError }));
+    this.banner.container.setScrollFactor(0);
+    this.tweens.add({
+      targets: this.banner.container,
+      alpha: { from: 1, to: 0 },
+      delay: 3000,
+      duration: 800,
+      onComplete: () => this.banner?.destroy(),
+    });
   }
 
   private showArea(area: Area) {

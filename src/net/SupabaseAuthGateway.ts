@@ -9,12 +9,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AuthGateway, AuthUser } from "../domain/ports";
 
-export interface SignInOptions {
-  /** "google" for OAuth, or an email for magic-link. */
-  method: "google" | { email: string };
-  redirectTo?: string;
-}
-
 export class SupabaseAuthGateway implements AuthGateway {
   private user: AuthUser;
   private listeners = new Set<(u: AuthUser) => void>();
@@ -22,7 +16,7 @@ export class SupabaseAuthGateway implements AuthGateway {
   constructor(
     private readonly sb: SupabaseClient,
     guestId: string,
-    private readonly defaultSignIn: SignInOptions = { method: "google" },
+    private readonly redirectTo: string | undefined = undefined,
   ) {
     this.user = { id: guestId, displayName: "Invitado", isGuest: true };
 
@@ -48,20 +42,20 @@ export class SupabaseAuthGateway implements AuthGateway {
     return this.user;
   }
 
-  async signIn(): Promise<AuthUser> {
-    const opts = this.defaultSignIn;
-    if (opts.method === "google") {
-      await this.sb.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: opts.redirectTo ?? window.location.origin },
-      });
-    } else {
-      await this.sb.auth.signInWithOtp({
-        email: opts.method.email,
-        options: { emailRedirectTo: opts.redirectTo ?? window.location.origin },
-      });
-    }
-    // OAuth/magic-link complete via redirect; onAuthStateChange updates state.
+  /**
+   * Send a passwordless magic link to `email`. The session completes when the
+   * player clicks the emailed link (onAuthStateChange then updates state).
+   * Requires an email; throws if none is provided.
+   */
+  async signIn(email?: string): Promise<AuthUser> {
+    if (!email) throw new Error("Email required for magic-link sign-in");
+    const { error } = await this.sb.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: this.redirectTo ?? window.location.origin,
+      },
+    });
+    if (error) throw error;
     return this.user;
   }
 
