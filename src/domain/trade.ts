@@ -78,7 +78,7 @@ export interface TradeResult {
 
 /** Friendship tier the player currently has with an NPC. */
 export function tierWith(state: PlayerState, npcId: string): FriendTier {
-  return tierFor(state.rapport[npcId] ?? 0);
+  return tierFor(state.rapport[npcId]?.points ?? 0);
 }
 
 /**

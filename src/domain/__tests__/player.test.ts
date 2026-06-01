@@ -138,7 +138,7 @@ describe("friendship via repeated role-plays", () => {
       expect(res.rapportGained).toBeGreaterThan(0);
       day++;
     }
-    expect(s.rapport[npcId]).toBeGreaterThan(0);
+    expect(s.rapport[npcId].points).toBeGreaterThan(0);
   });
 
   it("does not grant rapport for an incomplete role-play turn", () => {
@@ -186,5 +186,34 @@ describe("normalizePlayerState (forward-compatible loads)", () => {
       listening: 0,
       vocab: 0,
     });
+  });
+});
+
+describe("settleDailyState (decay on load + daily reset)", () => {
+  it("decays relationships for skipped days and resets the daily activity counter", async () => {
+    const { settleDailyState, initialPlayerState } = await import("../player");
+    const s0 = {
+      ...initialPlayerState("T", 1, "2025-06-01"),
+      rapport: { rosa: { points: 100, lastDay: "2025-06-01", countToday: 2 } },
+      activitiesToday: 5,
+      activityDay: "2025-06-01",
+    };
+    // Load five days later.
+    const settled = settleDailyState(s0, "2025-06-06");
+    expect(settled.rapport.rosa.points).toBeLessThan(100); // decayed
+    expect(settled.activitiesToday).toBe(0); // new day -> reset
+    expect(settled.activityDay).toBe("2025-06-06");
+  });
+
+  it("is a no-op within the same day", async () => {
+    const { settleDailyState, initialPlayerState } = await import("../player");
+    const s0 = {
+      ...initialPlayerState("T", 1, "2025-06-01"),
+      rapport: { rosa: { points: 50, lastDay: "2025-06-01", countToday: 1 } },
+      activitiesToday: 3,
+      activityDay: "2025-06-01",
+    };
+    const settled = settleDailyState(s0, "2025-06-01");
+    expect(settled).toBe(s0); // unchanged reference
   });
 });

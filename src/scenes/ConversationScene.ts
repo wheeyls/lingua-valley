@@ -136,7 +136,7 @@ export class ConversationScene extends Phaser.Scene {
 
     // Render from the pure, tested conversation layout. We grab the live text
     // and mic objects by id and keep updating them in place.
-    const rapport = this.state.player.getState().rapport[this.npc.id] ?? 0;
+    const rapport = this.state.player.getState().rapport[this.npc.id]?.points ?? 0;
     const nodes = conversationLayout({
       npcName: this.npc.name,
       friendship: tierLabel(tierFor(rapport)),

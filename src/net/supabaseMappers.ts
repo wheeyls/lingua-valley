@@ -21,10 +21,13 @@ export interface PlayerStateRow {
   focus_day: string; // date
   skills: Partial<Skills> | null;
   mastered_ids: string[] | null;
-  rapport: Record<string, number> | null;
+  /** jsonb: may be the new Relationship shape OR the legacy flat number per NPC. */
+  rapport: Record<string, unknown> | null;
   goods: Record<string, number> | null;
   towns_unlocked: string[] | null;
   quests: PlayerState["quests"] | null;
+  activities_today: number | null;
+  activity_day: string | null;
 }
 
 export interface VocabCardRow {
@@ -73,11 +76,35 @@ export function rowsToPlayerState(
     },
     masteredObjectiveIds: state.mastered_ids ?? [],
     cards: cardMap,
-    rapport: state.rapport ?? {},
+    rapport: migrateRapport(state.rapport),
     goods: state.goods ?? {},
     townsUnlocked: state.towns_unlocked ?? [],
     quests: state.quests ?? {},
+    activitiesToday: state.activities_today ?? 0,
+    activityDay: state.activity_day ?? base.activityDay,
   };
+}
+
+/**
+ * DB rapport jsonb may hold the OLD flat number per NPC; migrate to the
+ * Relationship shape so cloud rows from before this change load cleanly.
+ */
+function migrateRapport(raw: PlayerStateRow["rapport"]): PlayerState["rapport"] {
+  const out: PlayerState["rapport"] = {};
+  if (!raw) return out;
+  for (const [npc, val] of Object.entries(raw)) {
+    if (typeof val === "number") {
+      out[npc] = { points: val, lastDay: "", countToday: 0 };
+    } else if (val && typeof val === "object") {
+      const r = val as { points?: number; lastDay?: string; countToday?: number };
+      out[npc] = {
+        points: typeof r.points === "number" ? r.points : 0,
+        lastDay: typeof r.lastDay === "string" ? r.lastDay : "",
+        countToday: typeof r.countToday === "number" ? r.countToday : 0,
+      };
+    }
+  }
+  return out;
 }
 
 export function playerStateToRow(userId: string, s: PlayerState): PlayerStateRow {
@@ -92,6 +119,8 @@ export function playerStateToRow(userId: string, s: PlayerState): PlayerStateRow
     goods: s.goods,
     towns_unlocked: s.townsUnlocked,
     quests: s.quests,
+    activities_today: s.activitiesToday,
+    activity_day: s.activityDay,
   };
 }
 

@@ -17,6 +17,12 @@ import {
 } from "./economy.js";
 import { rapportGain } from "./friendship.js";
 import type { QuestProgress } from "./quest.js";
+import {
+  type Relationship,
+  emptyRelationship,
+  decay,
+  applyGain,
+} from "./relationship.js";
 
 /** Skill tracks fed by activities (Stardew-style XP tracks). */
 export interface Skills {
@@ -48,8 +54,11 @@ export interface PlayerState {
   /** Spaced-repetition cards, keyed by wordId. */
   cards: Record<string, VocabCard>;
 
-  /** Rapport points per NPC id (drives friendship tier + trade quality). */
-  rapport: Record<string, number>;
+  /**
+   * Per-NPC relationship record (rapport points + daily interaction tracking).
+   * Drives friendship tier, trade quality, decay, and per-NPC daily caps.
+   */
+  rapport: Record<string, Relationship>;
 
   /** Tradeable goods inventory: good id -> quantity. */
   goods: Record<string, number>;
@@ -59,6 +68,11 @@ export interface PlayerState {
 
   /** Per-quest progress, keyed by quest id. */
   quests: Record<string, QuestProgress>;
+
+  /** Count of reward-bearing activities done today (for the global daily soft-cap). */
+  activitiesToday: number;
+  /** UTC day the `activitiesToday` counter belongs to. */
+  activityDay: string;
 }
 
 export const FOCUS_MAX = 100;
@@ -81,6 +95,8 @@ export function initialPlayerState(
     goods: {},
     townsUnlocked: [],
     quests: {},
+    activitiesToday: 0,
+    activityDay: today,
   };
 }
 
@@ -111,13 +127,40 @@ export function normalizePlayerState(value: unknown): PlayerState {
       ? v.masteredObjectiveIds.filter((x) => typeof x === "string")
       : [],
     cards: isObject(v.cards) ? (v.cards as PlayerState["cards"]) : {},
-    rapport: isObject(v.rapport) ? (v.rapport as Record<string, number>) : {},
+    rapport: normalizeRapport(v.rapport),
     goods: isObject(v.goods) ? (v.goods as Record<string, number>) : {},
     townsUnlocked: Array.isArray(v.townsUnlocked)
       ? v.townsUnlocked.filter((x) => typeof x === "string")
       : [],
     quests: isObject(v.quests) ? (v.quests as PlayerState["quests"]) : {},
+    activitiesToday: numOr((v as PlayerState).activitiesToday, 0),
+    activityDay:
+      typeof (v as PlayerState).activityDay === "string"
+        ? (v as PlayerState).activityDay
+        : base.activityDay,
   };
+}
+
+/**
+ * Migrate rapport from the OLD flat `Record<string, number>` to the new
+ * `Record<string, Relationship>`. Old saves stored just the points.
+ */
+function normalizeRapport(v: unknown): Record<string, Relationship> {
+  const out: Record<string, Relationship> = {};
+  if (!isObject(v)) return out;
+  for (const [npc, raw] of Object.entries(v)) {
+    if (typeof raw === "number") {
+      out[npc] = { ...emptyRelationship(), points: raw };
+    } else if (isObject(raw)) {
+      const r = raw as { points?: unknown; lastDay?: unknown; countToday?: unknown };
+      out[npc] = {
+        points: numOr(r.points, 0),
+        lastDay: typeof r.lastDay === "string" ? r.lastDay : "",
+        countToday: numOr(r.countToday, 0),
+      };
+    }
+  }
+  return out;
 }
 
 function numOr(n: unknown, fallback: number): number {
@@ -228,13 +271,24 @@ export function applyActivity(
     }
   }
 
-  // 6. Friendship: completing a role-play with an NPC builds rapport, scaled by
-  //    quality. Repetition is the loop — every completion counts.
-  const rapport: Record<string, number> = { ...prev.rapport };
+  // 6. Daily activity counter (for the global soft-cap). Resets each new day.
+  const sameActivityDay = prev.activityDay === today;
+  const activitiesBefore = sameActivityDay ? prev.activitiesToday : 0;
+
+  // 7. Friendship: completing a conversation with an NPC builds rapport — but
+  //    through the daily-cadence rules: settle decay, then apply per-NPC and
+  //    global diminishing returns so grinding one NPC (or marathoning) pays less.
+  const rapport: Record<string, Relationship> = { ...prev.rapport };
   let rapportGained = 0;
   if (activity.rolePlayComplete && activity.npcId) {
-    rapportGained = rapportGain(reward.quality);
-    rapport[activity.npcId] = (rapport[activity.npcId] ?? 0) + rapportGained;
+    const base = rapportGain(reward.quality);
+    const result = applyGain(
+      rapport[activity.npcId] ?? emptyRelationship(),
+      base,
+      { today, activitiesToday: activitiesBefore },
+    );
+    rapport[activity.npcId] = result.relationship;
+    rapportGained = result.gained;
   }
 
   return {
@@ -247,6 +301,8 @@ export function applyActivity(
       cards,
       masteredObjectiveIds,
       rapport,
+      activitiesToday: activitiesBefore + 1,
+      activityDay: today,
     },
     reward,
     rapportGained,
@@ -272,10 +328,19 @@ export function mergeStates(account: PlayerState, guest: PlayerState): PlayerSta
     const aCard = cards[wordId];
     cards[wordId] = !aCard || gCard.reps > aCard.reps ? gCard : aCard;
   }
-  // Rapport: max per NPC. Goods: sum quantities.
-  const rapport: Record<string, number> = { ...account.rapport };
-  for (const [npc, pts] of Object.entries(guest.rapport)) {
-    rapport[npc] = Math.max(rapport[npc] ?? 0, pts);
+  // Rapport: keep the relationship with more points per NPC; most-recent day.
+  const rapport: Record<string, Relationship> = { ...account.rapport };
+  for (const [npc, gRel] of Object.entries(guest.rapport)) {
+    const aRel = rapport[npc];
+    if (!aRel) {
+      rapport[npc] = gRel;
+    } else {
+      rapport[npc] = {
+        points: Math.max(aRel.points, gRel.points),
+        lastDay: aRel.lastDay >= gRel.lastDay ? aRel.lastDay : gRel.lastDay,
+        countToday: aRel.lastDay >= gRel.lastDay ? aRel.countToday : gRel.countToday,
+      };
+    }
   }
   const goods: Record<string, number> = { ...account.goods };
   for (const [good, qty] of Object.entries(guest.goods)) {
@@ -313,5 +378,28 @@ export function mergeStates(account: PlayerState, guest: PlayerState): PlayerSta
     goods,
     townsUnlocked,
     quests,
+  };
+}
+
+/**
+ * Settle time-based state as of `today`: decay every relationship for skipped
+ * days and reset the daily activity counter on a new day. Pure & idempotent —
+ * call once when state is loaded (and safe to call again same-day).
+ */
+export function settleDailyState(state: PlayerState, today: string): PlayerState {
+  const rapport: Record<string, Relationship> = {};
+  let changed = false;
+  for (const [npc, rel] of Object.entries(state.rapport)) {
+    const settled = decay(rel, today);
+    rapport[npc] = settled;
+    if (settled.points !== rel.points) changed = true;
+  }
+  const newDay = state.activityDay !== today;
+  if (!changed && !newDay) return state;
+  return {
+    ...state,
+    rapport,
+    activitiesToday: newDay ? 0 : state.activitiesToday,
+    activityDay: today,
   };
 }

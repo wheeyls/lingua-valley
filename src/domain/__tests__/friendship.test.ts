@@ -65,7 +65,11 @@ describe("buying and selling", () => {
 
   function stateWithRapport(npc: string, rapport: number, pesos = 100) {
     const s = initialPlayerState("T", 1, "2025-06-01");
-    return { ...s, pesos, rapport: { [npc]: rapport } };
+    return {
+      ...s,
+      pesos,
+      rapport: { [npc]: { points: rapport, lastDay: "", countToday: 0 } },
+    };
   }
 
   it("friends buy cheaper and sell dearer", () => {

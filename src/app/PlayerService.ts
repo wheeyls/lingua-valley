@@ -11,6 +11,8 @@
 import type { PlayerStateRepository, RewardGrader } from "../domain/ports";
 import {
   initialPlayerState,
+  settleDailyState,
+  utcDay,
   type PlayerState,
   type ActivityResult,
   type ApplyResult,
@@ -36,8 +38,14 @@ export class PlayerService {
       // A load failure (e.g. schema drift) must not crash the game — start fresh.
       console.error("[PlayerService] load failed; starting fresh.", err);
     }
-    this.state = loaded ?? initialPlayerState();
-    if (!loaded) {
+    // Settle time-based state (relationship decay for skipped days, reset the
+    // daily activity counter on a new day) the moment we load.
+    this.state = settleDailyState(
+      loaded ?? initialPlayerState(),
+      utcDay(new Date()),
+    );
+    // Persist if brand-new OR if settling changed anything (e.g. decay applied).
+    if (!loaded || this.state !== (loaded ?? null)) {
       try {
         await this.repo.save(this.state);
       } catch (err) {
