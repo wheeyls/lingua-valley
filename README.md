@@ -176,3 +176,42 @@ for the ports-and-adapters laws.
 
 Guest progress is saved to `localStorage`; signed-in progress will sync to
 Supabase (cloud profile) once configured.
+
+## Database migrations (automated)
+
+Schema changes live in `supabase/migrations/` as timestamped `.sql` files and
+are applied automatically by GitHub Actions — **no more copy-pasting SQL into the
+dashboard.**
+
+- **`.github/workflows/migrate.yml`** runs `supabase db push` on every push to
+  `main` that touches `supabase/migrations/**` (and can be run manually from the
+  Actions tab via *Run workflow*).
+- **`.github/workflows/ci.yml`** runs typecheck + tests on every push/PR.
+
+### One-time setup
+
+Add three repo secrets (GitHub → Settings → Secrets and variables → Actions):
+
+| Secret | Where to get it |
+|--------|-----------------|
+| `SUPABASE_ACCESS_TOKEN` | Supabase → Account → Access Tokens → Generate |
+| `SUPABASE_PROJECT_REF` | Your project ref (the subdomain of the project URL, e.g. `onsqzglrnppdmppygzvp`) |
+| `SUPABASE_DB_PASSWORD` | Supabase → Project Settings → Database → Database password |
+
+**Baseline note:** the early migrations (`0001`–`0004`, now timestamped) were
+applied by hand before this automation existed. They all use `IF NOT EXISTS`, so
+re-running is safe. If the CLI's history table is empty, the first `db push` will
+(harmlessly) re-apply them; if it complains, run once locally:
+
+```bash
+supabase link --project-ref <ref>
+supabase migration repair --status applied <migration_timestamp>   # mark prior ones as applied
+```
+
+### Adding a new migration
+
+```bash
+supabase migration new add_something   # creates a timestamped file
+# …edit the generated SQL…
+git add supabase/migrations && git commit && git push   # CI applies it on main
+```

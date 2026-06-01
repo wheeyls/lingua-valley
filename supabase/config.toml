@@ -1,0 +1,14 @@
+# Supabase CLI project config.
+# `project_id` is the project ref (the subdomain of your Supabase URL).
+# Migrations in supabase/migrations are applied with `supabase db push`.
+project_id = "onsqzglrnppdmppygzvp"
+
+[db]
+# Local dev DB port (only used by `supabase start`; CI uses the linked remote).
+port = 54322
+major_version = 15
+
+[db.migrations]
+# Schema migrations history is tracked in the supabase_migrations.schema_migrations
+# table on the remote, so each migration runs exactly once.
+enabled = true
