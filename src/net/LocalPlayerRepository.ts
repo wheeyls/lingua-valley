@@ -6,7 +6,7 @@
  */
 
 import type { PlayerStateRepository } from "../domain/ports";
-import type { PlayerState } from "../domain/player";
+import { normalizePlayerState, type PlayerState } from "../domain/player";
 
 const KEY_PREFIX = "lingua-valley.player.";
 
@@ -20,7 +20,9 @@ export class LocalPlayerRepository implements PlayerStateRepository {
   async load(): Promise<PlayerState | null> {
     try {
       const raw = localStorage.getItem(this.key);
-      return raw ? (JSON.parse(raw) as PlayerState) : null;
+      // Normalize so saves from older versions (missing newer fields) load
+      // cleanly instead of crashing the game with undefined fields.
+      return raw ? normalizePlayerState(JSON.parse(raw)) : null;
     } catch {
       return null;
     }
@@ -38,7 +40,7 @@ export class LocalPlayerRepository implements PlayerStateRepository {
   loadSync(): PlayerState | null {
     try {
       const raw = localStorage.getItem(this.key);
-      return raw ? (JSON.parse(raw) as PlayerState) : null;
+      return raw ? normalizePlayerState(JSON.parse(raw)) : null;
     } catch {
       return null;
     }

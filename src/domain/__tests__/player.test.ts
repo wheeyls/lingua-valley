@@ -152,3 +152,39 @@ describe("friendship via repeated role-plays", () => {
     expect(res.state.rapport["rosa"]).toBeUndefined();
   });
 });
+
+describe("normalizePlayerState (forward-compatible loads)", () => {
+  it("fills missing newer fields from an OLD save without crashing", async () => {
+    const { normalizePlayerState } = await import("../player");
+    // Simulate a save written before rapport/goods/townsUnlocked existed.
+    const oldSave = {
+      displayName: "Vieja",
+      avatarColor: 123,
+      pesos: 42,
+      focus: 50,
+      focusDay: "2025-01-01",
+      skills: { speaking: 10, listening: 5, vocab: 3 },
+      masteredObjectiveIds: ["a1.greetings"],
+      cards: {},
+    };
+    const s = normalizePlayerState(oldSave);
+    expect(s.pesos).toBe(42);
+    expect(s.masteredObjectiveIds).toEqual(["a1.greetings"]);
+    // Newer fields are present and safe to use.
+    expect(s.rapport).toEqual({});
+    expect(s.goods).toEqual({});
+    expect(s.townsUnlocked).toEqual([]);
+    expect(Array.isArray(s.townsUnlocked)).toBe(true);
+  });
+
+  it("returns a fresh state for garbage/null input", async () => {
+    const { normalizePlayerState, initialPlayerState } = await import("../player");
+    expect(normalizePlayerState(null).pesos).toBe(initialPlayerState().pesos);
+    expect(normalizePlayerState("nonsense").townsUnlocked).toEqual([]);
+    expect(normalizePlayerState({ skills: null }).skills).toEqual({
+      speaking: 0,
+      listening: 0,
+      vocab: 0,
+    });
+  });
+});

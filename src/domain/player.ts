@@ -79,6 +79,48 @@ export function initialPlayerState(
   };
 }
 
+/**
+ * Normalize a loaded (possibly OLD or partial) value into a complete, valid
+ * PlayerState by filling any missing fields with defaults. This is the forward-
+ * compatible migration boundary: saves written by earlier versions (before
+ * rapport/goods/townsUnlocked existed) load cleanly instead of crashing scenes.
+ *
+ * Pure — every repository runs loaded data through this before returning it.
+ */
+export function normalizePlayerState(value: unknown): PlayerState {
+  const base = initialPlayerState();
+  if (!value || typeof value !== "object") return base;
+  const v = value as Partial<PlayerState>;
+  return {
+    displayName: typeof v.displayName === "string" ? v.displayName : base.displayName,
+    avatarColor: typeof v.avatarColor === "number" ? v.avatarColor : base.avatarColor,
+    pesos: typeof v.pesos === "number" ? v.pesos : 0,
+    focus: typeof v.focus === "number" ? v.focus : FOCUS_MAX,
+    focusDay: typeof v.focusDay === "string" ? v.focusDay : base.focusDay,
+    skills: {
+      speaking: numOr(v.skills?.speaking, 0),
+      listening: numOr(v.skills?.listening, 0),
+      vocab: numOr(v.skills?.vocab, 0),
+    },
+    masteredObjectiveIds: Array.isArray(v.masteredObjectiveIds)
+      ? v.masteredObjectiveIds.filter((x) => typeof x === "string")
+      : [],
+    cards: isObject(v.cards) ? (v.cards as PlayerState["cards"]) : {},
+    rapport: isObject(v.rapport) ? (v.rapport as Record<string, number>) : {},
+    goods: isObject(v.goods) ? (v.goods as Record<string, number>) : {},
+    townsUnlocked: Array.isArray(v.townsUnlocked)
+      ? v.townsUnlocked.filter((x) => typeof x === "string")
+      : [],
+  };
+}
+
+function numOr(n: unknown, fallback: number): number {
+  return typeof n === "number" && Number.isFinite(n) ? n : fallback;
+}
+function isObject(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === "object" && !Array.isArray(v);
+}
+
 /** UTC day string (YYYY-MM-DD). Pure — date is passed in, never read from a clock here. */
 export function utcDay(date: Date): string {
   return date.toISOString().slice(0, 10);
