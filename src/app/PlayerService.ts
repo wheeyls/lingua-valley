@@ -29,9 +29,21 @@ export class PlayerService {
 
   /** Load persisted state (or initialize a fresh one) and notify. */
   async init(): Promise<void> {
-    const loaded = await this.repo.load();
+    let loaded: PlayerState | null = null;
+    try {
+      loaded = await this.repo.load();
+    } catch (err) {
+      // A load failure (e.g. schema drift) must not crash the game — start fresh.
+      console.error("[PlayerService] load failed; starting fresh.", err);
+    }
     this.state = loaded ?? initialPlayerState();
-    if (!loaded) await this.repo.save(this.state);
+    if (!loaded) {
+      try {
+        await this.repo.save(this.state);
+      } catch (err) {
+        console.error("[PlayerService] initial save failed (continuing).", err);
+      }
+    }
     this.emit();
   }
 

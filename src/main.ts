@@ -61,6 +61,19 @@ async function bootstrap() {
   return game;
 }
 
-const gamePromise = bootstrap();
+const gamePromise = bootstrap().catch((err) => {
+  // Last-resort: surface the failure instead of a silent blank screen.
+  console.error("[bootstrap] fatal error:", err);
+  const el = document.getElementById("game");
+  if (el) {
+    el.innerHTML =
+      '<div style="color:#f4ecd8;font-family:sans-serif;padding:24px;text-align:center;max-width:480px">' +
+      "<h2>Couldn't start the game</h2>" +
+      "<p style=\"color:#b56576\">" +
+      String(err instanceof Error ? err.message : err) +
+      "</p></div>";
+  }
+  throw err;
+});
 
 export default gamePromise;

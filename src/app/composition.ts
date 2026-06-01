@@ -50,6 +50,21 @@ export function chooseProfile(): AdapterProfile {
 
 /** Build and initialize the application for the chosen profile. */
 export async function composeApp(profile = chooseProfile()): Promise<ComposedApp> {
+  try {
+    return await composeFor(profile);
+  } catch (err) {
+    // Never let a backend hiccup (e.g. a missing migration) blank the game.
+    // Fall back to guest mode so the player can always play.
+    console.error(
+      `[composeApp] "${profile}" init failed — falling back to guest mode.`,
+      err,
+    );
+    if (profile !== "guest") return composeFor("guest");
+    throw err;
+  }
+}
+
+async function composeFor(profile: AdapterProfile): Promise<ComposedApp> {
   const adapters =
     profile === "cloud" ? await resolveCloudAdapters() : makeAdapters(profile);
   const player = new PlayerService(adapters.repo, adapters.rewardGrader);
