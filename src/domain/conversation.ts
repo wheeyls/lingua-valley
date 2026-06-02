@@ -43,6 +43,8 @@ export interface RolePlayContext {
 export interface ConverseRequest {
   /** Stable id of the NPC being spoken to (for persona + voice). */
   npcId: string;
+  /** The NPC's display name — who the NPC IS (e.g. "Rosa"). */
+  npcName?: string;
   /** The CEFR level this conversation is gated at. */
   level: CefrLevel;
   /** The learning objective the player is trying to demonstrate. */

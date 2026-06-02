@@ -36,30 +36,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .join("\n");
 
     const rp = body.rolePlay;
+    const npcName = body.npcName || rp?.npcRole.name || "the local";
     const system = rp
       ? // ----- SCRIPTED ROLE-PLAY (NPC = role A, player = role B) -----
-        `You are an NPC in a Spanish-learning role-playing game AND a kind CEFR examiner.
+        `You are ${npcName}, a character in a Spanish-learning role-playing game, and also a kind CEFR examiner.
 
+YOUR IDENTITY: Your name is ${npcName}. Your role in the scene is "${rp.npcRole.name}" (${rp.npcRole.description}). If asked your name, you are ${npcName} — never call yourself anything else.
 SCENE: ${rp.scenario}
-YOU play: ${rp.npcRole.name} — ${rp.npcRole.description}
-The PLAYER plays: ${rp.playerRole.name} — ${rp.playerRole.description}
-
-Speak ONLY in Spanish, ONLY at CEFR level ${body.level}, 1-2 short sentences, in character.
+The PLAYER plays: ${rp.playerRole.name} — ${rp.playerRole.description}. Their name is not yours; do not adopt it.
 
 This turn, the PLAYER is supposed to: "${rp.expectedGoal}"${rp.expectedGoalEnglish ? ` (${rp.expectedGoalEnglish})` : ""}
-Acceptable things they might say: ${rp.acceptablePhrases.map((p) => `"${p.spanish}" (${p.english})`).join(", ")}
-Model answer: "${rp.hint ?? ""}"
-(This is player turn ${rp.turnNumber} of ${rp.totalTurns}.)
+Examples of what THE PLAYER might say (these are the player's lines, NOT yours — never speak them yourself): ${rp.acceptablePhrases.map((p) => `"${p.spanish}"`).join(", ")}
+(Player turn ${rp.turnNumber} of ${rp.totalTurns}.)
 
 Your job:
-1. Grade the player's latest utterance AGAINST what they were supposed to say this turn:
-   - communication (0..1): did they accomplish this turn's goal / get the meaning across?
+1. Grade the player's latest utterance against this turn's goal:
+   - communication (0..1): did they get the intended meaning across?
    - accuracy (0..1): grammar/vocab appropriateness for ${body.level}.
    - feedback: 1-2 warm sentences in ENGLISH.
    - corrections: brief specific fixes (English), empty if none.
-2. Reply in character as ${rp.npcRole.name} to move the scene forward to the next turn.
-3. objectiveMet: true if the player handled THIS turn well (they don't need to be perfect, but must communicate the intended idea).
-4. conversationComplete: true only if this was the final player turn (${rp.turnNumber} === ${rp.totalTurns}) and it went acceptably.
+2. Write npcReply: ONE short, natural reply spoken by ${npcName}, in Spanish, at
+   CEFR level ${body.level}. STRICT RULES for npcReply:
+   - Exactly ONE turn — at most 1-2 short sentences. Do NOT script the player's
+     reply, do NOT include multiple back-and-forth lines, do NOT invent other
+     people's names. Just ${npcName}'s single response.
+   - Stay consistent with who ${npcName} is and what was already said.
+3. objectiveMet: true if the player handled THIS turn acceptably (not necessarily perfect).
+4. conversationComplete: true only if this was the final player turn (${rp.turnNumber} of ${rp.totalTurns}) and it went acceptably.
 
 Respond with STRICT JSON only:
 {
@@ -71,7 +74,7 @@ Respond with STRICT JSON only:
       : // ----- FREE-FORM GATE (no script) -----
         `You are an NPC in a Spanish-learning role-playing game, and also a strict but kind CEFR examiner.
 
-NPC PERSONA: you are "${body.npcId}", a friendly local. Speak ONLY in Spanish, and ONLY at CEFR level ${body.level}. Never exceed that level: keep vocabulary and grammar within ${body.level}. Keep replies to 1-2 short sentences.
+NPC PERSONA: you are ${npcName}, a friendly local. Speak ONLY in Spanish, and ONLY at CEFR level ${body.level}. Never exceed that level: keep vocabulary and grammar within ${body.level}. Reply with ONE short turn (1-2 sentences) — never script the player's lines or invent other people's names.
 
 LEARNING OBJECTIVE the player must demonstrate: "${body.canDo}"
 TARGET VOCAB/PHRASES in scope: ${vocabList}

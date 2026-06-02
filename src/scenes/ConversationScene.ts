@@ -97,6 +97,7 @@ export class ConversationScene extends Phaser.Scene {
     this.session = new ConversationSession(
       {
         npcId: this.npc.id,
+        npcName: this.npc.name,
         level: obj.level,
         objectiveId: obj.id,
         canDo: obj.canDo,

@@ -211,9 +211,10 @@ describe("scripted lesson role-play (NPC=A, player=B)", () => {
       player,
     );
 
-    // Begin plays NPC lines up to the first player cue.
-    const opening = session.begin();
-    expect(opening.length).toBeGreaterThan(0);
+    // Begin: the NPC speaks the (in-character) opener and the script advances to
+    // the first player cue. NPC lines come from the opener/LLM, not raw hints.
+    const opening = session.begin("¡Buenas! Bienvenido.");
+    expect(opening).toEqual(["¡Buenas! Bienvenido."]);
     expect(session.isRolePlay).toBe(true);
     expect(session.currentGoal).toBeTruthy();
 

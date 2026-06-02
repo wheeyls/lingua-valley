@@ -21,6 +21,8 @@ import { RolePlay } from "../domain/rolePlay";
 
 export interface ConversationConfig {
   npcId: string;
+  /** The NPC's display name (who they are, e.g. "Rosa"). */
+  npcName?: string;
   level: CefrLevel;
   objectiveId: string;
   canDo: string;
@@ -55,17 +57,22 @@ export class ConversationSession {
   ) {}
 
   /**
-   * Begin the conversation. For a free-form gate, pass the opener line and it's
-   * the player's turn. For a role-play, the opener is ignored — call
-   * `advanceScript()` to play NPC lines up to the first player cue.
-   * Returns NPC lines to speak (one or more for role-plays).
+   * Begin the conversation. The NPC's opening line is the configured opener
+   * (in-character, e.g. Rosa's greeting) — we do NOT speak the lesson's raw
+   * "hint" lines (those are learner examples with placeholder names like Carlos,
+   * which caused the NPC to parrot wrong names). For a role-play we also advance
+   * the script to the first player cue so grading has context.
+   * Returns the single opening line to speak.
    */
   begin(opener?: string): string[] {
     if (this.config.rolePlay) {
-      return this.advanceScript();
+      this.advanceToNextCue();
     }
-    if (opener) this.history.push({ role: "npc", text: opener });
-    return opener ? [opener] : [];
+    if (opener) {
+      this.history.push({ role: "npc", text: opener });
+      return [opener];
+    }
+    return [];
   }
 
   /** Whether this session is a scripted role-play. */
@@ -79,26 +86,25 @@ export class ConversationSession {
   }
 
   /**
-   * Play NPC (role A) lines until the next player (role B) cue or the end.
-   * Returns the NPC lines spoken. Sets pendingCue for the next submit().
+   * Advance the script PAST any NPC (role A) turns to the next player (role B)
+   * cue, WITHOUT speaking the scripted A-lines — the LLM, playing the NPC in
+   * character, produces the actual spoken reply. The script only tells us what
+   * the player should attempt this turn (for grading) and when it's exhausted.
    */
-  private advanceScript(): string[] {
+  private advanceToNextCue(): void {
     const rp = this.config.rolePlay!;
-    const npcLines: string[] = [];
     for (;;) {
       const step = rp.next();
-      if (step.kind === "npc") {
-        this.history.push({ role: "npc", text: step.line.text });
-        npcLines.push(step.line.text);
-      } else if (step.kind === "player") {
+      if (step.kind === "player") {
         this.pendingCue = step.cue.context;
-        break;
-      } else {
-        this.pendingCue = null;
-        break;
+        return;
       }
+      if (step.kind === "end") {
+        this.pendingCue = null;
+        return;
+      }
+      // step.kind === "npc": skip — the LLM speaks for the NPC, not the script.
     }
-    return npcLines;
   }
 
   /**
@@ -110,6 +116,7 @@ export class ConversationSession {
 
     const res = await this.grader.gradeTurn({
       npcId: this.config.npcId,
+      npcName: this.config.npcName,
       level: this.config.level,
       objectiveId: this.config.objectiveId,
       canDo: this.config.canDo,
@@ -125,15 +132,17 @@ export class ConversationSession {
       this.config.strictness ?? 1,
     );
 
-    // For role-plays, advance the script FIRST so we know whether this turn
-    // completed the scene (which is when friendship grows).
+    // The NPC's spoken reply is ALWAYS the LLM's single in-character line —
+    // never concatenated with scripted lines (that caused the run-on blobs).
+    const npcReply = res.npcReply;
+    this.history.push({ role: "npc", text: npcReply });
+
+    // For role-plays, advance the cue to the next player turn so we know whether
+    // the scene is finished (which is when friendship grows).
     let complete = res.conversationComplete;
-    let npcReply = res.npcReply;
     if (this.config.rolePlay) {
-      this.history.push({ role: "npc", text: res.npcReply });
-      const more = this.advanceScript();
+      this.advanceToNextCue();
       complete = this.pendingCue === null; // script exhausted
-      npcReply = [res.npcReply, ...more].join(" ");
     }
 
     const applied = await this.player.completeActivity({
@@ -147,10 +156,6 @@ export class ConversationSession {
       npcId: this.config.npcId,
       rolePlayComplete: !!this.config.rolePlay && complete,
     });
-
-    if (!this.config.rolePlay) {
-      this.history.push({ role: "npc", text: res.npcReply });
-    }
 
     return {
       npcReply,
