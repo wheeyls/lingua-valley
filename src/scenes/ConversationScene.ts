@@ -213,11 +213,10 @@ export class ConversationScene extends Phaser.Scene {
   // --- Conversation flow ---------------------------------------------------
 
   private async startConversation() {
-    // Role-play NPCs return their scripted opening line(s); free-form gates use
-    // the NPC's `conversation.opener`.
-    const lines = this.session.isRolePlay
-      ? this.session.begin()
-      : this.session.begin(this.npc.conversation?.opener ?? "¡Hola!");
+    // The NPC always greets first with their in-character opener. (Role-play
+    // sessions also advance the script to the first player cue inside begin().)
+    const opener = this.npc.conversation?.opener ?? "¡Hola! ¿Cómo estás?";
+    const lines = this.session.begin(opener);
 
     for (const line of lines) await this.npcSay(line);
     this.phase = "awaitInput";
