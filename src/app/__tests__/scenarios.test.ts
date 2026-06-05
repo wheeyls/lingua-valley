@@ -308,3 +308,37 @@ describe("quest arc: plan (future) -> do -> recap (past)", () => {
     expect(quests.progressFor(quest.id).completedStepIds).toHaveLength(0);
   });
 });
+
+describe("reward grant resilience", () => {
+  it("a throwing grader does not break gameplay — falls back to local economy", async () => {
+    const { PlayerService } = await import("../PlayerService");
+    const { InMemoryPlayerRepository } = await import(
+      "../../net/fakes/InMemoryPlayerRepository"
+    );
+    const repo = new InMemoryPlayerRepository();
+    const throwingGrader = {
+      async grant() {
+        throw new Error("activity-complete failed: 401");
+      },
+    };
+    const player = new PlayerService(repo, throwingGrader as never);
+    await player.init();
+
+    const result = await player.completeActivity({
+      objectiveId: "a1.greetings",
+      level: "A1",
+      skill: "speaking",
+      wordIds: ["hola"],
+      communication: 1,
+      accuracy: 1,
+      objectiveMet: false,
+      npcId: "rosa",
+      rolePlayComplete: true,
+    });
+
+    // Did not throw; applied locally (pesos awarded, rapport grew).
+    expect(result.reward).not.toBeNull();
+    expect(player.getState().pesos).toBeGreaterThan(0);
+    expect(player.getState().rapport["rosa"].points).toBeGreaterThan(0);
+  });
+});

@@ -12,11 +12,13 @@ import type { PlayerStateRepository, RewardGrader } from "../domain/ports";
 import {
   initialPlayerState,
   settleDailyState,
+  applyActivity,
   utcDay,
   type PlayerState,
   type ActivityResult,
   type ApplyResult,
 } from "../domain/player";
+import { objectiveWordIds } from "../content/curriculum";
 
 type Listener = (state: PlayerState) => void;
 
@@ -84,10 +86,26 @@ export class PlayerService {
 
   /**
    * Complete a graded activity. Routes through the RewardGrader port (which is
-   * server-authoritative when signed in), then adopts the returned state.
+   * server-authoritative when signed in). If that fails (network/auth/server
+   * hiccup) we MUST NOT break the conversation — fall back to applying the same
+   * domain reducer locally so the player still gets their reward and gameplay
+   * continues. The server stays the source of truth when it's reachable.
    */
   async completeActivity(activity: ActivityResult): Promise<ApplyResult> {
-    const result = await this.grader.grant(activity);
+    let result: ApplyResult;
+    try {
+      result = await this.grader.grant(activity);
+    } catch (err) {
+      console.error("[PlayerService] reward grant failed; applying locally.", err);
+      result = applyActivity(
+        this.state,
+        activity,
+        new Date(),
+        objectiveWordIds,
+      );
+      // Best-effort local persist (also non-fatal).
+      this.repo.save(result.state).catch(() => {});
+    }
     this.state = result.state;
     this.emit();
     return result;
