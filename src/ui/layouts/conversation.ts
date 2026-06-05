@@ -167,7 +167,7 @@ export function conversationLayout(vm: ConversationVM): UINode[] {
     id: "micHelp",
     x: w / 2,
     y: micY + micR + 22,
-    text: "Hold the mic to speak · release to send",
+    text: "Tap the mic to speak · tap again to send",
     fontSize: px(TYPE.small),
     color: COLOR.muted,
     align: "center",

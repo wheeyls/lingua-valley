@@ -6,7 +6,6 @@ import { MicRecorder, playAudioBytes } from "../game/voice";
 import { transcribe, speak } from "../game/api";
 import { ConversationSession } from "../app/ConversationSession";
 import { RolePlay } from "../domain/rolePlay";
-import { HoldToTalk, type HoldAction } from "../domain/holdToTalk";
 import { tierFor, tierLabel } from "../domain/friendship";
 import { lessonForPhase } from "../domain/quest";
 import { questById } from "../content/quests";
@@ -56,10 +55,6 @@ export class ConversationScene extends Phaser.Scene {
   private questOutcome?: "activated" | "completed";
   private questReward = 0;
 
-  // Press-and-hold state machine (pure, tested). Robust to async mic startup
-  // and touch jitter.
-  private hold!: HoldToTalk;
-
   constructor() {
     super("ConversationScene");
   }
@@ -69,7 +64,6 @@ export class ConversationScene extends Phaser.Scene {
     this.npc = findNpc(data.npcId)!;
     this.phase = "intro";
     this.mastered = false;
-    this.hold = new HoldToTalk({ minHoldMs: 250, now: () => this.time.now });
 
     const obj = objectiveById(this.npc.teachesObjectiveId!)!;
 
@@ -168,46 +162,26 @@ export class ConversationScene extends Phaser.Scene {
     this.statusText = ui.byId.get("status") as Phaser.GameObjects.Text;
     this.micButton = ui.byId.get("micButton") as Phaser.GameObjects.Arc;
 
-    // Press-and-hold on the mic. Press starts; release (anywhere) sends.
-    // NOTE: we intentionally do NOT use POINTER_OUT — finger jitter must not end
-    // a hold — and we listen for release on the global input so a finger that
-    // drifts off the button still ends the recording.
+    // TAP-TO-TOGGLE mic: tap once to start recording, tap again to stop & send.
+    // Far more robust on touch than press-and-hold (no hold timing, no
+    // global-pointerup races, no async-startup desync).
     this.micButton.setInteractive({ useHandCursor: true });
-    this.micButton.on(Phaser.Input.Events.POINTER_DOWN, () => {
-      if (this.phase === "done") {
-        this.close();
-        return;
-      }
-      this.onHoldStart();
-    });
-    this.input.on(Phaser.Input.Events.POINTER_UP, () => this.onHoldEnd());
+    this.micButton.on(Phaser.Input.Events.POINTER_DOWN, () => this.onMicTap());
   }
 
-  /** Begin a press-and-hold. */
-  private onHoldStart() {
-    if (this.phase !== "awaitInput") return;
-    this.applyHoldAction(this.hold.press());
-  }
-
-  /** End a press-and-hold (from button or global pointerup / key up). */
-  private onHoldEnd() {
-    this.applyHoldAction(this.hold.release());
-  }
-
-  /** Translate a HoldToTalk decision into scene actions. */
-  private applyHoldAction(action: HoldAction) {
-    switch (action) {
-      case "begin-recording":
+  /** Single source of truth for a mic tap, by phase. */
+  private onMicTap() {
+    switch (this.phase) {
+      case "awaitInput":
         void this.beginRecording();
         break;
-      case "send":
+      case "recording":
         void this.endRecordingAndSend();
         break;
-      case "cancel":
-        this.cancelRecording();
+      case "done":
+        this.close();
         break;
-      case "none":
-        break;
+      // npcSpeaking / thinking / intro: ignore taps.
     }
   }
 
@@ -239,7 +213,7 @@ export class ConversationScene extends Phaser.Scene {
     const goal = this.session.currentGoal;
     return goal
       ? `Your turn: ${goal}`
-      : "Your turn — hold the mic and reply in Spanish.";
+      : "Your turn — tap the mic and reply in Spanish.";
   }
 
   /** Show + speak an NPC line. Falls back to text if TTS fails. */
@@ -256,45 +230,24 @@ export class ConversationScene extends Phaser.Scene {
   }
 
   update() {
-    // Keyboard SPACE acts as a press-and-hold, mirroring the mic button.
-    if (this.phase === "done") {
-      if (Phaser.Input.Keyboard.JustDown(this.recordKey)) this.close();
-      return;
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.recordKey)) {
-      this.onHoldStart();
-    } else if (Phaser.Input.Keyboard.JustUp(this.recordKey)) {
-      this.onHoldEnd();
-    }
+    // Keyboard SPACE mirrors the tap-to-toggle mic (press to start, press again
+    // to send). Use JustDown so each key press is a single toggle.
+    if (Phaser.Input.Keyboard.JustDown(this.recordKey)) this.onMicTap();
   }
 
   private async beginRecording() {
+    if (this.phase !== "awaitInput") return;
     this.phase = "recording";
     this.feedbackText.setText("");
     this.transcriptText.setText("");
     this.setMicState(true);
-    this.setStatus("🔴 Recording… release to send.", "#b56576");
+    this.setStatus("🔴 Recording… tap to send.", "#b56576");
     try {
       await this.recorder.start();
-      // Mic is live. If the user already released during startup, this resolves
-      // to send/cancel; otherwise it waits for release.
-      this.applyHoldAction(this.hold.startResolved());
     } catch {
-      this.hold.reset();
-      this.setStatus("Microphone permission denied.", "#b56576");
+      this.setStatus("Microphone permission denied. Tap Leave to go back.", "#b56576");
       this.setMicState(false);
-      this.phase = "done";
-    }
-  }
-
-  /** Abort a recording without sending (too-short hold / cancel). */
-  private cancelRecording() {
-    this.setMicState(false);
-    if (this.phase === "recording") {
       this.phase = "awaitInput";
-      this.setStatus(this.turnPrompt());
-      // Best-effort: stop the mic stream if it started.
-      void this.recorder.stop().catch(() => {});
     }
   }
 
@@ -308,7 +261,7 @@ export class ConversationScene extends Phaser.Scene {
       const utterance = await transcribe(audioBase64, mimeType);
 
       if (!utterance.trim()) {
-        this.setStatus("I didn't catch that — hold the mic and try again.");
+        this.setStatus("I didn't catch that — tap the mic to try again.");
         this.phase = "awaitInput";
         return;
       }
