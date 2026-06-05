@@ -116,6 +116,10 @@ export class ConversationScene extends Phaser.Scene {
     );
     this.input.keyboard!.on("keydown-ESC", () => this.close());
 
+    // Safety net: always release the mic when this scene shuts down, however it
+    // happens, so the mic never stays active after a conversation ends.
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.recorder.release());
+
     if (!MicRecorder.isSupported()) {
       this.setStatus(
         "Microphone not supported here. Tap Leave to go back.",
@@ -124,6 +128,13 @@ export class ConversationScene extends Phaser.Scene {
       this.phase = "done";
       return;
     }
+
+    // Acquire the mic ONCE up front so the permission prompt doesn't interrupt
+    // the press-to-talk gesture, and so we never re-prompt on later turns/NPCs.
+    // (The stream is kept alive for the whole conversation; released on close.)
+    void this.recorder.acquire().catch(() => {
+      /* if denied/deferred, the first mic press will request it again */
+    });
 
     void this.startConversation();
   }
@@ -419,6 +430,9 @@ export class ConversationScene extends Phaser.Scene {
   }
 
   private close() {
+    // Release the mic when leaving the conversation — the stream is only kept
+    // alive for the duration of a single chat (no re-prompt between turns).
+    this.recorder.release();
     this.scene.stop();
     this.scene.resume("WorldScene");
     // If mastered, the HUD already updated via the proficiency subscription.

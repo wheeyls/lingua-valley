@@ -3,6 +3,12 @@
  *
  * MicRecorder captures a short utterance as a base64 blob (sent to /api/transcribe).
  * playAudioBytes plays TTS audio returned from /api/speak.
+ *
+ * IMPORTANT (mobile): we acquire the mic stream ONCE (`acquire`) and keep it
+ * alive for the whole conversation. Recording start/stop just toggles a
+ * MediaRecorder on that persistent stream. This avoids re-prompting for the mic
+ * permission on every turn / NPC, and keeps the permission request OUT of the
+ * press-to-talk gesture (which otherwise gets interrupted by the OS dialog).
  */
 
 export class MicRecorder {
@@ -28,12 +34,31 @@ export class MicRecorder {
     return "";
   }
 
-  async start(): Promise<void> {
+  /** Whether a live mic stream is already held (permission granted). */
+  hasStream(): boolean {
+    return !!this.stream && this.stream.getTracks().some((t) => t.readyState === "live");
+  }
+
+  /**
+   * Acquire (and keep) the mic stream — this is what triggers the permission
+   * prompt. Call it once up front (e.g. when the conversation opens), so the
+   * dialog never interrupts the press-to-talk gesture. Idempotent.
+   */
+  async acquire(): Promise<void> {
+    if (this.hasStream()) return;
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  }
+
+  /**
+   * Start recording on the persistent stream. Acquires first if needed (so it
+   * still works if `acquire` wasn't pre-called). Does NOT release the stream.
+   */
+  async start(): Promise<void> {
+    if (!this.hasStream()) await this.acquire();
     this.chunks = [];
     const mimeType = this.pickMimeType();
     this.mediaRecorder = new MediaRecorder(
-      this.stream,
+      this.stream!,
       mimeType ? { mimeType } : undefined,
     );
     this.mediaRecorder.ondataavailable = (e) => {
@@ -42,29 +67,37 @@ export class MicRecorder {
     this.mediaRecorder.start();
   }
 
-  /** Stop recording and resolve with { audioBase64, mimeType }. */
+  /**
+   * Stop the current recording and resolve with the audio. The mic STREAM is
+   * kept alive for the next turn (only the MediaRecorder is torn down).
+   */
   async stop(): Promise<{ audioBase64: string; mimeType: string }> {
     return new Promise((resolve, reject) => {
-      if (!this.mediaRecorder) return reject(new Error("Not recording"));
-      const mimeType = this.mediaRecorder.mimeType || "audio/webm";
-      this.mediaRecorder.onstop = async () => {
+      const recorder = this.mediaRecorder;
+      if (!recorder) return reject(new Error("Not recording"));
+      const mimeType = recorder.mimeType || "audio/webm";
+      recorder.onstop = async () => {
         try {
           const blob = new Blob(this.chunks, { type: mimeType });
           const audioBase64 = await blobToBase64(blob);
-          this.cleanup();
+          this.mediaRecorder = null; // keep this.stream alive
           resolve({ audioBase64, mimeType });
         } catch (e) {
           reject(e);
         }
       };
-      this.mediaRecorder.stop();
+      recorder.stop();
     });
   }
 
-  private cleanup(): void {
+  /**
+   * Fully release the mic (stops the stream tracks). Call ONCE when the
+   * conversation closes, not between turns.
+   */
+  release(): void {
+    this.mediaRecorder = null;
     this.stream?.getTracks().forEach((t) => t.stop());
     this.stream = null;
-    this.mediaRecorder = null;
   }
 }
 
