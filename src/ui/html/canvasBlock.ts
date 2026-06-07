@@ -1,33 +1,37 @@
 /**
- * Blocks / unblocks Phaser canvas pointer events while an HTML overlay is open.
+ * Blocks / unblocks ALL Phaser input while an HTML overlay is open.
  *
- * Problem: when an HTML overlay button (e.g. "Leave") is tapped, the pointer
- * event propagates to the Phaser canvas underneath. WorldScene sees the tap at
- * the button's screen coordinates and interprets it as a tap-to-move, so the
- * character walks to where the button was.
- *
- * `blockCanvas` sets `pointer-events: none` on the canvas when an overlay
- * opens; `unblockCanvas` restores it after a short delay (two rAF frames) so
- * the pointer event that closed the overlay has fully completed before Phaser
- * starts receiving input again.
+ * The CSS pointer-events:none approach didn't fully work — Phaser's input
+ * system can still receive events via its own listeners. Instead, we:
+ * 1. Set pointer-events:none on the canvas (belt)
+ * 2. Set a global flag that WorldScene checks before processing taps (suspenders)
+ * 3. On unblock, delay both restorations so the closing pointer event fully
+ *    clears before Phaser starts listening again.
  */
+
+/** Global flag: true while an HTML overlay is active. WorldScene checks this. */
+let _blocked = false;
+
+export function isCanvasBlocked(): boolean {
+  return _blocked;
+}
 
 function getCanvas(): HTMLCanvasElement | null {
   return document.querySelector("#game canvas");
 }
 
 export function blockCanvas(): void {
+  _blocked = true;
   const c = getCanvas();
   if (c) c.style.pointerEvents = "none";
 }
 
 export function unblockCanvas(): void {
-  // Wait two animation frames — enough for the closing pointer event to flush
-  // through Phaser's input queue before re-enabling canvas hit-testing.
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      const c = getCanvas();
-      if (c) c.style.pointerEvents = "";
-    });
-  });
+  // Delay unblocking so the pointer event that triggered the close (e.g. Leave
+  // button) has fully flushed before Phaser starts receiving input again.
+  setTimeout(() => {
+    _blocked = false;
+    const c = getCanvas();
+    if (c) c.style.pointerEvents = "";
+  }, 100);
 }

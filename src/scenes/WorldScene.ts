@@ -13,6 +13,7 @@ import { GameState, REGISTRY_KEY } from "../game/state";
 import type { RemotePlayer } from "../domain/ports";
 import { isTownUnlocked } from "../domain/town";
 import { HUD_BAND_HEIGHT } from "../ui/tokens";
+import { isCanvasBlocked } from "../ui/html/canvasBlock";
 
 interface NpcSprite {
   npc: Npc;
@@ -232,7 +233,7 @@ export class WorldScene extends Phaser.Scene {
     this.input.on(
       Phaser.Input.Events.POINTER_DOWN,
       (pointer: Phaser.Input.Pointer) => {
-        if (this.busy) return;
+        if (this.busy || isCanvasBlocked()) return;
         const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
 
         // Did they tap (near) an NPC? If so, walk to it and interact on arrival.
@@ -291,7 +292,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   update() {
-    if (this.busy) {
+    if (this.busy || isCanvasBlocked()) {
       this.playerBody.setVelocity(0, 0);
       return;
     }
