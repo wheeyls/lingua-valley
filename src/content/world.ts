@@ -114,7 +114,7 @@ export const AREAS: Area[] = [
         voice: "nova",
         lessonSlug: "greetings",
         conversation: {
-          opener: "¡Hola! Buenos días. ¿Cómo estás hoy?",
+          opener: "¡Buenas! ¿Qué onda? ¿Cómo andas?",
         },
         lines: [
           { level: "A1", es: "¡Hola! Buenos días.", en: "Hello! Good morning." },

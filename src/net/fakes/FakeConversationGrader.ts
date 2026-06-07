@@ -49,15 +49,13 @@ export class FakeConversationGrader implements ConversationGrader {
       feedback: t.feedback ?? "Scripted feedback.",
       corrections: t.corrections ?? [],
     };
-    // In a scripted role-play, a passing turn advances; mark complete on the
-    // final player turn so the session ends naturally in tests/dev.
-    const rp = req.rolePlay;
-    const isLastTurn = rp ? rp.turnNumber >= rp.totalTurns : false;
     return {
-      npcReply: t.npcReply ?? (rp ? "Muy bien, sigamos." : "Muy bien."),
+      npcReply: t.npcReply ?? "Muy bien, sigamos.",
       grade,
       objectiveMet: t.objectiveMet ?? false,
-      conversationComplete: t.conversationComplete ?? isLastTurn,
+      // Free-form conversations: the script controls completion (default false,
+      // so tests drive several turns; the session also enforces a min-turn floor).
+      conversationComplete: t.conversationComplete ?? false,
     };
   }
 }
