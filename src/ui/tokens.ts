@@ -3,23 +3,15 @@
  * abstraction and its tests. The Phaser widget helpers live in ui/widgets.ts.
  */
 
-/**
- * Portrait base canvas. The aspect ratio matches a modern phone (~9:19.5) so
- * Scale.FIT fills the screen edge-to-edge with no letterbox bars and centers
- * correctly. The virtual width is small (360) so everything renders LARGE on the
- * phone — text/buttons/NPCs are magnified by Scale.FIT. 360×780 ≈ 9:19.5.
- */
-export const VIEW_WIDTH = 360;
-export const VIEW_HEIGHT = 780;
+/** Portrait base canvas (9:16). Scale.FIT scales this to any screen. */
+export const VIEW_WIDTH = 540;
+export const VIEW_HEIGHT = 960;
 
-/** Minimum comfortable touch target (px) — chunky, thumb-friendly. */
-export const TOUCH_TARGET = 60;
+/** Minimum comfortable touch target (px). */
+export const TOUCH_TARGET = 56;
 
 /** Outer screen margin used consistently across panels. */
 export const MARGIN = 16;
-
-/** Standard corner radius for the rounded, cartoonish panel/button look. */
-export const RADIUS = 16;
 
 /**
  * Height of the reserved HUD band at the top of the screen. The world camera
@@ -29,17 +21,14 @@ export const HUD_BAND_HEIGHT = 96;
 
 export const FONT = '"Trebuchet MS", "Segoe UI", system-ui, sans-serif';
 
-/**
- * Type scale — big and bold for arm's-length phone reading. Sizes are in the
- * 360-wide virtual canvas, so Scale.FIT magnifies them further on screen.
- */
+/** Type scale, sized for legibility at phone arm's length. */
 export const TYPE = {
-  display: "38px",
-  title: "30px",
-  heading: "26px",
-  body: "24px",
-  label: "20px",
-  small: "16px",
+  display: "34px",
+  title: "26px",
+  heading: "22px",
+  body: "19px",
+  label: "16px",
+  small: "13px",
 } as const;
 
 /** Palette (matches the world art + index.html theme). */

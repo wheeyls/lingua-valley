@@ -3,7 +3,7 @@
  * DialogueScene renders. No Phaser — fully testable.
  */
 
-import { VIEW_WIDTH, VIEW_HEIGHT, MARGIN, TYPE, COLOR, TOUCH_TARGET } from "../tokens";
+import { VIEW_WIDTH, VIEW_HEIGHT, MARGIN, TYPE, COLOR } from "../tokens";
 import type { UINode } from "../nodes";
 import { estimateTextHeight } from "../nodes";
 
@@ -31,7 +31,7 @@ const px = (s: string) => parseInt(s, 10);
 export function dialogueLayout(vm: DialogueVM): UINode[] {
   const w = VIEW_WIDTH;
   const h = VIEW_HEIGHT;
-  const panelH = 380;
+  const panelH = 340;
   const top = h - panelH;
   const pad = MARGIN + 8;
   const contentW = w - pad * 2;
@@ -129,17 +129,16 @@ export function dialogueLayout(vm: DialogueVM): UINode[] {
       text: `▶ Lesson: ${vm.lessonLabel}`,
       fontSize: px(TYPE.label),
       color: COLOR.gold,
-      wrapWidth: contentW,
       depth: 51,
     });
   }
 
   // Action buttons along the bottom of the sheet, inside the safe area.
   const SAFE = 24;
-  const btnH = TOUCH_TARGET;
+  const btnH = 56;
   const btnY = h - SAFE - btnH / 2; // bottom edge sits on the safe line
-  const leaveW = 110;
-  const continueW = 190;
+  const leaveW = 120;
+  const continueW = 200;
 
   // Optional Trade button (merchant NPCs), sits a row above the main actions.
   if (vm.canTrade) {

@@ -83,45 +83,27 @@ function createNode(
       return makeText(scene, node);
     }
     case "button": {
-      const { x, y, width: bw, height: bh } = node;
-      const radius = Math.min(18, bh / 2);
-      // Chunky, rounded, thick-bordered button drawn with Graphics.
-      const g = scene.add.graphics();
-      const draw = (fillColor: number) => {
-        g.clear();
-        // Soft drop shadow for a friendlier, raised look.
-        g.fillStyle(0x000000, 0.25);
-        g.fillRoundedRect(x - bw / 2, y - bh / 2 + 4, bw, bh, radius);
-        g.fillStyle(fillColor, 1);
-        g.fillRoundedRect(x - bw / 2, y - bh / 2, bw, bh, radius);
-        g.lineStyle(3, 0xd9b08c, 1);
-        g.strokeRoundedRect(x - bw / 2, y - bh / 2, bw, bh, radius);
-      };
-      draw(node.fill);
-
+      const bg = scene.add
+        .rectangle(node.x, node.y, node.width, node.height, node.fill, 1)
+        .setStrokeStyle(2, 0xd9b08c)
+        .setInteractive({ useHandCursor: true });
       const label = scene.add
-        .text(x, y, node.text, {
+        .text(node.x, node.y, node.text, {
           fontFamily: FONT,
           fontSize: `${node.fontSize}px`,
           color: node.textColor,
           align: "center",
         })
         .setOrigin(0.5);
-
-      // Transparent interactive zone on top (Graphics hit areas are fiddly).
-      const hit = scene.add
-        .rectangle(x, y, bw, bh, 0xffffff, 0)
-        .setInteractive({ useHandCursor: true });
       const handler = handlers[node.action];
-      hit.on(Phaser.Input.Events.POINTER_DOWN, () => draw(lighten(node.fill)));
-      hit.on(Phaser.Input.Events.POINTER_OVER, () => draw(lighten(node.fill)));
-      hit.on(Phaser.Input.Events.POINTER_OUT, () => draw(node.fill));
-      hit.on(Phaser.Input.Events.POINTER_UP, () => {
-        draw(node.fill);
+      bg.on(Phaser.Input.Events.POINTER_OVER, () => bg.setFillStyle(lighten(node.fill)));
+      bg.on(Phaser.Input.Events.POINTER_OUT, () => bg.setFillStyle(node.fill));
+      bg.on(Phaser.Input.Events.POINTER_UP, () => {
+        bg.setFillStyle(node.fill);
         handler?.();
       });
-
-      const container = scene.add.container(0, 0, [g, label, hit]);
+      // Group bg+label so depth/lookup work on one object.
+      const container = scene.add.container(0, 0, [bg, label]);
       return container;
     }
   }
