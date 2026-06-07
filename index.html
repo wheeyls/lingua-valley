@@ -15,14 +15,23 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>Lingua Valley — Learn Spanish by Living It</title>
     <style>
-      html,
-      body {
+      * {
         margin: 0;
         padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
         background: #1a1423;
         color: #f4ecd8;
         font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
         overflow: hidden;
+        /* Fill the REAL visible viewport on iOS Safari (dvh = dynamic viewport
+           height, accounts for address bar / home indicator). Falls back to vh
+           for older browsers. */
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
         /* Disable text selection / callout / tap highlight for an app feel. */
         -webkit-user-select: none;
         user-select: none;
@@ -32,19 +41,17 @@
         touch-action: none;
       }
       #game {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        /* Respect device safe areas (notches, home indicator). */
-        padding: env(safe-area-inset-top) env(safe-area-inset-right)
-          env(safe-area-inset-bottom) env(safe-area-inset-left);
-        box-sizing: border-box;
+        /* Fill the full visible area. NO safe-area padding, NO flex centering —
+           Phaser's Scale.CENTER_BOTH handles centering within this container.
+           Adding CSS padding/centering on top of Phaser's causes double-offset
+           on iPhones. */
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        position: relative;
       }
       canvas {
         image-rendering: pixelated;
-        box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
         /* The canvas itself stays interactive even though body blocks gestures. */
         touch-action: none;
       }
