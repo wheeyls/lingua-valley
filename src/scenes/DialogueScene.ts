@@ -3,9 +3,8 @@ import { AREAS, townOfNpc, type Npc } from "../content/world";
 import { scaffoldingFor } from "../domain/scaffolding";
 import { objectiveById } from "../content/curriculum";
 import { GameState, REGISTRY_KEY } from "../game/state";
-import { dialogueLayout, type DialogueVM } from "../ui/layouts/dialogue";
-import { renderNodes, type RenderedUI } from "../ui/PhaserRenderer";
 import { isTownUnlocked } from "../domain/town";
+import { HtmlDialogueView, type DialogueViewData } from "../ui/html/HtmlDialogueView";
 
 function findNpc(id: string): Npc | undefined {
   for (const a of AREAS) {
@@ -19,7 +18,7 @@ export class DialogueScene extends Phaser.Scene {
   private state!: GameState;
   private npc!: Npc;
   private lineIndex = 0;
-  private ui?: RenderedUI;
+  private view!: HtmlDialogueView;
 
   constructor() {
     super("DialogueScene");
@@ -29,14 +28,21 @@ export class DialogueScene extends Phaser.Scene {
     this.state = this.registry.get(REGISTRY_KEY) as GameState;
     this.npc = findNpc(data.npcId)!;
     this.lineIndex = 0;
+
+    this.view = new HtmlDialogueView({
+      onContinue: () => this.advance(),
+      onLeave: () => this.close(),
+      onTrade: () => this.openTrade(),
+    });
     this.renderLine();
 
-    // Talking to an NPC counts as "doing" any active quest step that targets
-    // them. The HUD quest tracker reflects completion.
+    // Talking to an NPC counts as "doing" any active quest step that targets them.
     void this.state.quests.noteInteraction(this.npc.id);
 
     this.input.keyboard!.on("keydown-SPACE", () => this.advance());
     this.input.keyboard!.on("keydown-ESC", () => this.close());
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.view.destroy());
   }
 
   private advance() {
@@ -44,19 +50,18 @@ export class DialogueScene extends Phaser.Scene {
       this.lineIndex++;
       this.renderLine();
     } else {
-      // End of dialogue, decide the learning challenge.
       const objId = this.npc.teachesObjectiveId;
       const isRolePlay = !!(
         this.npc.lessonSlug ||
         this.npc.conversation ||
         this.npc.givesQuest
       );
-      // Role-play/voiced NPCs are ALWAYS replayable — repeating the same
-      // conversation is how you build friendship. Quiz NPCs stop once mastered.
       if (isRolePlay) {
+        this.view.destroy();
         this.scene.stop();
         this.scene.launch("ConversationScene", { npcId: this.npc.id });
       } else if (objId && !this.state.proficiency.isMastered(objId)) {
+        this.view.destroy();
         this.scene.stop();
         this.scene.launch("MinigameScene", { objectiveId: objId });
       } else {
@@ -66,30 +71,27 @@ export class DialogueScene extends Phaser.Scene {
   }
 
   private close() {
+    this.view.destroy();
     this.scene.stop();
     this.scene.resume("WorldScene");
   }
 
-  /** Build the pure view-model the layout consumes. */
-  private viewModel(): DialogueVM {
+  private renderLine() {
     const line = this.npc.lines[this.lineIndex];
     const town = townOfNpc(this.npc.id);
     const englishAvail = town?.englishAvailability ?? 1;
-    // Training wheels by town: easier towns show Spanish subtitles + English;
-    // remoter towns take them off (Spanish-only, then audio-only). No garbling,
-    // no comprehension gate — you pass by performing, not by understanding.
     const scaffold = scaffoldingFor(englishAvail);
 
     const objId = this.npc.teachesObjectiveId;
     const teachable = !!objId && !this.state.proficiency.isMastered(objId);
     const isLast = this.lineIndex >= this.npc.lines.length - 1;
 
-    return {
+    const data: DialogueViewData = {
       npcName: this.npc.name,
       spanish: line.es,
       showSpanish: scaffold.spanishSubtitles,
-      showEnglishHint: scaffold.englishHints,
       englishHint: line.en,
+      showEnglishHint: scaffold.englishHints,
       lineIndex: this.lineIndex,
       lineCount: this.npc.lines.length,
       continueLabel: isLast
@@ -100,12 +102,9 @@ export class DialogueScene extends Phaser.Scene {
       lessonLabel: teachable ? objectiveById(objId!)?.label : undefined,
       canTrade: this.canTrade(),
     };
+    this.view.update(data);
   }
 
-  /**
-   * Whether trading is offered. Producers are locked until the town's gatekeeper
-   * is beaten; middlemen/others trade freely if they have goods.
-   */
   private canTrade(): boolean {
     if (!this.npc.trades || this.npc.trades.length === 0) return false;
     if (this.npc.role === "producer") {
@@ -115,17 +114,8 @@ export class DialogueScene extends Phaser.Scene {
     return true;
   }
 
-  private renderLine() {
-    this.ui?.destroy();
-    const nodes = dialogueLayout(this.viewModel());
-    this.ui = renderNodes(this, nodes, {
-      continue: () => this.advance(),
-      leave: () => this.close(),
-      trade: () => this.openTrade(),
-    });
-  }
-
   private openTrade() {
+    this.view.destroy();
     this.scene.stop();
     this.scene.launch("TradeScene", { npcId: this.npc.id });
   }

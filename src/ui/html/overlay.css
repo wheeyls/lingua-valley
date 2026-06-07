@@ -1,0 +1,236 @@
+/*
+ * HTML overlay UI — sits on top of the Phaser canvas for text-heavy screens
+ * (conversation, dialogue). Uses real DOM text rendering for readability,
+ * accessibility, and system font support. High-contrast, large text, solid
+ * backgrounds — optimized for older eyes and bright-screen reading.
+ */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  color: #f4ecd8;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+
+/* --- Conversation overlay ------------------------------------------------- */
+
+.convo-overlay {
+  background: rgba(13, 10, 18, 0.97);
+}
+
+.convo-header {
+  text-align: center;
+  padding: 16px 20px 8px;
+  flex-shrink: 0;
+}
+.convo-npc-name {
+  font-size: 28px;
+  font-weight: bold;
+  color: #ffe08a;
+}
+.convo-friendship {
+  font-size: 15px;
+  color: #b56576;
+  margin-top: 2px;
+}
+.convo-goal {
+  font-size: 17px;
+  color: #9bc995;
+  font-style: italic;
+  margin-top: 6px;
+  padding: 0 12px;
+}
+
+.convo-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.convo-npc-speech {
+  background: #2a2436;
+  border-radius: 16px;
+  padding: 16px 18px;
+  font-size: 22px;
+  line-height: 1.5;
+  color: #f4ecd8;
+  border-left: 5px solid #ffe08a;
+}
+
+.convo-transcript {
+  font-size: 18px;
+  color: #9ec5ff;
+  font-style: italic;
+  padding: 0 4px;
+}
+
+.convo-feedback {
+  background: #1e1a28;
+  border-radius: 14px;
+  padding: 14px 16px;
+  font-size: 20px;
+  line-height: 1.5;
+  color: #f4ecd8;
+  border-left: 5px solid #9bc995;
+}
+.convo-feedback .corrections {
+  color: #f2cc8f;
+  margin-top: 6px;
+  font-size: 18px;
+}
+.convo-feedback .earned {
+  color: #ffe08a;
+  margin-top: 4px;
+  font-size: 17px;
+}
+
+.convo-status {
+  text-align: center;
+  font-size: 18px;
+  padding: 6px 12px;
+  min-height: 28px;
+}
+
+/* --- Mic button ----------------------------------------------------------- */
+
+.convo-mic-area {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0 20px;
+  gap: 8px;
+}
+
+.mic-btn {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  border: 4px solid #d9b08c;
+  background: #3d5a80;
+  color: #f4ecd8;
+  font-size: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.mic-btn:active {
+  transform: scale(0.95);
+}
+.mic-btn.recording {
+  background: #b56576;
+  animation: pulse 1s infinite;
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(181, 101, 118, 0.5); }
+  50% { box-shadow: 0 0 0 14px rgba(181, 101, 118, 0); }
+}
+
+.mic-hint {
+  font-size: 14px;
+  color: #8a8290;
+}
+
+/* --- Action buttons ------------------------------------------------------- */
+
+.convo-actions {
+  flex-shrink: 0;
+  display: flex;
+  gap: 10px;
+  padding: 0 20px 16px;
+}
+
+.btn {
+  flex: 1;
+  padding: 14px 0;
+  border: none;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s;
+}
+.btn:active {
+  opacity: 0.8;
+}
+.btn-primary {
+  background: #3d5a80;
+  color: #f4ecd8;
+}
+.btn-danger {
+  background: #b56576;
+  color: #f4ecd8;
+}
+.btn-success {
+  background: #4a7c59;
+  color: #f4ecd8;
+}
+
+/* --- Dialogue overlay ----------------------------------------------------- */
+
+.dialogue-overlay {
+  background: rgba(13, 10, 18, 0.92);
+  justify-content: flex-end;
+}
+
+.dialogue-sheet {
+  background: #1a1423;
+  border-top: 4px solid #d9b08c;
+  border-radius: 20px 20px 0 0;
+  padding: 20px 20px 16px;
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+.dialogue-name {
+  font-size: 24px;
+  font-weight: bold;
+  color: #ffe08a;
+}
+
+.dialogue-dots {
+  font-size: 14px;
+  color: #8a8290;
+  float: right;
+  margin-top: 6px;
+}
+
+.dialogue-spanish {
+  font-size: 22px;
+  line-height: 1.5;
+  color: #f4ecd8;
+  margin-top: 14px;
+}
+
+.dialogue-hint {
+  font-size: 17px;
+  color: #9bc995;
+  font-style: italic;
+  margin-top: 10px;
+}
+
+.dialogue-lesson {
+  font-size: 17px;
+  color: #ffe08a;
+  margin-top: 10px;
+}
+
+.dialogue-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
