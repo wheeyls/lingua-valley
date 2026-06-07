@@ -292,7 +292,10 @@ export class WorldScene extends Phaser.Scene {
     const viewW = this.scale.width;
     const viewH = this.scale.height - band;
     cam.setViewport(0, band, viewW, viewH);
-    cam.setZoom(viewW / WORLD_WIDTH); // 540/480 = 1.125 — fills width exactly
+    // Zoom in so characters and the world feel BIG on the phone. At 1.0, the
+    // 480px-wide world is larger than the 360px viewport — the camera scrolls,
+    // which is fine (the camera follows the player).
+    cam.setZoom(1.0);
     cam.startFollow(this.player, true, 0.12, 0.12);
   }
 

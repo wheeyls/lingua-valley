@@ -81,15 +81,15 @@ export interface Area {
 export const TILE = 32;
 
 /**
- * Portrait world: areas are tall and STACKED VERTICALLY so the map fills a phone
- * screen. Plaza del Saludo (A1) is on top; you walk DOWN through the threshold
- * into El Mercado (A2). Each area is 15 tiles wide (480px) × 16 tiles tall
- * (512px); the world is 480×1024 — taller than the 540×960 viewport.
+ * Portrait world: areas are TALL and STACKED VERTICALLY. Plaza del Saludo (A1)
+ * is on top; you walk DOWN through the threshold into El Mercado (A2). Each area
+ * is 15 tiles wide (480px) × 30 tiles tall (960px) — a long vertical stretch you
+ * walk through past several NPCs before reaching the next threshold.
  *
  * NPC tileX/tileY are in WORLD tile coordinates (not area-local).
  */
 const AREA_W = 15; // tiles
-const AREA_H = 16; // tiles
+const AREA_H = 30; // tiles — tall areas so you walk past several NPCs before the threshold
 
 export const AREAS: Area[] = [
   {
@@ -108,7 +108,7 @@ export const AREAS: Area[] = [
         id: "rosa",
         name: "Rosa",
         tileX: 4,
-        tileY: 4,
+        tileY: 5,
         color: 0xe07a5f,
         teachesObjectiveId: "a1.greetings",
         voice: "nova",
@@ -129,7 +129,7 @@ export const AREAS: Area[] = [
         id: "mateo",
         name: "Mateo",
         tileX: 11,
-        tileY: 5,
+        tileY: 10,
         color: 0x3d5a80,
         teachesObjectiveId: "a1.introductions",
         lines: [
@@ -141,7 +141,7 @@ export const AREAS: Area[] = [
         id: "lucia",
         name: "Lucía",
         tileX: 4,
-        tileY: 11,
+        tileY: 18,
         color: 0xf2cc8f,
         teachesObjectiveId: "a1.numbers",
         lines: [
@@ -152,7 +152,7 @@ export const AREAS: Area[] = [
         id: "don_pablo",
         name: "Don Pablo",
         tileX: 11,
-        tileY: 12,
+        tileY: 22,
         color: 0x81b29a,
         teachesObjectiveId: "a1.courtesy",
         lines: [
@@ -163,7 +163,7 @@ export const AREAS: Area[] = [
         id: "ana",
         name: "Ana",
         tileX: 7,
-        tileY: 8,
+        tileY: 13,
         color: 0xe9c46a,
         teachesObjectiveId: "a1.introductions",
         voice: "shimmer",
@@ -177,7 +177,7 @@ export const AREAS: Area[] = [
         id: "marisol",
         name: "Marisol",
         tileX: 3,
-        tileY: 12,
+        tileY: 26,
         color: 0x2a9d8f,
         teachesObjectiveId: "b1.weekend_plans",
         voice: "nova",
@@ -210,7 +210,7 @@ export const AREAS: Area[] = [
         id: "vendedora",
         name: "La Vendedora",
         tileX: 4,
-        tileY: AREA_H + 4,
+        tileY: AREA_H + 7,
         color: 0xeaac8b,
         role: "middleman",
         teachesObjectiveId: "a2.market.quantities",
@@ -237,7 +237,7 @@ export const AREAS: Area[] = [
         id: "panadero",
         name: "El Panadero",
         tileX: 11,
-        tileY: AREA_H + 10,
+        tileY: AREA_H + 17,
         color: 0xd4a373,
         role: "middleman",
         teachesObjectiveId: "a2.market.food",
@@ -258,7 +258,7 @@ export const AREAS: Area[] = [
         id: "mesero",
         name: "El Mesero",
         tileX: 7,
-        tileY: AREA_H + 7,
+        tileY: AREA_H + 12,
         color: 0x83c5be,
         teachesObjectiveId: "a2.market.bargaining",
         voice: "onyx",
@@ -298,7 +298,7 @@ export const AREAS: Area[] = [
         id: "granjero",
         name: "El Granjero",
         tileX: 7,
-        tileY: AREA_H + 12,
+        tileY: AREA_H + 25,
         color: 0x386641,
         role: "producer",
         teachesObjectiveId: "a2.market.quantities",
@@ -321,7 +321,7 @@ export const AREAS: Area[] = [
         id: "recepcionista",
         name: "La Recepcionista",
         tileX: 2,
-        tileY: AREA_H + 9,
+        tileY: AREA_H + 20,
         color: 0x457b9d,
         teachesObjectiveId: "a2.market.food",
         voice: "nova",
@@ -335,7 +335,7 @@ export const AREAS: Area[] = [
         id: "tendero",
         name: "El Tendero",
         tileX: 13,
-        tileY: AREA_H + 13,
+        tileY: AREA_H + 24,
         color: 0xe76f51,
         teachesObjectiveId: "a2.market.quantities",
         voice: "echo",
@@ -369,7 +369,7 @@ export const AREAS: Area[] = [
         id: "lupita",
         name: "Lupita",
         tileX: 4,
-        tileY: 2 * AREA_H + 4,
+        tileY: 2 * AREA_H + 8,
         color: 0xa3b18a,
         teachesObjectiveId: "b1.past_week",
         voice: "nova",
@@ -383,7 +383,7 @@ export const AREAS: Area[] = [
         id: "joaquin",
         name: "Joaquín",
         tileX: 11,
-        tileY: 2 * AREA_H + 6,
+        tileY: 2 * AREA_H + 16,
         color: 0xdda15e,
         teachesObjectiveId: "b1.weekend_plans",
         voice: "onyx",
@@ -397,7 +397,7 @@ export const AREAS: Area[] = [
         id: "refugio",
         name: "Don Refugio",
         tileX: 7,
-        tileY: 2 * AREA_H + 3,
+        tileY: 2 * AREA_H + 4,
         color: 0x6a040f,
         role: "gatekeeper",
         teachesObjectiveId: "b1.family",
@@ -415,7 +415,7 @@ export const AREAS: Area[] = [
         id: "campesina",
         name: "La Campesina",
         tileX: 7,
-        tileY: 2 * AREA_H + 12,
+        tileY: 2 * AREA_H + 24,
         color: 0x283618,
         role: "producer",
         teachesObjectiveId: "b1.weekend_plans",
