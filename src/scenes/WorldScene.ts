@@ -93,15 +93,12 @@ export class WorldScene extends Phaser.Scene {
       seen.add(p.userId);
       let sprite = this.remoteSprites.get(p.userId);
       if (!sprite) {
-        const body = this.add.circle(0, 0, 16, p.color).setStrokeStyle(3, 0x1a1423, 1);
+        const body = this.add.circle(0, 0, 11, p.color).setStrokeStyle(2, 0x1a1423, 1);
         const tag = this.add
-          .text(0, -30, p.displayName, {
+          .text(0, -22, p.displayName, {
             fontFamily: "Trebuchet MS",
-            fontSize: "15px",
-            fontStyle: "bold",
+            fontSize: "11px",
             color: "#cfe8ff",
-            stroke: "#1a1423",
-            strokeThickness: 3,
           })
           .setOrigin(0.5);
         sprite = this.add.container(p.x, p.y, [body, tag]).setDepth(10);
@@ -173,18 +170,15 @@ export class WorldScene extends Phaser.Scene {
         const px = npc.tileX * TILE + TILE / 2;
         const py = npc.tileY * TILE + TILE / 2;
 
-        const body = this.add.circle(0, 0, 18, npc.color);
-        body.setStrokeStyle(3, 0x1a1423, 1);
+        const body = this.add.circle(0, 0, 12, npc.color);
+        body.setStrokeStyle(2, 0x1a1423, 1);
         // A little hat to read as a "character".
-        const hat = this.add.rectangle(0, -15, 24, 9, 0x1a1423);
+        const hat = this.add.rectangle(0, -10, 16, 6, 0x1a1423);
         const label = this.add
-          .text(0, -36, npc.name, {
+          .text(0, -26, npc.name, {
             fontFamily: "Trebuchet MS",
-            fontSize: "17px",
-            fontStyle: "bold",
+            fontSize: "12px",
             color: "#fff",
-            stroke: "#1a1423",
-            strokeThickness: 4,
           })
           .setOrigin(0.5);
 
@@ -213,15 +207,15 @@ export class WorldScene extends Phaser.Scene {
     const px = start.bounds.x + start.bounds.width / 2;
     const py = start.bounds.y + 3 * TILE;
 
-    const body = this.add.circle(0, 0, 17, 0xf4ecd8);
-    body.setStrokeStyle(3, 0x1a1423, 1);
-    const face = this.add.rectangle(0, -4, 16, 6, 0x1a1423);
+    const body = this.add.circle(0, 0, 11, 0xf4ecd8);
+    body.setStrokeStyle(2, 0x1a1423, 1);
+    const face = this.add.rectangle(0, -3, 10, 4, 0x1a1423);
     this.player = this.add.container(px, py, [body, face]);
     this.player.setDepth(11);
 
     this.physics.add.existing(this.player);
     this.playerBody = this.player.body as Phaser.Physics.Arcade.Body;
-    this.playerBody.setCircle(17, -17, -17);
+    this.playerBody.setCircle(11, -11, -11);
     this.playerBody.setCollideWorldBounds(true);
   }
 
