@@ -6,7 +6,7 @@
  * a menu button that expands skills, level breakdown, and account.
  */
 
-import { VIEW_WIDTH, HUD_BAND_HEIGHT, TYPE, COLOR } from "../tokens";
+import { VIEW_WIDTH, HUD_BAND_HEIGHT, TYPE, COLOR, TOUCH_TARGET } from "../tokens";
 import type { UINode } from "../nodes";
 
 export interface HudVM {
@@ -37,8 +37,7 @@ export function hudLayout(vm: HudVM): UINode[] {
   const nodes: UINode[] = [];
 
   // Content sits below the top safe inset (notch) within the band.
-  const barY = SAFE;
-  const barH = HUD_BAND_HEIGHT - SAFE - 6;
+  const barMid = SAFE + (HUD_BAND_HEIGHT - SAFE) / 2;
 
   // Bar background spans the band (edge surface anchored to the top).
   nodes.push({
@@ -54,96 +53,72 @@ export function hudLayout(vm: HudVM): UINode[] {
     depth: 60,
   });
 
+  // Menu button (right) — sized first so other elements avoid it.
+  const menuW = TOUCH_TARGET;
+  nodes.push({
+    kind: "button",
+    id: "menu",
+    x: w - SAFE - menuW / 2,
+    y: barMid,
+    width: menuW,
+    height: TOUCH_TARGET,
+    text: vm.menuOpen ? "✕" : "☰",
+    fill: COLOR.blue,
+    textColor: COLOR.gold,
+    fontSize: px(TYPE.heading),
+    action: "menu",
+    depth: 61,
+  });
+
   // Level chip (left).
   nodes.push({
     kind: "text",
     id: "level",
     origin: "topleft",
-    x: SAFE + 8,
-    y: barY + 10,
+    x: SAFE,
+    y: barMid - 24,
     text: `Lv ${vm.effectiveLevel}`,
-    fontSize: px(TYPE.body),
+    fontSize: px(TYPE.heading),
     color: COLOR.gold,
     depth: 61,
   });
-  nodes.push({
-    kind: "text",
-    id: "levelSub",
-    origin: "topleft",
-    x: SAFE + 8,
-    y: barY + 36,
-    text: "no XP, just skill",
-    fontSize: px(TYPE.small),
-    color: COLOR.muted,
-    depth: 61,
-  });
-
-  // Pesos (center).
-  nodes.push({
-    kind: "text",
-    id: "pesos",
-    x: w * 0.48,
-    y: barY + barH / 2,
-    text: `💰 ${vm.pesos}`,
-    fontSize: px(TYPE.body),
-    color: COLOR.gold,
-    align: "center",
-    depth: 61,
-  });
-
-  // Focus mini-bar (center-right).
-  const fbX = w * 0.6;
-  const fbW = 90;
-  nodes.push({
-    kind: "text",
-    id: "focusLabel",
-    origin: "topleft",
-    x: fbX,
-    y: barY + 8,
-    text: "Focus",
-    fontSize: px(TYPE.small),
-    color: COLOR.blueLight,
-    depth: 61,
-  });
+  // Focus mini-bar under the level.
+  const fbW = 120;
   nodes.push({
     kind: "panel",
     id: "focusTrack",
     origin: "topleft",
-    x: fbX,
-    y: barY + 28,
+    x: SAFE,
+    y: barMid + 16,
     width: fbW,
-    height: 10,
+    height: 12,
     fill: 0x3a2f42,
-    radius: 5,
+    radius: 6,
     depth: 61,
   });
   nodes.push({
     kind: "panel",
     id: "focusFill",
     origin: "topleft",
-    x: fbX,
-    y: barY + 28,
+    x: SAFE,
+    y: barMid + 16,
     width: Math.max(2, fbW * (vm.focus / vm.focusMax)),
-    height: 10,
+    height: 12,
     fill: 0x6db1ff,
-    radius: 5,
+    radius: 6,
     depth: 62,
   });
 
-  // Menu button (right).
-  const menuW = 60;
+  // Pesos (center-ish, between level block and menu button).
   nodes.push({
-    kind: "button",
-    id: "menu",
-    x: w - SAFE - menuW / 2,
-    y: barY + barH / 2,
-    width: menuW,
-    height: 56,
-    text: vm.menuOpen ? "✕" : "☰",
-    fill: COLOR.blue,
-    textColor: COLOR.gold,
+    kind: "text",
+    id: "pesos",
+    x: (SAFE + fbW + (w - SAFE - menuW)) / 2,
+    y: barMid,
+    text: `💰 ${vm.pesos}`,
     fontSize: px(TYPE.heading),
-    action: "menu",
+    color: COLOR.gold,
+    align: "center",
     depth: 61,
   });
 
@@ -299,7 +274,7 @@ function menuNodes(vm: HudVM): UINode[] {
     x: w - margin - 14 - 55,
     y: y + 20,
     width: 110,
-    height: 56,
+    height: TOUCH_TARGET,
     text: vm.authAction,
     fill: COLOR.blue,
     textColor: COLOR.gold,

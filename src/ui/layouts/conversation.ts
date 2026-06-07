@@ -3,7 +3,7 @@
  * hold-to-talk button is the focal element, NPC speech above, status below.
  */
 
-import { VIEW_WIDTH, VIEW_HEIGHT, MARGIN, TYPE, COLOR } from "../tokens";
+import { VIEW_WIDTH, VIEW_HEIGHT, MARGIN, TYPE, COLOR, TOUCH_TARGET } from "../tokens";
 import type { UINode } from "../nodes";
 
 export interface ConversationVM {
@@ -41,12 +41,13 @@ export function conversationLayout(vm: ConversationVM): UINode[] {
     depth: 70,
   });
 
-  // Title + goal.
+  // Title + goal. Pushed below the top safe inset (and clear of the Leave button).
+  const titleY = 70;
   nodes.push({
     kind: "text",
     id: "title",
     x: w / 2,
-    y: h * 0.06,
+    y: titleY,
     text: vm.npcName,
     fontSize: px(TYPE.title),
     color: COLOR.gold,
@@ -58,7 +59,7 @@ export function conversationLayout(vm: ConversationVM): UINode[] {
       kind: "text",
       id: "friendship",
       x: w / 2,
-      y: h * 0.06 + 30,
+      y: titleY + 30,
       text: `♥ ${vm.friendship}`,
       fontSize: px(TYPE.small),
       color: COLOR.rose,
@@ -70,7 +71,7 @@ export function conversationLayout(vm: ConversationVM): UINode[] {
     kind: "text",
     id: "goal",
     x: w / 2,
-    y: h * 0.06 + 56,
+    y: titleY + 56,
     text: vm.goal,
     fontSize: px(TYPE.label),
     color: COLOR.green,
@@ -177,14 +178,14 @@ export function conversationLayout(vm: ConversationVM): UINode[] {
 
   // Leave button (top-left, safe-area aligned).
   const SAFE = 24;
-  const leaveH = 56;
+  const leaveH = TOUCH_TARGET;
   nodes.push({
     kind: "button",
     id: "leave",
-    x: SAFE + 50,
+    x: SAFE + 48,
     y: SAFE + leaveH / 2,
     text: "Leave",
-    width: 100,
+    width: 96,
     height: leaveH,
     fill: COLOR.roseFill,
     textColor: COLOR.parchment,
