@@ -91,6 +91,19 @@ export class MicRecorder {
   }
 
   /**
+   * Mute the mic tracks (disable without releasing). Call before TTS playback
+   * so the active mic stream doesn't interfere with audio output on iOS.
+   */
+  mute(): void {
+    this.stream?.getAudioTracks().forEach((t) => (t.enabled = false));
+  }
+
+  /** Unmute the mic tracks (re-enable after TTS finishes). */
+  unmute(): void {
+    this.stream?.getAudioTracks().forEach((t) => (t.enabled = true));
+  }
+
+  /**
    * Fully release the mic (stops the stream tracks). Call ONCE when the
    * conversation closes, not between turns.
    */
@@ -145,20 +158,26 @@ export function unlockAudio(): void {
   }
 }
 
+/** Reuse a single Audio element to avoid iOS limits on concurrent Audio objects. */
+let sharedAudio: HTMLAudioElement | null = null;
+
 /** Play raw audio bytes (e.g. an mp3 ArrayBuffer from TTS). Resolves when done. */
 export function playAudioBytes(bytes: ArrayBuffer): Promise<void> {
   return new Promise((resolve, reject) => {
     const blob = new Blob([bytes], { type: "audio/mpeg" });
     const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    audio.onended = () => {
+    // Reuse one Audio element — creating many can exhaust iOS Safari's audio pool
+    // and cause subsequent plays to silently fail.
+    if (!sharedAudio) sharedAudio = new Audio();
+    const audio = sharedAudio;
+    const cleanup = () => {
+      audio.onended = null;
+      audio.onerror = null;
       URL.revokeObjectURL(url);
-      resolve();
     };
-    audio.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("Audio playback failed"));
-    };
-    void audio.play().catch(reject);
+    audio.onended = () => { cleanup(); resolve(); };
+    audio.onerror = () => { cleanup(); reject(new Error("Audio playback failed")); };
+    audio.src = url;
+    void audio.play().catch((err) => { cleanup(); reject(err); });
   });
 }

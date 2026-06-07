@@ -174,10 +174,15 @@ export class ConversationScene extends Phaser.Scene {
     this.view.setNpcSpeech(text);
     this.view.setStatus("🔊 " + this.npc.name + " is speaking…");
     try {
+      // Mute the mic while playing TTS — on iOS, an active mic stream can
+      // interfere with audio output and cause TTS to silently fail on turn 2+.
+      this.recorder.mute();
       const bytes = await speak(text, this.npc.voice);
       await playAudioBytes(bytes);
     } catch {
       // Voice is a bonus; never block on TTS failure.
+    } finally {
+      this.recorder.unmute();
     }
   }
 
