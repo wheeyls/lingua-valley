@@ -17,6 +17,7 @@ import {
 } from "./economy.js";
 import { rapportGain } from "./friendship.js";
 import type { QuestProgress } from "./quest.js";
+import { INITIAL_DAILY_STATE, type DailyState } from "./dailyLoop.js";
 import {
   type Relationship,
   emptyRelationship,
@@ -73,6 +74,9 @@ export interface PlayerState {
   activitiesToday: number;
   /** UTC day the `activitiesToday` counter belongs to. */
   activityDay: string;
+
+  /** Daily loop progress (3-step cadence: rosa → marisol → pablo). */
+  daily: DailyState;
 }
 
 export const FOCUS_MAX = 100;
@@ -97,6 +101,7 @@ export function initialPlayerState(
     quests: {},
     activitiesToday: 0,
     activityDay: today,
+    daily: INITIAL_DAILY_STATE,
   };
 }
 
@@ -138,6 +143,9 @@ export function normalizePlayerState(value: unknown): PlayerState {
       typeof (v as PlayerState).activityDay === "string"
         ? (v as PlayerState).activityDay
         : base.activityDay,
+    daily: isObject((v as PlayerState).daily)
+      ? ((v as PlayerState).daily as DailyState)
+      : INITIAL_DAILY_STATE,
   };
 }
 
