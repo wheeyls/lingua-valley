@@ -176,61 +176,61 @@ describe("auth + guest claim", () => {
   });
 });
 
-describe("scripted lesson role-play (NPC=A, player=B)", () => {
-  it("steps through a lab end-to-end against fakes", async () => {
-    const { readFileSync } = await import("node:fs");
-    const { fileURLToPath } = await import("node:url");
-    const { dirname, join } = await import("node:path");
-    const { parseLesson } = await import("../../content/lessons/parser");
-    const { RolePlay } = await import("../../domain/rolePlay");
-
-    const here = dirname(fileURLToPath(import.meta.url));
-    const dataDir = join(here, "..", "..", "content", "lessons", "data");
-    const lesson = parseLesson(
-      readFileSync(join(dataDir, "02-restaurant.lesson"), "utf8"),
-      "02-restaurant.lesson",
-    ).data!;
-
+describe("free-form conversation (LLM-driven)", () => {
+  it("runs several turns, can't end before the minimum, then completes", async () => {
+    const { MIN_PLAYER_TURNS } = await import("../ConversationSession");
     const adapters = makeAdapters("test");
     const player = new PlayerService(adapters.repo, adapters.rewardGrader);
     await player.init();
     adapters.fakes!.grader.setDefault({ communication: 0.85, accuracy: 0.8 });
 
-    const obj = objectiveById("a2.market.bargaining")!;
+    const obj = objectiveById("a1.greetings")!;
     const session = new ConversationSession(
       {
-        npcId: "mesero",
+        npcId: "rosa",
+        npcName: "Rosa",
         level: obj.level,
         objectiveId: obj.id,
         canDo: obj.canDo,
         vocab: obj.vocab.map((v) => ({ es: v.es, en: v.en })),
         skill: "speaking",
-        rolePlay: new RolePlay(lesson.lab),
+        theme: "two neighbors greeting casually",
       },
       adapters.conversationGrader,
       player,
     );
 
-    // Begin: the NPC speaks the (in-character) opener and the script advances to
-    // the first player cue. NPC lines come from the opener/LLM, not raw hints.
-    const opening = session.begin("¡Buenas! Bienvenido.");
-    expect(opening).toEqual(["¡Buenas! Bienvenido."]);
-    expect(session.isRolePlay).toBe(true);
-    expect(session.currentGoal).toBeTruthy();
+    // The NPC greets first; the player drives the conversation.
+    const opening = session.begin("¡Buenas! ¿Qué onda?");
+    expect(opening).toEqual(["¡Buenas! ¿Qué onda?"]);
 
-    // Drive every player turn until the script completes.
+    // Even if the LLM tries to end early, the min-turn floor prevents it.
+    adapters.fakes!.grader.enqueue({
+      communication: 0.9,
+      accuracy: 0.9,
+      conversationComplete: true,
+    });
+    const first = await session.submit("¡Ey! ¿Cómo andas?");
+    expect(first.complete).toBe(false); // below MIN_PLAYER_TURNS
+
+    // Reach the minimum, then let the LLM end it naturally.
     let complete = false;
-    let turns = 0;
-    while (!complete && turns < 30) {
-      const outcome = await session.submit("(respuesta del jugador)");
+    let turns = 1;
+    adapters.fakes!.grader.setDefault({
+      communication: 0.85,
+      accuracy: 0.85,
+      conversationComplete: true,
+    });
+    while (!complete && turns < 10) {
+      const outcome = await session.submit("respuesta " + turns);
       complete = outcome.complete;
       turns++;
     }
     expect(complete).toBe(true);
-    // The grader was asked with role-play context on at least one turn.
-    expect(adapters.fakes!.grader.calls.some((c) => c.rolePlay)).toBe(true);
-    // Player earned pesos along the way.
+    expect(turns).toBeGreaterThanOrEqual(MIN_PLAYER_TURNS);
+    // Friendship grew on completion; player earned pesos.
     expect(player.getState().pesos).toBeGreaterThan(0);
+    expect(player.getState().rapport["rosa"]?.points ?? 0).toBeGreaterThan(0);
   });
 });
 

@@ -57,7 +57,9 @@ export interface ConverseRequest {
   history: ConversationTurn[];
   /** The player's latest utterance (already transcribed by Whisper). */
   playerUtterance: string;
-  /** Present for scripted lesson role-plays; absent for free-form gates. */
+  /** Short scenario/theme to keep the LLM on-topic (e.g. "two neighbors greeting"). */
+  theme?: string;
+  /** @deprecated scripted role-play context; conversations are now free-form. */
   rolePlay?: RolePlayContext;
 }
 
