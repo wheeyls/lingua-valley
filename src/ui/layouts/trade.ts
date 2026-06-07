@@ -54,19 +54,18 @@ export function tradeLayout(vm: TradeVM): UINode[] {
     kind: "text",
     id: "title",
     x: w / 2,
-    y: SAFE + 42,
+    y: SAFE + 24,
     text: `${vm.npcName} — Trade`,
     fontSize: px(TYPE.title),
     color: COLOR.gold,
     align: "center",
-    wrapWidth: w - SAFE * 2,
     depth: 81,
   });
   nodes.push({
     kind: "text",
     id: "friendship",
     x: w / 2,
-    y: SAFE + 80,
+    y: SAFE + 48,
     text: `♥ ${vm.friendshipLabel}     💰 ${vm.pesos}`,
     fontSize: px(TYPE.label),
     color: COLOR.rose,
@@ -76,7 +75,7 @@ export function tradeLayout(vm: TradeVM): UINode[] {
 
   // Goods rows.
   const rowH = 64;
-  const startY = SAFE + 108;
+  const startY = SAFE + 90;
   const rowW = w - SAFE * 2;
   vm.rows.forEach((row, i) => {
     const y = startY + i * (rowH + 10);
