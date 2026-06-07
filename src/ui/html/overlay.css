@@ -179,6 +179,12 @@
   background: #4a7c59;
   color: #f4ecd8;
 }
+/* Continue button shown as the sole CTA when a conversation ends. */
+.convo-actions:has(.btn-success:only-child) .btn-success {
+  font-size: 20px;
+  padding: 18px 0;
+  letter-spacing: 0.02em;
+}
 
 /* --- Dialogue overlay ----------------------------------------------------- */
 

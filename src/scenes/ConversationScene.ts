@@ -102,6 +102,7 @@ export class ConversationScene extends Phaser.Scene {
     this.view = new HtmlConversationView({
       onMicTap: () => this.onMicTap(),
       onLeave: () => this.close(),
+      onContinue: () => this.close(),
     });
     this.view.setHeader(
       this.npc.name,
@@ -138,9 +139,7 @@ export class ConversationScene extends Phaser.Scene {
       case "recording":
         void this.endRecordingAndSend();
         break;
-      case "done":
-        this.close();
-        break;
+      // "done" is handled by the Continue button in the HTML view — not mic tap.
     }
   }
 
@@ -236,17 +235,16 @@ export class ConversationScene extends Phaser.Scene {
         0.6 * outcome.grade.communication + 0.4 * outcome.grade.accuracy;
       this.qualityTurns += 1;
 
+      // Mastery happens quietly in the background — it never cuts the chat
+      // short. The conversation ends only when it reaches a natural wrap-up.
+      if (outcome.mastered) this.mastered = true;
+
       await this.npcSay(outcome.npcReply);
 
-      if (outcome.mastered) {
-        this.mastered = true;
+      if (outcome.complete) {
         await this.maybeUnlockTown();
         await this.maybeAdvanceQuest();
-        this.finish(true);
-      } else if (outcome.complete) {
-        await this.maybeUnlockTown();
-        await this.maybeAdvanceQuest();
-        this.finish(this.session.isRolePlay);
+        this.finish();
       } else {
         this.phase = "awaitInput";
         this.view.setStatus(this.turnPrompt());
@@ -286,23 +284,25 @@ export class ConversationScene extends Phaser.Scene {
     }
   }
 
-  private finish(passed: boolean) {
+  private finish() {
     this.phase = "done";
     let msg: string;
     let color = "#9bc995";
     if (this.questOutcome === "activated") {
-      msg = "¡Buen plan! Now go do it — talk to the people you mentioned, then come back. Tap to continue.";
+      msg = "¡Buen plan! Now go do it — talk to the people you mentioned, then come back.";
     } else if (this.questOutcome === "completed") {
-      msg = `¡Bien hecho! Quest complete — +${this.questReward} pesos. Tap to continue.`;
+      msg = `¡Bien hecho! Quest complete — +${this.questReward} pesos.`;
     } else if (this.townUnlockedThisVisit) {
-      msg = "¡Te ganaste su confianza! The community opens — producers unlocked. Tap to continue.";
-    } else if (passed) {
-      msg = "¡Excelente! You demonstrated the skill. Tap to continue.";
+      msg = "¡Te ganaste su confianza! The community opens — producers unlocked.";
+    } else if (this.mastered) {
+      msg = "¡Excelente! Great conversation — objective mastered!";
     } else {
-      msg = "Good practice — try again when ready. Tap to continue.";
+      msg = "Good practice — come back and chat again soon!";
       color = "#f2cc8f";
     }
-    this.view.setStatus(msg, color);
+    // Show the end state: hides mic, shows the message + a clear Continue button.
+    // This replaces the old setStatus approach so there's no surprise close-on-tap.
+    this.view.showEndState(msg, color);
   }
 
   private close() {

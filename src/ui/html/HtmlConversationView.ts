@@ -12,6 +12,8 @@ import "./overlay.css";
 export interface ConvoViewCallbacks {
   onMicTap: () => void;
   onLeave: () => void;
+  /** Tapped the "Continue" button shown when the conversation has ended. */
+  onContinue: () => void;
 }
 
 export class HtmlConversationView {
@@ -25,6 +27,7 @@ export class HtmlConversationView {
   private statusEl: HTMLElement;
   private micBtn: HTMLButtonElement;
   private micHint: HTMLElement;
+  private callbacks: ConvoViewCallbacks;
 
   constructor(callbacks: ConvoViewCallbacks) {
     this.root = document.createElement("div");
@@ -60,6 +63,7 @@ export class HtmlConversationView {
     this.micBtn = this.root.querySelector(".mic-btn")!;
     this.micHint = this.root.querySelector(".mic-hint")!;
 
+    this.callbacks = callbacks;
     const leaveBtn = this.root.querySelector(".btn-danger")!;
     leaveBtn.addEventListener("pointerdown", (e) => {
       e.stopPropagation();
@@ -71,6 +75,33 @@ export class HtmlConversationView {
     });
 
     document.body.appendChild(this.root);
+  }
+
+  /**
+   * The conversation has ended: hide the mic, show the wrap-up message in the
+   * body, and replace the action row with a clear "Continue ▶" button so
+   * closing is obvious and intentional (no surprise close).
+   */
+  showEndState(message: string, color: string): void {
+    // Hide the mic + its hint.
+    const micArea = this.root.querySelector(".convo-mic-area") as HTMLElement;
+    micArea.style.display = "none";
+
+    // Show the wrap-up message prominently in the status line.
+    this.statusEl.textContent = message;
+    this.statusEl.style.color = color;
+    this.statusEl.style.fontSize = "20px";
+    this.statusEl.style.fontWeight = "bold";
+
+    // Replace the actions row with a single, clear Continue button.
+    const actions = this.root.querySelector(".convo-actions") as HTMLElement;
+    actions.innerHTML =
+      '<button class="btn btn-success" type="button">Continue ▶</button>';
+    const continueBtn = actions.querySelector(".btn-success")!;
+    continueBtn.addEventListener("pointerdown", (e) => {
+      e.stopPropagation();
+      this.callbacks.onContinue();
+    });
   }
 
   setHeader(npcName: string, friendship: string, goal: string): void {
