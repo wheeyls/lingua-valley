@@ -85,17 +85,17 @@ export const AREAS: Area[] = [
         tileX: 7,
         tileY: 14,
         color: 0x2a9d8f,
-        teachesObjectiveId: "a1.numbers",
+        teachesObjectiveId: "a2.morning_story",
         voice: "shimmer",
         dailyStep: "marisol",
         conversation: {
-          opener: "¡Hola! Siéntate, te voy a contar algo que me pasó…",
+          opener: "¡Hola! Siéntate. Te cuento lo que hice hoy…",
         },
         lines: [
           {
             level: "A2",
-            es: "Te voy a contar una historia. Escucha bien.",
-            en: "I'm going to tell you a story. Listen carefully.",
+            es: "Te cuento lo que hice hoy. Escucha bien.",
+            en: "Let me tell you what I did today. Listen carefully.",
           },
         ],
       },
@@ -105,17 +105,17 @@ export const AREAS: Area[] = [
         tileX: 7,
         tileY: 22,
         color: 0x3d5a80,
-        teachesObjectiveId: "a1.introductions",
+        teachesObjectiveId: "a2.retell",
         voice: "onyx",
         dailyStep: "pablo",
         conversation: {
-          opener: "¡Ey! ¿Ya hablaste con mi hermana? Cuéntame, ¿qué te dijo?",
+          opener: "¡Ey! ¿Ya hablaste con Marisol, mi hermana? Cuéntame — ¿qué hizo hoy?",
         },
         lines: [
           {
             level: "A2",
-            es: "Mi hermana me dijo que te contó algo. ¿Qué te dijo?",
-            en: "My sister told me she told you something. What did she say?",
+            es: "Marisol es mi hermana. ¿Qué te contó? ¿Qué hizo hoy?",
+            en: "Marisol is my sister. What did she tell you? What did she do today?",
           },
         ],
       },

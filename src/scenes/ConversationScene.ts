@@ -6,8 +6,6 @@ import { MicRecorder, playAudioBytes, unlockAudio } from "../game/voice";
 import { transcribe, speak } from "../game/api";
 import { ConversationSession } from "../app/ConversationSession";
 import { tierFor, tierLabel } from "../domain/friendship";
-import { lessonForPhase } from "../domain/quest";
-import { questById } from "../content/quests";
 import { townOfNpc, townInfoOf } from "../content/world";
 import {
   isTownUnlocked,
@@ -15,7 +13,6 @@ import {
   unlockTown,
   gradingStrictness,
 } from "../domain/town";
-import { lessonBySlug } from "../content/lessons";
 import { HtmlConversationView } from "../ui/html/HtmlConversationView";
 
 function findNpc(id: string): Npc | undefined {
@@ -43,10 +40,6 @@ export class ConversationScene extends Phaser.Scene {
   private qualityTurns = 0;
   private townUnlockedThisVisit = false;
   private strictness = 1;
-  private quest?: import("../domain/quest").Quest;
-  private questPhaseAtStart?: import("../domain/quest").QuestPhase;
-  private questOutcome?: "activated" | "completed";
-  private questReward = 0;
 
   constructor() {
     super("ConversationScene");
@@ -60,23 +53,10 @@ export class ConversationScene extends Phaser.Scene {
     this.qualitySum = 0;
     this.qualityTurns = 0;
     this.townUnlockedThisVisit = false;
-    this.questOutcome = undefined;
-    this.questReward = 0;
-
     const obj = objectiveById(this.npc.teachesObjectiveId!)!;
 
-    this.quest = this.npc.givesQuest ? questById(this.npc.givesQuest) : undefined;
-    let slug = this.npc.lessonSlug;
-    if (this.quest) {
-      const prog = this.state.quests.progressFor(this.quest.id);
-      this.questPhaseAtStart = prog.phase;
-      slug = lessonForPhase(this.quest, prog) ?? slug;
-    }
-
-    // The lesson (if any) just sets the conversation's THEME — the LLM plays the
-    // NPC freely and reacts to what the player actually says (no rigid script).
-    const lesson = slug ? lessonBySlug(slug) : undefined;
-    const theme = lesson?.lab?.scenario;
+    // Set a specific theme/instruction per NPC role in the daily loop.
+    const theme = this.themeForNpc();
 
     const town = townOfNpc(this.npc.id);
     this.strictness = town ? gradingStrictness(townInfoOf(town)) : 1;
@@ -160,6 +140,40 @@ export class ConversationScene extends Phaser.Scene {
     for (const line of lines) await this.npcSay(line);
     this.phase = "awaitInput";
     this.view.setStatus(this.turnPrompt());
+  }
+
+  /** Build a role-specific theme/instruction for the LLM based on the NPC's daily role. */
+  private themeForNpc(): string | undefined {
+    const step = this.npc.dailyStep;
+    if (step === "rosa") {
+      return "A casual, friendly greeting between neighbors. Keep it very simple — ask how they are, what's new, basic small talk. Stay at the most basic beginner level.";
+    }
+    if (step === "marisol") {
+      return (
+        "You are telling the player about YOUR morning — what YOU did today. " +
+        "Tell them exactly 2-3 specific, discrete things you did, using simple past tense. " +
+        "For example: 'Me desperté temprano. Fui al mercado. Compré tomates.' " +
+        "Use VERY simple vocabulary. Speak slowly and clearly. After telling your story, " +
+        "ask if they understood: '¿Entendiste?' The player just needs to listen and " +
+        "respond with simple acknowledgments like 'sí' or 'ah, ok'. " +
+        "Keep your story to 2-3 short sentences about concrete actions."
+      );
+    }
+    if (step === "pablo") {
+      // Get today's story from daily state so Pablo can reference it.
+      const story = this.state.player.getState().daily.todayStory;
+      return (
+        "You are Marisol's brother. Marisol just told the player about her morning. " +
+        "Ask the player: '¿Qué hizo Marisol hoy?' (What did Marisol do today?) " +
+        (story
+          ? `Marisol's story was: "${story}". The player should try to retell these things. `
+          : "The player should try to retell what Marisol told them. ") +
+        "Prompt them through it one thing at a time. If they get stuck, give hints: " +
+        "'¿Y luego?' (And then?), '¿Qué más?' (What else?), or give the first word. " +
+        "Be patient and encouraging. When they've covered the main points, praise them."
+      );
+    }
+    return undefined;
   }
 
   private turnPrompt(): string {
@@ -252,8 +266,12 @@ export class ConversationScene extends Phaser.Scene {
       await this.npcSay(outcome.npcReply);
 
       if (outcome.complete) {
+        // If Marisol just finished, save her story so Pablo can reference it.
+        if (this.npc.dailyStep === "marisol") {
+          await this.saveMarisStory();
+        }
         await this.maybeUnlockTown();
-        await this.maybeAdvanceQuest();
+
         this.finish();
       } else {
         this.phase = "awaitInput";
@@ -282,15 +300,18 @@ export class ConversationScene extends Phaser.Scene {
     }
   }
 
-  private async maybeAdvanceQuest() {
-    if (!this.quest) return;
-    if (this.questPhaseAtStart === "offered" || this.questPhaseAtStart === "planning") {
-      await this.state.quests.activate(this.quest.id);
-      this.questOutcome = "activated";
-    } else if (this.questPhaseAtStart === "recap") {
-      const reward = await this.state.quests.finishRecap(this.quest);
-      this.questReward = reward;
-      this.questOutcome = "completed";
+  /** Extract Marisol's story from the conversation and save it for Pablo. */
+  private async saveMarisStory() {
+    const npcLines = this.session.history
+      .filter((t) => t.role === "npc")
+      .map((t) => t.text);
+    const story = npcLines.join(" ");
+    if (story) {
+      const { setTodayStory } = await import("../domain/dailyLoop");
+      await this.state.player.update((s) => ({
+        ...s,
+        daily: setTodayStory(s.daily, story),
+      }));
     }
   }
 
@@ -298,11 +319,7 @@ export class ConversationScene extends Phaser.Scene {
     this.phase = "done";
     let msg: string;
     let color = "#9bc995";
-    if (this.questOutcome === "activated") {
-      msg = "¡Buen plan! Now go do it — talk to the people you mentioned, then come back.";
-    } else if (this.questOutcome === "completed") {
-      msg = `¡Bien hecho! Quest complete — +${this.questReward} pesos.`;
-    } else if (this.townUnlockedThisVisit) {
+    if (this.townUnlockedThisVisit) {
       msg = "¡Te ganaste su confianza! The community opens — producers unlocked.";
     } else if (this.mastered) {
       msg = "¡Excelente! Great conversation — objective mastered!";

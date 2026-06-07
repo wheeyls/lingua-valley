@@ -72,6 +72,36 @@ export const CURRICULUM: LearningObjective[] = [
 
   // ---------------------------------------------------------------- A2 -------
   {
+    id: "a2.morning_story",
+    level: "A2",
+    label: "Morning routine (past)",
+    canDo: "Understand and retell a simple story about someone's morning in past tense.",
+    vocab: [
+      { es: "me desperté", en: "I woke up" },
+      { es: "desayuné", en: "I had breakfast" },
+      { es: "fui a…", en: "I went to…", example: "Fui al mercado." },
+      { es: "llegué", en: "I arrived" },
+      { es: "ayer", en: "yesterday" },
+      { es: "primero", en: "first" },
+      { es: "luego", en: "then" },
+      { es: "después", en: "after that" },
+    ],
+  },
+  {
+    id: "a2.retell",
+    level: "A2",
+    label: "Retelling",
+    canDo: "Retell a simple story you just heard, in past tense.",
+    vocab: [
+      { es: "ella me dijo que…", en: "she told me that…" },
+      { es: "primero", en: "first" },
+      { es: "luego", en: "then" },
+      { es: "después", en: "after that" },
+      { es: "fue a…", en: "she/he went to…" },
+      { es: "se despertó", en: "she/he woke up" },
+    ],
+  },
+  {
     id: "a2.market.quantities",
     level: "A2",
     label: "Quantities",
