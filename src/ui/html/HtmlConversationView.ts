@@ -8,6 +8,7 @@
  */
 
 import "./overlay.css";
+import { blockCanvas, unblockCanvas } from "./canvasBlock";
 
 export interface ConvoViewCallbacks {
   onMicTap: () => void;
@@ -75,6 +76,7 @@ export class HtmlConversationView {
     });
 
     document.body.appendChild(this.root);
+    blockCanvas(); // prevent the Phaser canvas from receiving taps while open
   }
 
   /**
@@ -149,6 +151,7 @@ export class HtmlConversationView {
 
   destroy(): void {
     this.root.remove();
+    unblockCanvas(); // restore Phaser canvas input after the closing tap clears
   }
 }
 

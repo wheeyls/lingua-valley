@@ -4,6 +4,7 @@
  */
 
 import "./overlay.css";
+import { blockCanvas, unblockCanvas } from "./canvasBlock";
 
 export interface DialogueViewCallbacks {
   onContinue: () => void;
@@ -65,6 +66,7 @@ export class HtmlDialogueView {
       });
 
     document.body.appendChild(this.root);
+    blockCanvas();
   }
 
   update(data: DialogueViewData): void {
@@ -122,6 +124,7 @@ export class HtmlDialogueView {
 
   destroy(): void {
     this.root.remove();
+    unblockCanvas();
   }
 }
 
