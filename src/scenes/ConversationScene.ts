@@ -5,7 +5,6 @@ import { GameState, REGISTRY_KEY } from "../game/state";
 import { MicRecorder, playAudioBytes } from "../game/voice";
 import { transcribe, speak } from "../game/api";
 import { ConversationSession } from "../app/ConversationSession";
-import { RolePlay } from "../domain/rolePlay";
 import { tierFor, tierLabel } from "../domain/friendship";
 import { lessonForPhase } from "../domain/quest";
 import { questById } from "../content/quests";
@@ -74,9 +73,10 @@ export class ConversationScene extends Phaser.Scene {
       slug = lessonForPhase(this.quest, prog) ?? slug;
     }
 
-    let rolePlay: RolePlay | undefined;
+    // The lesson (if any) just sets the conversation's THEME — the LLM plays the
+    // NPC freely and reacts to what the player actually says (no rigid script).
     const lesson = slug ? lessonBySlug(slug) : undefined;
-    if (lesson) rolePlay = new RolePlay(lesson.lab);
+    const theme = lesson?.lab?.scenario;
 
     const town = townOfNpc(this.npc.id);
     this.strictness = town ? gradingStrictness(townInfoOf(town)) : 1;
@@ -90,7 +90,7 @@ export class ConversationScene extends Phaser.Scene {
         canDo: obj.canDo,
         vocab: obj.vocab.map((v) => ({ es: v.es, en: v.en })),
         skill: "speaking",
-        rolePlay,
+        theme,
         strictness: this.strictness,
       },
       this.state.adapters.conversationGrader,
