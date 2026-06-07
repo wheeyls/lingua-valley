@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import { AREAS, type Npc } from "../content/world";
 import { objectiveById } from "../content/curriculum";
 import { GameState, REGISTRY_KEY } from "../game/state";
-import { MicRecorder, playAudioBytes } from "../game/voice";
+import { MicRecorder, playAudioBytes, unlockAudio } from "../game/voice";
 import { transcribe, speak } from "../game/api";
 import { ConversationSession } from "../app/ConversationSession";
 import { tierFor, tierLabel } from "../domain/friendship";
@@ -97,10 +97,15 @@ export class ConversationScene extends Phaser.Scene {
       this.state.player,
     );
 
+    // Unlock browser audio while we're still within the user gesture that opened
+    // this scene. iOS Safari expires the audio permission ~1s after a tap, but
+    // TTS takes 1-3s — unlocking now means playback works when the audio arrives.
+    unlockAudio();
+
     // --- HTML overlay UI (replaces canvas text rendering) ---
     const rapport = this.state.player.getState().rapport[this.npc.id]?.points ?? 0;
     this.view = new HtmlConversationView({
-      onMicTap: () => this.onMicTap(),
+      onMicTap: () => { unlockAudio(); this.onMicTap(); },
       onLeave: () => this.close(),
       onContinue: () => this.close(),
     });

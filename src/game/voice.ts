@@ -114,6 +114,37 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
+/**
+ * Unlock the browser's audio context by playing a silent sound.
+ *
+ * iOS Safari requires a user gesture to start audio playback. The TTS response
+ * takes 1-3 seconds — by the time it arrives, the gesture context has often
+ * expired. Calling this function immediately on a user tap (e.g. when the
+ * conversation opens or the mic is tapped) creates an AudioContext while the
+ * gesture is still active, unlocking audio for all subsequent plays in the
+ * session. Safe to call multiple times.
+ */
+let audioUnlocked = false;
+export function unlockAudio(): void {
+  if (audioUnlocked) return;
+  try {
+    const ctx = new AudioContext();
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+    // Also play a silent HTMLAudioElement so the Audio() constructor is unblocked.
+    const silent = new Audio(
+      "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=",
+    );
+    void silent.play().catch(() => {});
+    audioUnlocked = true;
+  } catch {
+    // Best-effort; non-fatal.
+  }
+}
+
 /** Play raw audio bytes (e.g. an mp3 ArrayBuffer from TTS). Resolves when done. */
 export function playAudioBytes(bytes: ArrayBuffer): Promise<void> {
   return new Promise((resolve, reject) => {
