@@ -66,7 +66,7 @@ describe("ObjectiveGraph", () => {
     expect(theme).toContain("greeting");
 
     const marisol = g.get("marisol-story")!;
-    expect(marisol.buildTheme({ inputs: {}, state: {} })).toContain("2-3");
+    expect(marisol.buildTheme({ inputs: {}, state: {} })).toContain("2 things");
   });
 
   it("pablo's theme includes Marisol's story when available", () => {

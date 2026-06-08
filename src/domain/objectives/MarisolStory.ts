@@ -15,13 +15,15 @@ export class MarisolStory implements Objective {
   buildTheme(_ctx: ObjectiveContext): string {
     return (
       "You are telling the player about YOUR morning — what YOU did today. " +
-      "Tell them exactly 2-3 specific, discrete things you did, using simple past tense. " +
-      "For example: 'Me desperté temprano. Fui al mercado. Compré tomates.' " +
-      "Use VERY simple vocabulary (A2 level). Speak slowly and clearly. " +
-      "After telling your story, ask if they understood: '¿Entendiste?' " +
-      "The player just needs to listen and respond with simple acknowledgments " +
-      "like 'sí' or 'ah, ok'. Keep your story to 2-3 short sentences about " +
-      "concrete actions. Vary the story each time — don't always say the same thing."
+      "Tell them exactly 2 things you did, using simple past tense. " +
+      "Make them DISTINCTIVE, VISUAL, and MEMORABLE — things the player can easily " +
+      "picture and retell later. Good examples: 'Fui al parque.' 'Vi un perro grande.' " +
+      "'Compré flores rojas.' 'Cociné pasta.' Bad examples (too boring/vague): " +
+      "'Me desperté temprano.' 'Trabajé mucho.' " +
+      "Use VERY simple vocabulary (A2 level). Each action should be ONE short sentence. " +
+      "After telling your 2 things, ask if they understood: '¿Entendiste?' " +
+      "The player just needs to listen and say 'sí'. " +
+      "IMPORTANT: Vary the story each conversation — pick different actions each time."
     );
   }
 

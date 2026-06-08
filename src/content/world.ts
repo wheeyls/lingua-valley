@@ -76,7 +76,11 @@ export const AREAS: Area[] = [
           opener: "¡Buenas! ¿Qué onda? ¿Cómo andas?",
         },
         lines: [
-          { level: "A1", es: "¡Buenas! ¿Cómo andas?", en: "Hey! How's it going?" },
+          {
+            level: "A1",
+            es: "🗣 Practice greeting Rosa in Spanish!",
+            en: "Tap 'Talk' to start a voice conversation. Rosa will greet you — respond in Spanish! Tap the mic to speak, tap again to send.",
+          },
         ],
       },
       {
@@ -94,8 +98,8 @@ export const AREAS: Area[] = [
         lines: [
           {
             level: "A2",
-            es: "Te cuento lo que hice hoy. Escucha bien.",
-            en: "Let me tell you what I did today. Listen carefully.",
+            es: "🎧 Listen to Marisol's story!",
+            en: "Marisol will tell you about her day in Spanish. Listen carefully — her brother Pablo will ask you about it later! Tap 'Talk' to begin.",
           },
         ],
       },
@@ -114,8 +118,8 @@ export const AREAS: Area[] = [
         lines: [
           {
             level: "A2",
-            es: "Marisol es mi hermana. ¿Qué te contó? ¿Qué hizo hoy?",
-            en: "Marisol is my sister. What did she tell you? What did she do today?",
+            es: "🔄 Tell Pablo what Marisol did!",
+            en: "Pablo is Marisol's brother. He'll ask you what Marisol told you. Try to retell her story in Spanish — he'll help if you get stuck! Tap 'Talk' to begin.",
           },
         ],
       },

@@ -90,6 +90,10 @@ Each turn:
    - Stay consistent with the conversation so far.
 3. objectiveMet: true if the player has communicated reasonably well (be encouraging).
 4. conversationComplete: true once the exchange has reached a natural, friendly end — typically after 3-5 back-and-forth turns. Don't drag on, but don't end after one line.
+   CRITICAL: when you set conversationComplete to true, your npcReply MUST be a
+   CLOSING statement (e.g. "¡Nos vemos!" / "¡Hasta luego!" / "¡Cuídate!") — NOT
+   a question. The player will NOT get another turn after this, so do NOT leave a
+   question hanging.
 
 Respond with STRICT JSON only:
 {
