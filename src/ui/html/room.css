@@ -1,6 +1,7 @@
 /*
- * Room-based point-and-click navigation. Each screen shows the current room
- * with tappable NPCs, doors, and items. No movement, no scrolling, no player.
+ * Room-based point-and-click navigation.
+ * Fully responsive — works in portrait, landscape, phone, tablet, desktop.
+ * No fixed dimensions. Cards wrap naturally. Background fills the viewport.
  */
 
 .room {
@@ -14,148 +15,129 @@
   user-select: none;
 }
 
-/* --- Top bar: room name + back button --- */
+/* --- Top bar --- */
 .room-bar {
   display: flex;
   align-items: center;
-  padding: 8px max(12px, env(safe-area-inset-left));
-  background: rgba(26, 20, 35, 0.92);
+  padding: 10px max(16px, env(safe-area-inset-left, 0px))
+           10px max(16px, env(safe-area-inset-right, 0px));
+  background: rgba(26, 20, 35, 0.88);
   gap: 12px;
   flex-shrink: 0;
   z-index: 2;
+  min-height: 48px;
 }
-
 .room-bar .room-name {
-  font-size: 18px;
+  font-size: clamp(15px, 3vw, 20px);
   font-weight: bold;
   color: #ffe08a;
   flex: 1;
 }
 .room-bar .hud-info {
-  font-size: 15px;
+  font-size: clamp(13px, 2.5vw, 17px);
   color: #f4ecd8;
 }
 
-/* --- Room body: the entities as a grid/list of tappable cards --- */
+/* --- Room body --- */
 .room-body {
   flex: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 20px;
-  padding: 20px max(20px, env(safe-area-inset-left));
+  gap: clamp(12px, 3vw, 24px);
+  padding: clamp(16px, 4vw, 32px)
+           max(clamp(16px, 4vw, 32px), env(safe-area-inset-left, 0px));
   overflow-y: auto;
   position: relative;
   z-index: 1;
+  /* Leave room for the bottom safe area (home indicator) */
+  padding-bottom: max(clamp(16px, 4vw, 32px), env(safe-area-inset-bottom, 0px));
 }
 
-/* --- Entity cards --- */
+/* --- Shared card styles --- */
 .card {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px 24px;
+  padding: clamp(14px, 3vw, 22px) clamp(16px, 3.5vw, 26px);
   border-radius: 18px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.1s, box-shadow 0.1s;
-  min-width: 120px;
+  transition: transform 0.1s;
   text-align: center;
+  min-width: clamp(100px, 25vw, 150px);
 }
-.card:active {
-  transform: scale(0.96);
-}
+.card:active { transform: scale(0.95); }
 
-/* NPC card */
+/* --- NPC card --- */
 .card-npc {
   background: rgba(26, 20, 35, 0.82);
   border: 3px solid #d9b08c;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 .card-avatar {
-  width: 72px;
-  height: 96px;
+  width: clamp(56px, 12vw, 88px);
+  height: clamp(74px, 16vw, 117px);
   margin-bottom: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.card-avatar svg {
-  width: 72px;
-  height: 96px;
-}
-.card-avatar-img {
-  width: 72px;
-  height: 96px;
-  object-fit: contain;
-}
+.card-avatar svg { width: 100%; height: 100%; }
+.card-avatar-img { width: 100%; height: 100%; object-fit: contain; }
 .card-npc .card-label {
-  font-size: 18px;
+  font-size: clamp(15px, 3vw, 20px);
   font-weight: bold;
   color: #f4ecd8;
 }
 .card-npc .card-hint {
-  font-size: 13px;
+  font-size: clamp(11px, 2.2vw, 14px);
   color: #9bc995;
   margin-top: 4px;
 }
 
-/* Door card */
+/* --- Door card --- */
 .card-door {
   border: 3px solid #d9b08c;
-  min-width: 120px;
-  backdrop-filter: blur(4px);
+  min-width: clamp(100px, 22vw, 140px);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
-.card-door.unlocked {
-  background: rgba(58, 47, 30, 0.85);
-}
+.card-door.unlocked { background: rgba(58, 47, 30, 0.85); }
 .card-door.locked {
   background: rgba(40, 40, 40, 0.75);
   opacity: 0.7;
   cursor: default;
 }
 .card-door-art {
-  width: 60px;
-  height: 70px;
+  width: clamp(48px, 10vw, 72px);
+  height: clamp(56px, 12vw, 84px);
   margin-bottom: 8px;
 }
-.card-door-art svg {
-  width: 60px;
-  height: 70px;
-}
+.card-door-art svg { width: 100%; height: 100%; }
 .card-door .card-label {
-  font-size: 15px;
+  font-size: clamp(13px, 2.5vw, 17px);
   font-weight: bold;
 }
 .card-door.unlocked .card-label { color: #ffe08a; }
 .card-door.locked .card-label { color: #888; }
 
-/* Item card */
+/* --- Item card --- */
 .card-item {
-  background: #2a2436;
+  background: rgba(26, 20, 35, 0.82);
   border: 3px solid #9bc995;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 .card-item .card-icon-text {
-  font-size: 40px;
+  font-size: clamp(32px, 8vw, 52px);
   margin-bottom: 6px;
 }
 .card-item .card-label {
-  font-size: 16px;
+  font-size: clamp(13px, 2.5vw, 17px);
   color: #ffe08a;
   font-weight: bold;
-}
-
-/* Navigation arrow (go further down the street) */
-.card-nav {
-  background: rgba(26, 20, 35, 0.6);
-  border: 3px dashed #d9b08c;
-}
-.card-nav .card-icon-text {
-  font-size: 36px;
-}
-.card-nav .card-label {
-  font-size: 15px;
-  color: #d9b08c;
 }

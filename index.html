@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <meta name="theme-color" content="#1a1423" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -20,79 +20,26 @@
         background: #1a1423;
         color: #f4ecd8;
         font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
-        overflow: hidden;
-        /* dvh = dynamic viewport height: tracks iOS Safari's address bar. */
-        width: 100vw;
-        height: 100vh;
-        height: 100dvh;
+        /* dvh tracks iOS Safari's address bar appearing/disappearing */
+        min-height: 100vh;
+        min-height: 100dvh;
         -webkit-user-select: none;
         user-select: none;
         -webkit-tap-highlight-color: transparent;
         -webkit-touch-callout: none;
         overscroll-behavior: none;
-        touch-action: none;
       }
 
-      /* Game container: fills the real visible area. Phaser handles centering. */
       #game {
-        width: 100vw;
-        height: 100vh;
-        height: 100dvh;
+        width: 100%;
+        min-height: 100vh;
+        min-height: 100dvh;
         position: relative;
-      }
-
-      canvas {
-        image-rendering: pixelated;
-        touch-action: none;
-      }
-
-      /* --- "Please rotate" prompt for portrait mode --- */
-      #rotate-prompt {
-        display: none;
-        position: fixed;
-        inset: 0;
-        z-index: 9999;
-        background: #1a1423;
-        color: #f4ecd8;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        padding: 32px;
-        font-family: "Trebuchet MS", sans-serif;
-      }
-      #rotate-prompt .icon { font-size: 64px; margin-bottom: 16px; }
-      #rotate-prompt .msg { font-size: 22px; line-height: 1.5; }
-
-      /* Show the rotate prompt when in portrait (height > width). */
-      @media (orientation: portrait) {
-        #rotate-prompt { display: flex; }
-        #game { display: none; }
       }
     </style>
   </head>
   <body>
-    <div id="rotate-prompt">
-      <div class="icon">📱↔️</div>
-      <div class="msg">Please rotate your phone<br>to <strong>landscape</strong> mode</div>
-    </div>
     <div id="game"></div>
     <script type="module" src="/src/main.ts"></script>
-    <script>
-      // Request fullscreen on the first tap — once fullscreen, we can lock
-      // orientation to landscape via the Screen Orientation API.
-      document.addEventListener("pointerdown", function requestFS() {
-        document.removeEventListener("pointerdown", requestFS);
-        var el = document.documentElement;
-        var rfs = el.requestFullscreen || el.webkitRequestFullscreen;
-        if (rfs) {
-          rfs.call(el).then(function() {
-            if (screen.orientation && screen.orientation.lock) {
-              screen.orientation.lock("landscape").catch(function() {});
-            }
-          }).catch(function() {});
-        }
-      }, { once: true });
-    </script>
   </body>
 </html>

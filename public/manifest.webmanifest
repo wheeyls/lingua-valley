@@ -4,7 +4,7 @@
   "description": "Learn Spanish by living it — a voice-first RPG where you level up by speaking.",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "landscape",
+  "orientation": "any",
   "background_color": "#1a1423",
   "theme_color": "#1a1423",
   "icons": [

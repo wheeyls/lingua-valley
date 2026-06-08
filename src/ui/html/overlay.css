@@ -1,8 +1,7 @@
 /*
- * HTML overlay UI — sits on top of the Phaser canvas for text-heavy screens
- * (conversation, dialogue). Uses real DOM text rendering for readability,
- * accessibility, and system font support. High-contrast, large text, solid
- * backgrounds — optimized for older eyes and bright-screen reading.
+ * HTML overlay UI — conversation, dialogue screens.
+ * Fully responsive: clamp() sizes work on any screen, any orientation.
+ * High contrast, large text, solid backgrounds for readability.
  */
 
 .overlay {
@@ -15,7 +14,6 @@
   color: #f4ecd8;
   -webkit-user-select: none;
   user-select: none;
-  touch-action: none;
 }
 
 /* --- Conversation overlay ------------------------------------------------- */
@@ -26,21 +24,21 @@
 
 .convo-header {
   text-align: center;
-  padding: 16px 20px 8px;
+  padding: max(12px, env(safe-area-inset-top, 0px)) 20px 8px;
   flex-shrink: 0;
 }
 .convo-npc-name {
-  font-size: 28px;
+  font-size: clamp(20px, 5vw, 30px);
   font-weight: bold;
   color: #ffe08a;
 }
 .convo-friendship {
-  font-size: 15px;
+  font-size: clamp(12px, 2.5vw, 16px);
   color: #b56576;
   margin-top: 2px;
 }
 .convo-goal {
-  font-size: 17px;
+  font-size: clamp(14px, 3vw, 18px);
   color: #9bc995;
   font-style: italic;
   margin-top: 6px;
@@ -50,24 +48,24 @@
 .convo-body {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 20px;
+  padding: 12px max(16px, env(safe-area-inset-left, 0px));
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .convo-npc-speech {
   background: #2a2436;
   border-radius: 16px;
-  padding: 16px 18px;
-  font-size: 22px;
+  padding: 14px 16px;
+  font-size: clamp(17px, 4vw, 24px);
   line-height: 1.5;
   color: #f4ecd8;
   border-left: 5px solid #ffe08a;
 }
 
 .convo-transcript {
-  font-size: 18px;
+  font-size: clamp(14px, 3vw, 19px);
   color: #9ec5ff;
   font-style: italic;
   padding: 0 4px;
@@ -76,8 +74,8 @@
 .convo-feedback {
   background: #1e1a28;
   border-radius: 14px;
-  padding: 14px 16px;
-  font-size: 20px;
+  padding: 12px 14px;
+  font-size: clamp(15px, 3.5vw, 21px);
   line-height: 1.5;
   color: #f4ecd8;
   border-left: 5px solid #9bc995;
@@ -85,17 +83,17 @@
 .convo-feedback .corrections {
   color: #f2cc8f;
   margin-top: 6px;
-  font-size: 18px;
+  font-size: clamp(13px, 3vw, 18px);
 }
 .convo-feedback .earned {
   color: #ffe08a;
   margin-top: 4px;
-  font-size: 17px;
+  font-size: clamp(12px, 2.5vw, 16px);
 }
 
 .convo-status {
   text-align: center;
-  font-size: 18px;
+  font-size: clamp(14px, 3vw, 19px);
   padding: 6px 12px;
   min-height: 28px;
 }
@@ -107,18 +105,18 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 12px 0 20px;
+  padding: 10px 0 max(16px, env(safe-area-inset-bottom, 0px));
   gap: 8px;
 }
 
 .mic-btn {
-  width: 88px;
-  height: 88px;
+  width: clamp(72px, 18vw, 96px);
+  height: clamp(72px, 18vw, 96px);
   border-radius: 50%;
   border: 4px solid #d9b08c;
   background: #3d5a80;
   color: #f4ecd8;
-  font-size: 40px;
+  font-size: clamp(32px, 8vw, 48px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -126,9 +124,7 @@
   transition: background 0.15s, transform 0.1s;
   -webkit-tap-highlight-color: transparent;
 }
-.mic-btn:active {
-  transform: scale(0.95);
-}
+.mic-btn:active { transform: scale(0.94); }
 .mic-btn.recording {
   background: #b56576;
   animation: pulse 1s infinite;
@@ -139,7 +135,7 @@
 }
 
 .mic-hint {
-  font-size: 14px;
+  font-size: clamp(12px, 2.5vw, 15px);
   color: #8a8290;
 }
 
@@ -149,47 +145,36 @@
   flex-shrink: 0;
   display: flex;
   gap: 10px;
-  padding: 0 20px 16px;
+  padding: 0 max(16px, env(safe-area-inset-left, 0px))
+           max(12px, env(safe-area-inset-bottom, 0px));
 }
 
 .btn {
   flex: 1;
-  padding: 14px 0;
+  padding: clamp(12px, 3vw, 18px) 0;
   border: none;
   border-radius: 14px;
   font-family: inherit;
-  font-size: 18px;
+  font-size: clamp(15px, 3.5vw, 20px);
   font-weight: bold;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: opacity 0.15s;
 }
-.btn:active {
-  opacity: 0.8;
-}
-.btn-primary {
-  background: #3d5a80;
-  color: #f4ecd8;
-}
-.btn-danger {
-  background: #b56576;
-  color: #f4ecd8;
-}
-.btn-success {
-  background: #4a7c59;
-  color: #f4ecd8;
-}
-/* Continue button shown as the sole CTA when a conversation ends. */
+.btn:active { opacity: 0.8; }
+.btn-primary { background: #3d5a80; color: #f4ecd8; }
+.btn-danger  { background: #b56576; color: #f4ecd8; }
+.btn-success { background: #4a7c59; color: #f4ecd8; }
+
 .convo-actions:has(.btn-success:only-child) .btn-success {
-  font-size: 20px;
-  padding: 18px 0;
-  letter-spacing: 0.02em;
+  font-size: clamp(17px, 4vw, 22px);
+  padding: clamp(16px, 4vw, 22px) 0;
 }
 
 /* --- Dialogue overlay ----------------------------------------------------- */
 
 .dialogue-overlay {
-  background: rgba(13, 10, 18, 0.92);
+  background: rgba(13, 10, 18, 0.88);
   justify-content: flex-end;
 }
 
@@ -197,44 +182,40 @@
   background: #1a1423;
   border-top: 4px solid #d9b08c;
   border-radius: 20px 20px 0 0;
-  padding: 20px 20px 16px;
-  max-height: 65vh;
+  padding: 20px max(16px, env(safe-area-inset-left, 0px))
+           max(16px, env(safe-area-inset-bottom, 0px));
+  max-height: 70vh;
   overflow-y: auto;
 }
 
 .dialogue-name {
-  font-size: 24px;
+  font-size: clamp(18px, 4.5vw, 26px);
   font-weight: bold;
   color: #ffe08a;
 }
-
 .dialogue-dots {
-  font-size: 14px;
+  font-size: clamp(11px, 2vw, 15px);
   color: #8a8290;
   float: right;
   margin-top: 6px;
 }
-
 .dialogue-spanish {
-  font-size: 22px;
+  font-size: clamp(17px, 4vw, 24px);
   line-height: 1.5;
   color: #f4ecd8;
   margin-top: 14px;
 }
-
 .dialogue-hint {
-  font-size: 17px;
+  font-size: clamp(13px, 2.8vw, 18px);
   color: #9bc995;
   font-style: italic;
   margin-top: 10px;
 }
-
 .dialogue-lesson {
-  font-size: 17px;
+  font-size: clamp(13px, 2.8vw, 18px);
   color: #ffe08a;
   margin-top: 10px;
 }
-
 .dialogue-actions {
   display: flex;
   gap: 10px;
