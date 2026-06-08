@@ -2,7 +2,6 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- Mobile-web: lock zoom, respect notches (safe areas), full-bleed. -->
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
@@ -15,15 +14,17 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>Lingua Valley — Learn Spanish by Living It</title>
     <style>
-      html,
-      body {
-        margin: 0;
-        padding: 0;
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      html, body {
         background: #1a1423;
         color: #f4ecd8;
         font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
         overflow: hidden;
-        /* Disable text selection / callout / tap highlight for an app feel. */
+        /* dvh = dynamic viewport height: tracks iOS Safari's address bar. */
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
         -webkit-user-select: none;
         user-select: none;
         -webkit-tap-highlight-color: transparent;
@@ -31,27 +32,67 @@
         overscroll-behavior: none;
         touch-action: none;
       }
+
+      /* Game container: fills the real visible area. Phaser handles centering. */
       #game {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        /* Respect device safe areas (notches, home indicator). */
-        padding: env(safe-area-inset-top) env(safe-area-inset-right)
-          env(safe-area-inset-bottom) env(safe-area-inset-left);
-        box-sizing: border-box;
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        position: relative;
       }
+
       canvas {
         image-rendering: pixelated;
-        box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
-        /* The canvas itself stays interactive even though body blocks gestures. */
         touch-action: none;
+      }
+
+      /* --- "Please rotate" prompt for portrait mode --- */
+      #rotate-prompt {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: #1a1423;
+        color: #f4ecd8;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 32px;
+        font-family: "Trebuchet MS", sans-serif;
+      }
+      #rotate-prompt .icon { font-size: 64px; margin-bottom: 16px; }
+      #rotate-prompt .msg { font-size: 22px; line-height: 1.5; }
+
+      /* Show the rotate prompt when in portrait (height > width). */
+      @media (orientation: portrait) {
+        #rotate-prompt { display: flex; }
+        #game { display: none; }
       }
     </style>
   </head>
   <body>
+    <div id="rotate-prompt">
+      <div class="icon">📱↔️</div>
+      <div class="msg">Please rotate your phone<br>to <strong>landscape</strong> mode</div>
+    </div>
     <div id="game"></div>
     <script type="module" src="/src/main.ts"></script>
+    <script>
+      // Request fullscreen on the first tap — once fullscreen, we can lock
+      // orientation to landscape via the Screen Orientation API.
+      document.addEventListener("pointerdown", function requestFS() {
+        document.removeEventListener("pointerdown", requestFS);
+        var el = document.documentElement;
+        var rfs = el.requestFullscreen || el.webkitRequestFullscreen;
+        if (rfs) {
+          rfs.call(el).then(function() {
+            if (screen.orientation && screen.orientation.lock) {
+              screen.orientation.lock("landscape").catch(function() {});
+            }
+          }).catch(function() {});
+        }
+      }, { once: true });
+    </script>
   </body>
 </html>
