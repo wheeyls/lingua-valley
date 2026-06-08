@@ -29,6 +29,8 @@ export interface MapNpc extends MapEntity {
   color: number;
   /** Objective ids that must ALL be complete before this NPC is tappable. */
   availableAfter?: string[];
+  /** Optional path to a PNG/SVG asset. Falls back to the SVG circle avatar. */
+  art?: string;
 }
 
 export function isNpcAvailable(npc: MapNpc, state: ObjectiveState): boolean {
@@ -69,6 +71,8 @@ export interface GameMap {
   entities: AnyMapEntity[];
   /** Where the player spawns when entering this map (default x). */
   spawnX: number;
+  /** Optional inline SVG string for the room background. */
+  backgroundSvg?: string;
 }
 
 // --- Query helpers (pure) ---------------------------------------------------

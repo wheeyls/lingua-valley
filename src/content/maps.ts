@@ -6,6 +6,7 @@
  */
 
 import type { GameMap } from "../domain/gameMap.js";
+import { STREET_BG, HOME_BG, PRACTICE_BG } from "./art.js";
 
 export const STREET: GameMap = {
   id: "street",
@@ -13,6 +14,7 @@ export const STREET: GameMap = {
   width: 800,
   groundColor: 0x6b705c,
   spawnX: 100,
+  backgroundSvg: STREET_BG,
   entities: [
     {
       id: "home-door",
@@ -41,6 +43,7 @@ export const HOME: GameMap = {
   width: 400,
   groundColor: 0x3d405b,
   spawnX: 200,
+  backgroundSvg: HOME_BG,
   entities: [
     {
       id: "home-exit",
@@ -68,6 +71,7 @@ export const PRACTICE_HOUSE: GameMap = {
   width: 900,
   groundColor: 0x5f4b66,
   spawnX: 0,
+  backgroundSvg: PRACTICE_BG,
   entities: [
     {
       id: "rosa-npc",

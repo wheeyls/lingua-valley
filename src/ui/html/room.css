@@ -46,6 +46,8 @@
   gap: 20px;
   padding: 20px max(20px, env(safe-area-inset-left));
   overflow-y: auto;
+  position: relative;
+  z-index: 1;
 }
 
 /* --- Entity cards --- */
@@ -68,15 +70,26 @@
 
 /* NPC card */
 .card-npc {
-  background: #2a2436;
+  background: rgba(26, 20, 35, 0.82);
   border: 3px solid #d9b08c;
+  backdrop-filter: blur(4px);
 }
-.card-npc .card-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: 3px solid #1a1423;
+.card-avatar {
+  width: 72px;
+  height: 96px;
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-avatar svg {
+  width: 72px;
+  height: 96px;
+}
+.card-avatar-img {
+  width: 72px;
+  height: 96px;
+  object-fit: contain;
 }
 .card-npc .card-label {
   font-size: 18px;
@@ -84,7 +97,7 @@
   color: #f4ecd8;
 }
 .card-npc .card-hint {
-  font-size: 14px;
+  font-size: 13px;
   color: #9bc995;
   margin-top: 4px;
 }
@@ -92,22 +105,28 @@
 /* Door card */
 .card-door {
   border: 3px solid #d9b08c;
-  min-width: 140px;
+  min-width: 120px;
+  backdrop-filter: blur(4px);
 }
 .card-door.unlocked {
-  background: #3a2f1e;
+  background: rgba(58, 47, 30, 0.85);
 }
 .card-door.locked {
-  background: #333;
-  opacity: 0.6;
+  background: rgba(40, 40, 40, 0.75);
+  opacity: 0.7;
   cursor: default;
 }
-.card-door .card-icon-text {
-  font-size: 32px;
-  margin-bottom: 6px;
+.card-door-art {
+  width: 60px;
+  height: 70px;
+  margin-bottom: 8px;
+}
+.card-door-art svg {
+  width: 60px;
+  height: 70px;
 }
 .card-door .card-label {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: bold;
 }
 .card-door.unlocked .card-label { color: #ffe08a; }
