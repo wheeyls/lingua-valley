@@ -1,7 +1,7 @@
 /**
  * PlayerState — the core, framework-free representation of a player's progress.
  *
- * This is the DOMAIN shape. It is NOT a database row and NOT a Phaser object.
+ * This is the DOMAIN shape. It is NOT a database row and NOT a persistence row.
  * Adapters map between vendor/transport shapes and this type; the domain only
  * ever speaks in these terms.
  */

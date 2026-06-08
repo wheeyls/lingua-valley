@@ -1,6 +1,6 @@
 /**
  * Pure UI design tokens — NO framework imports. Safe to use in the pure layout
- * abstraction and its tests. The Phaser widget helpers live in ui/widgets.ts.
+ * abstraction and its tests. The tokens are framework-free.
  */
 
 /** Landscape base canvas (~16:9). Scale.FIT scales this to fill phones held sideways. */

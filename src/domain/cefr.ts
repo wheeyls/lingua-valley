@@ -4,7 +4,7 @@
  * objectives of their current level before the next Area's dialogue becomes
  * comprehensible.
  *
- * This module is pure domain logic — no Phaser, fully testable.
+ * This module is pure domain logic — pure domain, fully testable.
  */
 
 export const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;

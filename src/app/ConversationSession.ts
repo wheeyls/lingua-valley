@@ -1,6 +1,6 @@
 /**
  * ConversationSession — application-layer driver for one voiced conversation,
- * independent of Phaser. Coordinates the ConversationGrader (LLM) and the
+ * independent of the UI. Coordinates the ConversationGrader (LLM) and the
  * economy (via PlayerService), applying the domain gate rule.
  *
  * Conversations are FREE-FORM: the NPC is played by the LLM, which reacts to
@@ -10,7 +10,7 @@
  * (`conversationComplete`); we enforce a small minimum so it can't end after one
  * exchange. Completing a conversation is when friendship grows.
  *
- * Because it takes ports (not OpenAI/Phaser), the loop is testable against fakes.
+ * Because it takes ports (not vendor SDKs), the loop is testable against fakes.
  */
 
 import type { ConversationGrader } from "../domain/ports";

@@ -2,7 +2,7 @@
  * HtmlConversationView — renders the conversation UI as HTML overlaid on the
  * canvas. Uses real DOM text for readability (system fonts, subpixel AA,
  * accessibility, CSS line-height). Driven by the same data the old canvas
- * PhaserRenderer used; the scene just calls update methods instead of setText.
+ * old canvas renderer used; the just calls update methods instead of setText.
  *
  * High-contrast, large text, solid backgrounds — optimized for older eyes.
  */

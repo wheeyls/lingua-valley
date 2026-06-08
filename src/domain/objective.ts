@@ -12,7 +12,7 @@
  * Objectives are registered in an ObjectiveGraph which resolves dependencies,
  * routes data between them, and tracks completion state.
  *
- * PURE DOMAIN: no Phaser, no Supabase, no framework. Fully testable.
+ * PURE DOMAIN: pure domain, no framework imports. Fully testable.
  */
 
 /** The completion record for one objective in one daily cycle. */

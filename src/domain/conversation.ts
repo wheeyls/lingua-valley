@@ -2,7 +2,7 @@
  * Shared contract for the voiced conversation gate.
  *
  * These types are the wire format between the browser game and the serverless
- * /api functions. Keeping them in the domain layer (no Phaser, no Node) means
+ * /api functions. Keeping them in the domain layer (no framework imports) means
  * both sides compile against the same definitions.
  */
 

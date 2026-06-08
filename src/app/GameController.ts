@@ -1,5 +1,5 @@
 /**
- * GameController — the main application controller, replacing Phaser's scene
+ * GameController — the main application controller, the main app controller (no framework)
  * system. Coordinates the HTML world view, conversation/dialogue overlays,
  * and the domain (objectives, daily loop, player state).
  *

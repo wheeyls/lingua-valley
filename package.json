@@ -2,7 +2,7 @@
   "name": "lingua-valley",
   "version": "0.1.0",
   "private": true,
-  "description": "A Stardew Valley-inspired RPG where you progress by learning Spanish. Areas are gated by language comprehension, not XP.",
+  "description": "Learn Spanish through voice conversations in a point-and-click adventure.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,8 +14,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
-    "openai": "^4.104.0",
-    "phaser": "^3.80.1"
+    "openai": "^4.104.0"
   },
   "devDependencies": {
     "@vercel/node": "^3.2.29",
