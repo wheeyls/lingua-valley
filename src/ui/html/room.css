@@ -37,6 +37,30 @@
   font-size: clamp(13px, 2.5vw, 17px);
   color: #f4ecd8;
 }
+/* Daily progress in the HUD bar */
+.hud-daily {
+  font-size: clamp(11px, 2vw, 14px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 50vw;
+}
+.hud-daily .hud-done {
+  color: #9bc995;
+  font-weight: bold;
+}
+.hud-daily .hud-progress {
+  display: flex;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+.hud-daily .dot-done {
+  color: #9bc995;
+  font-weight: bold;
+}
+.hud-daily .dot-todo {
+  color: #8a8290;
+}
 
 /* --- Room body --- */
 .room-body {

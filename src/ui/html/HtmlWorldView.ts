@@ -56,6 +56,36 @@ export class HtmlWorldView {
     if (info) info.textContent = `💰 ${pesos}`;
   }
 
+  /**
+   * Update the HUD status line showing daily progress.
+   * Shows objective completion dots and time until reset when done.
+   */
+  updateDailyStatus(opts: {
+    objectives: { name: string; done: boolean }[];
+    allDone: boolean;
+    hoursUntilReset?: number;
+    minutesUntilReset?: number;
+  }) {
+    let statusEl = this.barEl.querySelector(".hud-daily") as HTMLElement | null;
+    if (!statusEl) {
+      statusEl = document.createElement("div");
+      statusEl.className = "hud-daily";
+      this.barEl.appendChild(statusEl);
+    }
+
+    if (opts.allDone) {
+      const h = opts.hoursUntilReset ?? 0;
+      const m = opts.minutesUntilReset ?? 0;
+      const timeStr = h > 0 ? `${h}h` : `${m}m`;
+      statusEl.innerHTML = `<span class="hud-done">✅ Done! Come back in ${timeStr}</span>`;
+    } else {
+      const dots = opts.objectives
+        .map((o) => `<span title="${o.name}" class="${o.done ? "dot-done" : "dot-todo"}">${o.done ? "✓" : "○"} ${o.name}</span>`)
+        .join(" ");
+      statusEl.innerHTML = `<span class="hud-progress">${dots}</span>`;
+    }
+  }
+
   getPlayerX(): number { return 0; }
   destroy() { this.root.remove(); }
 

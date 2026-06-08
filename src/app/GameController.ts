@@ -58,7 +58,11 @@ export class GameController {
     this.loadMap("street");
     this.player.subscribe((state) => {
       this.worldView.updateHud(state.pesos);
+      this.updateHudStatus();
     });
+    this.updateHudStatus();
+    // Tick the countdown every 60s so the reset timer stays current.
+    setInterval(() => this.updateHudStatus(), 60_000);
   }
 
   private getObjState(): ObjectiveState {
@@ -71,6 +75,38 @@ export class GameController {
     if (!map) return;
     this.worldView.loadMap(map, this.getObjState());
     this.worldView.updateHud(this.player.getState().pesos);
+    this.updateHudStatus();
+  }
+
+  /** Build and push the daily progress status to the HUD. */
+  private updateHudStatus() {
+    const daily = this.player.getState().daily;
+    const objState = daily.objectiveState;
+    const now = new Date();
+
+    const objectiveStatus = this.objectives.all().map((obj) => ({
+      name: obj.npcId.charAt(0).toUpperCase() + obj.npcId.slice(1), // capitalize
+      done: objState[obj.id] != null,
+    }));
+
+    const allDone = objectiveStatus.every((o) => o.done);
+
+    let hoursUntilReset: number | undefined;
+    let minutesUntilReset: number | undefined;
+
+    if (allDone && daily.dayStartedAt) {
+      const elapsed = now.getTime() - new Date(daily.dayStartedAt).getTime();
+      const remainingMs = Math.max(0, 12 * 60 * 60 * 1000 - elapsed);
+      hoursUntilReset = Math.floor(remainingMs / (60 * 60 * 1000));
+      minutesUntilReset = Math.ceil((remainingMs % (60 * 60 * 1000)) / 60_000);
+    }
+
+    this.worldView.updateDailyStatus({
+      objectives: objectiveStatus,
+      allDone,
+      hoursUntilReset,
+      minutesUntilReset,
+    });
   }
 
   private onNpcTap(mapNpc: MapNpc) {
@@ -291,16 +327,21 @@ export class GameController {
     if (!objective) return;
     const npcLines = session.history.filter((t) => t.role === "npc").map((t) => t.text);
 
+    const now = new Date();
     await this.player.update((s) => {
       const prevObjState = s.daily.objectiveState;
       const earns = this.objectives.earnsReward(objective.id, prevObjState);
-      const newObjState = this.objectives.complete(objective.id, prevObjState, npcLines, new Date());
+      const newObjState = this.objectives.complete(objective.id, prevObjState, npcLines, now);
+      // Set dayStartedAt on the first objective completion of the day.
+      const dayStartedAt = s.daily.dayStartedAt || now.toISOString();
       return {
         ...s,
         pesos: earns ? s.pesos + objective.reward : s.pesos,
-        daily: { ...s.daily, objectiveState: newObjState },
+        daily: { ...s.daily, objectiveState: newObjState, dayStartedAt },
       };
     });
+    // Refresh the HUD status after completing.
+    this.updateHudStatus();
   }
 
   private refreshWorld() {
