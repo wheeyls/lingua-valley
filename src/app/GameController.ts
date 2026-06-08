@@ -65,11 +65,11 @@ export class GameController {
     return this.player.getState().daily.objectiveState;
   }
 
-  private loadMap(mapId: string, pushHistory = true) {
+  private loadMap(mapId: string) {
     this.currentMapId = mapId;
     const map = getMap(mapId);
     if (!map) return;
-    this.worldView.loadMap(map, this.getObjState(), pushHistory);
+    this.worldView.loadMap(map, this.getObjState());
     this.worldView.updateHud(this.player.getState().pesos);
   }
 
@@ -80,11 +80,6 @@ export class GameController {
   }
 
   private onDoorTap(door: MapDoor) {
-    // Back navigation (from the view's back button).
-    if (door.id === "__back__") {
-      this.loadMap(door.targetMapId, false);
-      return;
-    }
     if (!isDoorUnlocked(door, this.getObjState())) return;
     this.loadMap(door.targetMapId);
   }

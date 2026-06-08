@@ -24,16 +24,7 @@
   flex-shrink: 0;
   z-index: 2;
 }
-.room-bar .back-btn {
-  background: none;
-  border: none;
-  color: #ffe08a;
-  font-size: 22px;
-  cursor: pointer;
-  padding: 8px;
-  font-family: inherit;
-  -webkit-tap-highlight-color: transparent;
-}
+
 .room-bar .room-name {
   font-size: 18px;
   font-weight: bold;

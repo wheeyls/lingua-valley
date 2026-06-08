@@ -22,7 +22,6 @@ export class HtmlWorldView {
   private barEl: HTMLDivElement;
   private bodyEl: HTMLDivElement;
   private callbacks: WorldViewCallbacks;
-  private history: { mapId: string }[] = [];
   private currentMap!: GameMap;
 
   constructor(callbacks: WorldViewCallbacks) {
@@ -42,10 +41,7 @@ export class HtmlWorldView {
     document.body.appendChild(this.root);
   }
 
-  loadMap(map: GameMap, objState: ObjectiveState, pushHistory = true) {
-    if (pushHistory && this.currentMap && this.currentMap.id !== map.id) {
-      this.history.push({ mapId: this.currentMap.id });
-    }
+  loadMap(map: GameMap, objState: ObjectiveState) {
     this.currentMap = map;
     this.renderRoom(map, objState);
   }
@@ -59,38 +55,14 @@ export class HtmlWorldView {
     if (info) info.textContent = `💰 ${pesos}`;
   }
 
-  canGoBack(): boolean {
-    return this.history.length > 0;
-  }
-
-  popHistory(): string | null {
-    const prev = this.history.pop();
-    return prev?.mapId ?? null;
-  }
-
   getPlayerX(): number { return 0; }
   destroy() { this.root.remove(); }
 
   private renderRoom(map: GameMap, objState: ObjectiveState) {
-    const canBack = this.canGoBack();
     this.barEl.innerHTML = `
-      ${canBack ? '<button class="back-btn">← Back</button>' : ""}
       <span class="room-name">${map.name}</span>
       <span class="hud-info"></span>
     `;
-    if (canBack) {
-      this.barEl.querySelector(".back-btn")!.addEventListener("pointerdown", (e) => {
-        e.stopPropagation();
-        this.callbacks.onDoorTap({
-          id: "__back__",
-          kind: "door",
-          x: 0,
-          targetMapId: this.popHistory() ?? "street",
-          targetX: 0,
-          unlockedBy: [],
-        });
-      });
-    }
 
     this.bodyEl.innerHTML = "";
 
