@@ -92,8 +92,16 @@ export const PRACTICE_HOUSE: GameMap = {
       npcId: "pablo",
       name: "Pablo",
       color: 0x3d5a80,
-      // Pablo is only tappable after Rosa + Marisol objectives are done.
       availableAfter: ["rosa-greeting", "marisol-story"],
+    },
+    {
+      id: "practice-exit",
+      kind: "door",
+      x: 0,
+      targetMapId: "street",
+      targetX: 500,
+      unlockedBy: [],
+      label: "← Leave",
     },
   ],
 };
