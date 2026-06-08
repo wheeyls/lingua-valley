@@ -1,0 +1,151 @@
+/*
+ * Room-based point-and-click navigation. Each screen shows the current room
+ * with tappable NPCs, doors, and items. No movement, no scrolling, no player.
+ */
+
+.room {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  color: #f4ecd8;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* --- Top bar: room name + back button --- */
+.room-bar {
+  display: flex;
+  align-items: center;
+  padding: 8px max(12px, env(safe-area-inset-left));
+  background: rgba(26, 20, 35, 0.92);
+  gap: 12px;
+  flex-shrink: 0;
+  z-index: 2;
+}
+.room-bar .back-btn {
+  background: none;
+  border: none;
+  color: #ffe08a;
+  font-size: 22px;
+  cursor: pointer;
+  padding: 8px;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.room-bar .room-name {
+  font-size: 18px;
+  font-weight: bold;
+  color: #ffe08a;
+  flex: 1;
+}
+.room-bar .hud-info {
+  font-size: 15px;
+  color: #f4ecd8;
+}
+
+/* --- Room body: the entities as a grid/list of tappable cards --- */
+.room-body {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 20px max(20px, env(safe-area-inset-left));
+  overflow-y: auto;
+}
+
+/* --- Entity cards --- */
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 24px;
+  border-radius: 18px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.1s, box-shadow 0.1s;
+  min-width: 120px;
+  text-align: center;
+}
+.card:active {
+  transform: scale(0.96);
+}
+
+/* NPC card */
+.card-npc {
+  background: #2a2436;
+  border: 3px solid #d9b08c;
+}
+.card-npc .card-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 3px solid #1a1423;
+  margin-bottom: 8px;
+}
+.card-npc .card-label {
+  font-size: 18px;
+  font-weight: bold;
+  color: #f4ecd8;
+}
+.card-npc .card-hint {
+  font-size: 14px;
+  color: #9bc995;
+  margin-top: 4px;
+}
+
+/* Door card */
+.card-door {
+  border: 3px solid #d9b08c;
+  min-width: 140px;
+}
+.card-door.unlocked {
+  background: #3a2f1e;
+}
+.card-door.locked {
+  background: #333;
+  opacity: 0.6;
+  cursor: default;
+}
+.card-door .card-icon-text {
+  font-size: 32px;
+  margin-bottom: 6px;
+}
+.card-door .card-label {
+  font-size: 16px;
+  font-weight: bold;
+}
+.card-door.unlocked .card-label { color: #ffe08a; }
+.card-door.locked .card-label { color: #888; }
+
+/* Item card */
+.card-item {
+  background: #2a2436;
+  border: 3px solid #9bc995;
+}
+.card-item .card-icon-text {
+  font-size: 40px;
+  margin-bottom: 6px;
+}
+.card-item .card-label {
+  font-size: 16px;
+  color: #ffe08a;
+  font-weight: bold;
+}
+
+/* Navigation arrow (go further down the street) */
+.card-nav {
+  background: rgba(26, 20, 35, 0.6);
+  border: 3px dashed #d9b08c;
+}
+.card-nav .card-icon-text {
+  font-size: 36px;
+}
+.card-nav .card-label {
+  font-size: 15px;
+  color: #d9b08c;
+}

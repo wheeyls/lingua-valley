@@ -67,23 +67,12 @@ export const PRACTICE_HOUSE: GameMap = {
   name: "Casa de Rosa",
   width: 900,
   groundColor: 0x5f4b66,
-  spawnX: 100,
+  spawnX: 0,
   entities: [
-    // Exit: always on the LEFT, always unlocked — you can always leave.
-    {
-      id: "exit-door",
-      kind: "door",
-      x: 40,
-      targetMapId: "street",
-      targetX: 500,
-      unlockedBy: [], // always open
-      label: "← Exit",
-    },
-    // Entryway — Rosa and Marisol
     {
       id: "rosa-npc",
       kind: "npc",
-      x: 200,
+      x: 0,
       npcId: "rosa",
       name: "Rosa",
       color: 0xe07a5f,
@@ -91,29 +80,20 @@ export const PRACTICE_HOUSE: GameMap = {
     {
       id: "marisol-npc",
       kind: "npc",
-      x: 380,
+      x: 0,
       npcId: "marisol",
       name: "Marisol",
       color: 0x2a9d8f,
     },
-    // Door 1: opens after Rosa + Marisol objectives → leads to Pablo's room
-    {
-      id: "door-to-pablo",
-      kind: "door",
-      x: 530,
-      targetMapId: "practice-house",
-      targetX: 620,
-      unlockedBy: ["rosa-greeting", "marisol-story"],
-      label: "Next room →",
-    },
-    // Pablo's room (past the first locked door)
     {
       id: "pablo-npc",
       kind: "npc",
-      x: 720,
+      x: 0,
       npcId: "pablo",
       name: "Pablo",
       color: 0x3d5a80,
+      // Pablo is only tappable after Rosa + Marisol objectives are done.
+      availableAfter: ["rosa-greeting", "marisol-story"],
     },
   ],
 };
