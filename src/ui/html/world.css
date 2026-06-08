@@ -1,0 +1,169 @@
+/*
+ * HTML world renderer — replaces the Phaser canvas.
+ * A side-scroller: horizontal strip with sky, ground, NPCs, doors, items.
+ */
+
+.world-container {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #87ceeb; /* sky */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.world-ground {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 35%;
+}
+
+.world-scroll {
+  position: absolute;
+  inset: 0;
+  transition: transform 0.15s ease-out;
+}
+
+/* --- HUD bar (top) --- */
+.world-hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  background: rgba(26, 20, 35, 0.9);
+  display: flex;
+  align-items: center;
+  padding: 0 max(16px, env(safe-area-inset-left)) 0 max(16px, env(safe-area-inset-right));
+  z-index: 5;
+  font-family: "Trebuchet MS", sans-serif;
+  color: #f4ecd8;
+  gap: 16px;
+}
+.world-hud .map-name {
+  font-size: 16px;
+  font-weight: bold;
+  color: #ffe08a;
+}
+.world-hud .hud-pesos {
+  font-size: 15px;
+  color: #ffe08a;
+}
+
+/* --- Entities (positioned absolutely within the scroll strip) --- */
+.entity {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateX(-50%);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* NPCs */
+.entity-npc .npc-body {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3px solid #1a1423;
+}
+.entity-npc .npc-hat {
+  width: 28px;
+  height: 10px;
+  background: #1a1423;
+  border-radius: 3px;
+  margin-bottom: -4px;
+}
+.entity-npc .npc-name {
+  font-size: 15px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
+/* Doors */
+.entity-door {
+  transition: opacity 0.2s;
+}
+.entity-door .door-body {
+  width: 44px;
+  height: 64px;
+  border-radius: 6px 6px 0 0;
+  border: 3px solid #1a1423;
+}
+.entity-door .door-label {
+  font-size: 14px;
+  font-weight: bold;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+  margin-top: 4px;
+  white-space: nowrap;
+}
+.entity-door.locked .door-body {
+  background: #555 !important;
+}
+.entity-door.locked .door-label {
+  color: #888;
+}
+.entity-door.locked .lock-icon {
+  font-size: 18px;
+  margin-top: -38px;
+  margin-bottom: 14px;
+}
+.entity-door.unlocked .door-body {
+  background: #8b5e3c;
+}
+.entity-door.unlocked .door-label {
+  color: #ffe08a;
+}
+
+/* Items */
+.entity-item .item-icon {
+  font-size: 36px;
+}
+.entity-item .item-name {
+  font-size: 14px;
+  color: #ffe08a;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+/* Player */
+.player {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f4ecd8;
+  border: 3px solid #1a1423;
+  transform: translateX(-50%);
+  transition: left 0.15s ease-out;
+  z-index: 3;
+}
+.player .player-face {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 18px;
+  height: 8px;
+  background: #1a1423;
+  border-radius: 2px;
+}
+
+/* Touch zones for movement (left/right halves of the screen) */
+.touch-left, .touch-right {
+  position: fixed;
+  top: 48px; /* below HUD */
+  bottom: 0;
+  width: 50%;
+  z-index: 2;
+  -webkit-tap-highlight-color: transparent;
+}
+.touch-left { left: 0; }
+.touch-right { right: 0; }
