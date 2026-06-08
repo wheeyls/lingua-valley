@@ -8,14 +8,19 @@
 import { VIEW_WIDTH, VIEW_HEIGHT, TOUCH_TARGET } from "./tokens";
 import { boundsOf, overlaps, type UINode, type Box } from "./nodes";
 
-/** Conservative safe-area inset (notch/home indicator) in base px. */
-export const SAFE_INSET = 24;
+/**
+ * Conservative safe-area insets for landscape mode.
+ * In landscape, the notch is on the LEFT or RIGHT side (larger horizontal inset),
+ * and top/bottom insets are smaller.
+ */
+export const SAFE_INSET_X = 24; // conservative horizontal inset
+export const SAFE_INSET_Y = 10; // top/bottom (minimal in landscape)
 
 export const SAFE_AREA: Box = {
-  left: SAFE_INSET,
-  top: SAFE_INSET,
-  right: VIEW_WIDTH - SAFE_INSET,
-  bottom: VIEW_HEIGHT - SAFE_INSET,
+  left: SAFE_INSET_X,
+  top: SAFE_INSET_Y,
+  right: VIEW_WIDTH - SAFE_INSET_X,
+  bottom: VIEW_HEIGHT - SAFE_INSET_Y,
 };
 
 export interface LayoutIssue {

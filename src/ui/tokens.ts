@@ -3,9 +3,9 @@
  * abstraction and its tests. The Phaser widget helpers live in ui/widgets.ts.
  */
 
-/** Portrait base canvas (9:16). Scale.FIT scales this to any screen. */
-export const VIEW_WIDTH = 540;
-export const VIEW_HEIGHT = 960;
+/** Landscape base canvas (~16:9). Scale.FIT scales this to fill phones held sideways. */
+export const VIEW_WIDTH = 960;
+export const VIEW_HEIGHT = 540;
 
 /** Minimum comfortable touch target (px). */
 export const TOUCH_TARGET = 56;
@@ -17,7 +17,7 @@ export const MARGIN = 16;
  * Height of the reserved HUD band at the top of the screen. The world camera
  * fills the screen BELOW this, so the HUD never overlaps NPCs.
  */
-export const HUD_BAND_HEIGHT = 96;
+export const HUD_BAND_HEIGHT = 70;
 
 export const FONT = '"Trebuchet MS", "Segoe UI", system-ui, sans-serif';
 

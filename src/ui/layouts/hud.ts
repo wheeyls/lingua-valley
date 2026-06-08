@@ -30,7 +30,7 @@ export interface HudVM {
 }
 
 const px = (s: string) => parseInt(s, 10);
-const SAFE = 24;
+const SAFE = 24; // matches the safe-area assertion inset
 
 export function hudLayout(vm: HudVM): UINode[] {
   const w = VIEW_WIDTH;

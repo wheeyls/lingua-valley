@@ -27,7 +27,7 @@ import {
 import { getMap } from "../content/maps";
 import type { ObjectiveState } from "../domain/objective";
 
-const GROUND_Y = 260; // y-position of the ground line (characters stand here)
+const GROUND_Y = 380; // y-position of the ground line (landscape: lower portion of the 540-tall canvas)
 const PLAYER_RADIUS = 17;
 const NPC_RADIUS = 18;
 const INTERACT_RADIUS = 50;
