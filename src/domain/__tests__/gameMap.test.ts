@@ -40,11 +40,11 @@ describe("gameMap", () => {
 
   it("locked doors block movement (act as walls in a side-scroller)", () => {
     const state: ObjectiveState = {};
-    // Door to Pablo is at x=450, locked. Player at x=200 can't walk past it.
+    // Door to Pablo is at x=530, locked. Player at x=200 can't walk past it.
     const bound = movementBound(PRACTICE_HOUSE, 200, "right", state);
-    expect(bound).toBe(450);
+    expect(bound).toBe(530);
 
-    // No locked doors to the left of the player.
+    // No locked doors to the left of the player (exit door is always unlocked).
     expect(movementBound(PRACTICE_HOUSE, 200, "left", state)).toBeNull();
   });
 
@@ -53,10 +53,9 @@ describe("gameMap", () => {
       "rosa-greeting": { completedAt: "", outputs: {} },
       "marisol-story": { completedAt: "", outputs: {} },
     };
-    // Door to Pablo is now unlocked — no bound to the right (until the exit door).
+    // Door to Pablo is now unlocked — no more locked doors to the right.
     const bound = movementBound(PRACTICE_HOUSE, 200, "right", state);
-    // The exit door (x=780) is still locked (needs pablo-retelling).
-    expect(bound).toBe(780);
+    expect(bound).toBeNull();
   });
 
   it("items appear only after their required objectives", () => {
