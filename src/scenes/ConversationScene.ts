@@ -3,7 +3,7 @@ import { AREAS, type Npc } from "../content/world";
 import { objectiveById } from "../content/curriculum";
 import { GameState, REGISTRY_KEY } from "../game/state";
 import { MicRecorder, playAudioBytes, unlockAudio } from "../game/voice";
-import { transcribe, speak } from "../game/api";
+import { transcribe, cleanTranscription, speak } from "../game/api";
 import { ConversationSession } from "../app/ConversationSession";
 import { tierFor, tierLabel } from "../domain/friendship";
 import { townOfNpc, townInfoOf } from "../content/world";
@@ -208,10 +208,30 @@ export class ConversationScene extends Phaser.Scene {
         this.phase = "awaitInput";
         return;
       }
-      this.view.setTranscript(`You: "${utterance}"`);
+
+      // Clean the raw transcription: fix speech-to-text artifacts so the grader
+      // evaluates what you MEANT, not what Whisper misheard.
+      this.view.setStatus("Processing…");
+      const lastNpcLine = this.session.history
+        .filter((t) => t.role === "npc")
+        .pop()?.text ?? "";
+      const levelId = objectiveById(this.npc.teachesObjectiveId!)?.level ?? "A1";
+      const { cleaned, corrected } = await cleanTranscription(
+        utterance,
+        lastNpcLine,
+        levelId,
+      );
+
+      // Show the player what was heard (and the correction if one was made).
+      if (corrected && cleaned !== utterance) {
+        this.view.setTranscript(`Heard: "${utterance}" → You meant: "${cleaned}"`);
+      } else {
+        this.view.setTranscript(`You: "${cleaned}"`);
+      }
       this.view.setStatus(`${this.npc.name} is thinking…`);
 
-      const outcome = await this.session.submit(utterance);
+      // The grader and NPC see the CLEANED utterance, not the raw transcription.
+      const outcome = await this.session.submit(cleaned);
 
       const corr =
         outcome.grade.corrections.length > 0

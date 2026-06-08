@@ -35,6 +35,35 @@ export async function converse(req: ConverseRequest): Promise<ConverseResponse> 
   return (await res.json()) as ConverseResponse;
 }
 
+export interface CleanResult {
+  cleaned: string;
+  corrected: boolean;
+}
+
+/**
+ * Clean a raw Whisper transcription — fix speech-to-text artifacts (misheard
+ * words, English insertions, garbled text) so the grader evaluates what the
+ * player MEANT, not what Whisper misheard. Non-fatal: returns the raw text on
+ * failure.
+ */
+export async function cleanTranscription(
+  raw: string,
+  context?: string,
+  level?: string,
+): Promise<CleanResult> {
+  try {
+    const res = await fetch(`${BASE}/clean-transcription`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ raw, context, level }),
+    });
+    if (!res.ok) return { cleaned: raw, corrected: false };
+    return (await res.json()) as CleanResult;
+  } catch {
+    return { cleaned: raw, corrected: false };
+  }
+}
+
 export async function speak(text: string, voice?: string): Promise<ArrayBuffer> {
   const res = await fetch(`${BASE}/speak`, {
     method: "POST",
