@@ -1,46 +1,46 @@
+/**
+ * WorldScene — side-scroller world renderer.
+ *
+ * Renders one GameMap at a time as a horizontal strip. The player walks
+ * left/right. Doors transition between maps. Locked doors block movement.
+ * NPCs and items are tappable. Thin adapter over the pure domain (gameMap.ts,
+ * objective.ts).
+ */
+
 import Phaser from "phaser";
-import {
-  AREAS,
-  TILE,
-  WORLD_WIDTH,
-  WORLD_HEIGHT,
-  areaAt,
-  townOfNpc,
-  type Area,
-  type Npc,
-} from "../content/world";
 import { GameState, REGISTRY_KEY } from "../game/state";
-import type { RemotePlayer } from "../domain/ports";
-import { isTownUnlocked } from "../domain/town";
 import { HUD_BAND_HEIGHT } from "../ui/tokens";
 import { isCanvasBlocked } from "../ui/html/canvasBlock";
+import {
+  type GameMap,
+  type MapNpc,
+  type MapDoor,
+  type MapItem,
+  npcsOn,
+  doorsOn,
+  itemsOn,
+  isDoorUnlocked,
+  isItemVisible,
+  movementBound,
+  nearestEntity,
+} from "../domain/gameMap";
+import { getMap } from "../content/maps";
+import type { ObjectiveState } from "../domain/objective";
 
-interface NpcSprite {
-  npc: Npc;
-  container: Phaser.GameObjects.Container;
-  label: Phaser.GameObjects.Text;
-}
+const GROUND_Y = 260; // y-position of the ground line (characters stand here)
+const PLAYER_RADIUS = 17;
+const NPC_RADIUS = 18;
+const INTERACT_RADIUS = 50;
 
 export class WorldScene extends Phaser.Scene {
+  private state!: GameState;
+  private currentMapId = "street";
   private player!: Phaser.GameObjects.Container;
-  private playerBody!: Phaser.Physics.Arcade.Body;
+  private playerX = 100;
+  private busy = false;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private interactKey!: Phaser.Input.Keyboard.Key;
-  private npcs: NpcSprite[] = [];
-  private currentArea?: Area;
-  private busy = false; // true while a dialogue/minigame is open
-
-  // Touch: tap-to-move destination + optional NPC to interact with on arrival.
-  private moveTarget: { x: number; y: number } | null = null;
-  private pendingNpc: NpcSprite | null = null;
-  private moveMarker?: Phaser.GameObjects.Arc;
-
-  // Multiplayer presence (via the PresenceGateway port).
-  private state!: GameState;
-  private remoteSprites = new Map<string, Phaser.GameObjects.Container>();
-  private unsubPresence: (() => void) | null = null;
-  private lastBroadcast = 0;
-  private facing: RemotePlayer["facing"] = "down";
+  private mapGroup!: Phaser.GameObjects.Group;
 
   constructor() {
     super("WorldScene");
@@ -48,368 +48,254 @@ export class WorldScene extends Phaser.Scene {
 
   create() {
     this.state = this.registry.get(REGISTRY_KEY) as GameState;
+    this.cursors = this.input.keyboard!.createCursorKeys();
+    this.interactKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.input.keyboard!.addKeys("A,D");
+    this.mapGroup = this.add.group();
 
-    this.drawWorld();
-    this.spawnNpcs();
-    this.spawnPlayer();
-    this.setupInput();
-    this.setupCamera();
-    this.setupPresence();
-
+    this.loadMap("street");
     this.scene.launch("HudScene");
 
-    // Resume flag when overlay scenes close.
     this.events.on("resume", () => {
       this.busy = false;
-      this.refreshNpcLocks(); // a gatekeeper may have just unlocked producers
+      this.refreshMap(); // doors may have unlocked, items may have appeared
     });
 
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.unsubPresence?.();
-      void this.state.adapters.presence.leave();
+    // Tap to walk or interact.
+    this.input.on(Phaser.Input.Events.POINTER_DOWN, (pointer: Phaser.Input.Pointer) => {
+      if (this.busy || isCanvasBlocked()) return;
+      const worldX = this.cameras.main.getWorldPoint(pointer.x, pointer.y).x;
+      const map = getMap(this.currentMapId)!;
+      const near = nearestEntity(map, worldX, INTERACT_RADIUS);
+
+      if (near?.kind === "npc") {
+        this.interactWithNpc(near as MapNpc);
+      } else if (near?.kind === "door") {
+        this.interactWithDoor(near as MapDoor);
+      } else if (near?.kind === "item") {
+        this.interactWithItem(near as MapItem);
+      } else {
+        // Walk toward the tapped x position.
+        this.playerX = this.clampX(worldX);
+      }
     });
   }
 
-  /** Join the presence channel and render remote players. Thin over the port. */
-  private setupPresence() {
-    const presence = this.state.adapters.presence;
-    const ps = this.state.player.getState();
-    const self: RemotePlayer = {
-      userId: this.state.adapters.auth.current().id,
-      displayName: ps.displayName,
-      color: ps.avatarColor,
-      x: this.player.x,
-      y: this.player.y,
-      facing: "down",
-    };
-    void presence.join("world", self);
-    this.unsubPresence = presence.onPlayers((players) =>
-      this.renderRemotePlayers(players),
-    );
+  // --- Map loading ----------------------------------------------------------
+
+  private loadMap(mapId: string, spawnX?: number) {
+    this.currentMapId = mapId;
+    const map = getMap(mapId)!;
+    this.playerX = spawnX ?? map.spawnX;
+
+    // Clear old map objects.
+    this.mapGroup.clear(true, true);
+    this.children.removeAll();
+    this.mapGroup = this.add.group();
+
+    this.drawMap(map);
+    this.spawnPlayer();
+    this.setupCamera(map);
   }
 
-  private renderRemotePlayers(players: RemotePlayer[]) {
-    const seen = new Set<string>();
-    for (const p of players) {
-      seen.add(p.userId);
-      let sprite = this.remoteSprites.get(p.userId);
-      if (!sprite) {
-        const body = this.add.circle(0, 0, 11, p.color).setStrokeStyle(2, 0x1a1423, 1);
-        const tag = this.add
-          .text(0, -22, p.displayName, {
-            fontFamily: "Trebuchet MS",
-            fontSize: "11px",
-            color: "#cfe8ff",
-          })
-          .setOrigin(0.5);
-        sprite = this.add.container(p.x, p.y, [body, tag]).setDepth(10);
-        this.remoteSprites.set(p.userId, sprite);
-      }
-      // Smoothly move toward the reported position.
-      this.tweens.add({ targets: sprite, x: p.x, y: p.y, duration: 120 });
-    }
-    // Remove players who left.
-    for (const [id, sprite] of this.remoteSprites) {
-      if (!seen.has(id)) {
-        sprite.destroy();
-        this.remoteSprites.delete(id);
-      }
-    }
-  }
+  private drawMap(map: GameMap) {
+    const h = this.scale.height;
 
-  private drawWorld() {
-    const g = this.add.graphics();
-    for (const area of AREAS) {
-      g.fillStyle(area.groundColor, 1);
-      g.fillRect(area.bounds.x, area.bounds.y, area.bounds.width, area.bounds.height);
+    // Sky.
+    this.add.rectangle(map.width / 2, h / 2, map.width, h, 0x87ceeb).setDepth(0);
+    // Ground.
+    this.add.rectangle(map.width / 2, GROUND_Y + 60, map.width, 120, map.groundColor).setDepth(1);
 
-      // Subtle tile grid for that Stardew checker feel.
-      g.lineStyle(1, area.accentColor, 0.18);
-      for (let x = 0; x <= area.bounds.width; x += TILE) {
-        g.lineBetween(area.bounds.x + x, area.bounds.y, area.bounds.x + x, area.bounds.y + area.bounds.height);
-      }
-      for (let y = 0; y <= area.bounds.height; y += TILE) {
-        g.lineBetween(area.bounds.x, area.bounds.y + y, area.bounds.x + area.bounds.width, area.bounds.y + y);
-      }
+    // Map name.
+    this.add.text(map.width / 2, 20, map.name, {
+      fontFamily: "Trebuchet MS",
+      fontSize: "18px",
+      fontStyle: "bold",
+      color: "#ffffff",
+      stroke: "#000000",
+      strokeThickness: 3,
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(20);
 
-      // Area label banner.
-      this.add
-        .text(area.bounds.x + 12, area.bounds.y + 10, `${area.name}  ·  ${area.level}`, {
-          fontFamily: "Trebuchet MS",
+    const objState = this.getObjState();
+
+    // Draw doors.
+    for (const door of doorsOn(map)) {
+      const unlocked = isDoorUnlocked(door, objState);
+      const doorColor = unlocked ? 0x8b5e3c : 0x555555;
+      const g = this.add.graphics();
+      g.fillStyle(doorColor, 1);
+      g.fillRoundedRect(door.x - 20, GROUND_Y - 60, 40, 60, 6);
+      if (!unlocked) {
+        g.fillStyle(0x333333, 1);
+        g.fillCircle(door.x, GROUND_Y - 30, 4); // lock dot
+      }
+      g.setDepth(3);
+
+      const label = this.add.text(door.x, GROUND_Y - 70, door.label ?? "Door", {
+        fontFamily: "Trebuchet MS",
+        fontSize: "14px",
+        fontStyle: "bold",
+        color: unlocked ? "#ffe08a" : "#888888",
+        stroke: "#000000",
+        strokeThickness: 2,
+      }).setOrigin(0.5).setDepth(4);
+
+      if (!unlocked) {
+        this.add.text(door.x, GROUND_Y - 85, "🔒", {
           fontSize: "16px",
-          color: "#ffffff",
-          backgroundColor: "rgba(0,0,0,0.35)",
-          padding: { x: 8, y: 4 },
-        })
-        .setScrollFactor(1)
-        .setDepth(5);
-    }
-
-    // A HORIZONTAL archway between each pair of stacked towns — you walk DOWN
-    // through them as you journey from metropolis to remote towns.
-    const arch = this.add.graphics();
-    arch.setDepth(4);
-    for (let i = 0; i < AREAS.length - 1; i++) {
-      const thresholdY = AREAS[i].bounds.y + AREAS[i].bounds.height;
-      arch.fillStyle(0x2b2024, 1);
-      arch.fillRect(0, thresholdY - 6, WORLD_WIDTH, 12);
-      arch.fillStyle(0xd9b08c, 1);
-      arch.fillRect(WORLD_WIDTH / 2 - 48, thresholdY - 10, 96, 20); // gateway gap
-      this.add
-        .text(WORLD_WIDTH / 2, thresholdY, "▼", {
-          fontSize: "26px",
-          color: "#f4ecd8",
-        })
-        .setOrigin(0.5)
-        .setDepth(6);
-    }
-  }
-
-  private spawnNpcs() {
-    for (const area of AREAS) {
-      for (const npc of area.npcs) {
-        const px = npc.tileX * TILE + TILE / 2;
-        const py = npc.tileY * TILE + TILE / 2;
-
-        const body = this.add.circle(0, 0, 12, npc.color);
-        body.setStrokeStyle(2, 0x1a1423, 1);
-        // A little hat to read as a "character".
-        const hat = this.add.rectangle(0, -10, 16, 6, 0x1a1423);
-        const label = this.add
-          .text(0, -26, npc.name, {
-            fontFamily: "Trebuchet MS",
-            fontSize: "12px",
-            color: "#fff",
-          })
-          .setOrigin(0.5);
-
-        const container = this.add.container(px, py, [body, hat, label]);
-        container.setDepth(10);
-        this.npcs.push({ npc, container, label });
+        }).setOrigin(0.5).setDepth(5);
       }
-    }
-    this.refreshNpcLocks();
-  }
 
-  /** Dim + mark locked producer NPCs (until the town's gatekeeper is beaten). */
-  private refreshNpcLocks() {
-    const state = this.state.player.getState();
-    for (const sprite of this.npcs) {
-      if (sprite.npc.role !== "producer") continue;
-      const town = townOfNpc(sprite.npc.id);
-      const unlocked = !!town && isTownUnlocked(state, town.id);
-      sprite.container.setAlpha(unlocked ? 1 : 0.45);
-      sprite.label.setText(unlocked ? sprite.npc.name : `🔒 ${sprite.npc.name}`);
+      this.mapGroup.addMultiple([g as unknown as Phaser.GameObjects.GameObject, label]);
+    }
+
+    // Draw NPCs.
+    for (const npc of npcsOn(map)) {
+      const body = this.add.circle(npc.x, GROUND_Y - NPC_RADIUS, NPC_RADIUS, npc.color);
+      body.setStrokeStyle(3, 0x1a1423);
+      body.setDepth(6);
+      const hat = this.add.rectangle(npc.x, GROUND_Y - NPC_RADIUS * 2 - 4, 24, 9, 0x1a1423).setDepth(6);
+      const name = this.add.text(npc.x, GROUND_Y - NPC_RADIUS * 2 - 22, npc.name, {
+        fontFamily: "Trebuchet MS",
+        fontSize: "16px",
+        fontStyle: "bold",
+        color: "#ffffff",
+        stroke: "#1a1423",
+        strokeThickness: 3,
+      }).setOrigin(0.5).setDepth(7);
+
+      this.mapGroup.addMultiple([body, hat, name]);
+    }
+
+    // Draw items.
+    for (const item of itemsOn(map)) {
+      if (!isItemVisible(item, objState)) continue;
+      const icon = this.add.text(item.x, GROUND_Y - 30, "🌱", {
+        fontSize: "32px",
+      }).setOrigin(0.5).setDepth(6);
+      const label = this.add.text(item.x, GROUND_Y - 55, item.name, {
+        fontFamily: "Trebuchet MS",
+        fontSize: "14px",
+        color: "#ffe08a",
+        stroke: "#000000",
+        strokeThickness: 2,
+      }).setOrigin(0.5).setDepth(7);
+
+      this.mapGroup.addMultiple([icon, label]);
     }
   }
 
   private spawnPlayer() {
-    const start = AREAS[0];
-    const px = start.bounds.x + start.bounds.width / 2;
-    const py = start.bounds.y + 3 * TILE;
-
-    const body = this.add.circle(0, 0, 11, 0xf4ecd8);
-    body.setStrokeStyle(2, 0x1a1423, 1);
-    const face = this.add.rectangle(0, -3, 10, 4, 0x1a1423);
-    this.player = this.add.container(px, py, [body, face]);
-    this.player.setDepth(11);
-
-    this.physics.add.existing(this.player);
-    this.playerBody = this.player.body as Phaser.Physics.Arcade.Body;
-    this.playerBody.setCircle(11, -11, -11);
-    this.playerBody.setCollideWorldBounds(true);
+    const body = this.add.circle(0, 0, PLAYER_RADIUS, 0xf4ecd8);
+    body.setStrokeStyle(3, 0x1a1423);
+    const face = this.add.rectangle(0, -4, 16, 6, 0x1a1423);
+    this.player = this.add.container(this.playerX, GROUND_Y - PLAYER_RADIUS, [body, face]);
+    this.player.setDepth(10);
   }
 
-  private setupInput() {
-    this.cursors = this.input.keyboard!.createCursorKeys();
-    this.interactKey = this.input.keyboard!.addKey(
-      Phaser.Input.Keyboard.KeyCodes.SPACE,
-    );
-    // WASD support.
-    this.input.keyboard!.addKeys("W,A,S,D");
-
-    // Touch / mouse: tap to walk toward a point. Tapping near an NPC queues an
-    // interaction on arrival. This is a driving adapter — no game rules here.
-    this.input.on(
-      Phaser.Input.Events.POINTER_DOWN,
-      (pointer: Phaser.Input.Pointer) => {
-        if (this.busy || isCanvasBlocked()) return;
-        const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-
-        // Did they tap (near) an NPC? If so, walk to it and interact on arrival.
-        const tappedNpc = this.npcAtWorldPoint(world.x, world.y);
-        this.pendingNpc = tappedNpc ?? null;
-        this.moveTarget = tappedNpc
-          ? { x: tappedNpc.container.x, y: tappedNpc.container.y }
-          : { x: world.x, y: world.y };
-        this.showMoveMarker(this.moveTarget.x, this.moveTarget.y);
-      },
-    );
-  }
-
-  /** Nearest NPC within tap radius of a world point, if any. */
-  private npcAtWorldPoint(x: number, y: number): NpcSprite | undefined {
-    let best: NpcSprite | undefined;
-    let bestDist = 40; // tap forgiveness radius
-    for (const n of this.npcs) {
-      const d = Phaser.Math.Distance.Between(x, y, n.container.x, n.container.y);
-      if (d < bestDist) {
-        best = n;
-        bestDist = d;
-      }
-    }
-    return best;
-  }
-
-  private showMoveMarker(x: number, y: number) {
-    this.moveMarker?.destroy();
-    this.moveMarker = this.add
-      .circle(x, y, 8, 0xffe08a, 0.5)
-      .setStrokeStyle(2, 0xffe08a)
-      .setDepth(9);
-    this.tweens.add({
-      targets: this.moveMarker,
-      scale: { from: 1.4, to: 0.6 },
-      alpha: { from: 0.8, to: 0 },
-      duration: 600,
-      onComplete: () => this.moveMarker?.destroy(),
-    });
-  }
-
-  private setupCamera() {
+  private setupCamera(map: GameMap) {
     const cam = this.cameras.main;
-    this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-    cam.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-
-    // Reserve a slim HUD band at the top; the world camera fills the rest of the
-    // portrait screen below it. Zoom so the (480px-wide) world fills the width.
     const band = HUD_BAND_HEIGHT;
-    const viewW = this.scale.width;
-    const viewH = this.scale.height - band;
-    cam.setViewport(0, band, viewW, viewH);
-    cam.setZoom(viewW / WORLD_WIDTH); // 540/480 = 1.125 — fills width exactly
-    cam.startFollow(this.player, true, 0.12, 0.12);
+    cam.setBounds(0, 0, map.width, this.scale.height);
+    cam.setViewport(0, band, this.scale.width, this.scale.height - band);
+    cam.startFollow(this.player, false, 0.15, 0);
+    // Lock vertical — side-scroller only scrolls horizontally.
+    cam.setFollowOffset(0, 0);
   }
+
+  /** Re-render the current map (after objectives change, doors unlock, etc.) */
+  private refreshMap() {
+    this.loadMap(this.currentMapId, this.playerX);
+  }
+
+  // --- Update loop ----------------------------------------------------------
 
   update() {
-    if (this.busy || isCanvasBlocked()) {
-      this.playerBody.setVelocity(0, 0);
+    if (this.busy || isCanvasBlocked()) return;
+
+    const speed = 3;
+    const keys = this.input.keyboard!.addKeys("A,D") as Record<string, Phaser.Input.Keyboard.Key>;
+    let dx = 0;
+    if (this.cursors.left.isDown || keys.A.isDown) dx = -speed;
+    else if (this.cursors.right.isDown || keys.D.isDown) dx = speed;
+
+    if (dx !== 0) {
+      this.playerX = this.clampX(this.playerX + dx);
+    }
+
+    // Smoothly move the player sprite toward playerX.
+    const diff = this.playerX - this.player.x;
+    if (Math.abs(diff) > 1) {
+      this.player.x += diff * 0.2;
+    } else {
+      this.player.x = this.playerX;
+    }
+
+    // Keyboard interact.
+    if (Phaser.Input.Keyboard.JustDown(this.interactKey)) {
+      const map = getMap(this.currentMapId)!;
+      const near = nearestEntity(map, this.playerX, INTERACT_RADIUS);
+      if (near?.kind === "npc") this.interactWithNpc(near as MapNpc);
+      else if (near?.kind === "door") this.interactWithDoor(near as MapDoor);
+      else if (near?.kind === "item") this.interactWithItem(near as MapItem);
+    }
+  }
+
+  /** Clamp x to map bounds AND locked-door walls. */
+  private clampX(x: number): number {
+    const map = getMap(this.currentMapId)!;
+    const objState = this.getObjState();
+    let min = PLAYER_RADIUS;
+    let max = map.width - PLAYER_RADIUS;
+
+    const leftWall = movementBound(map, this.playerX, "left", objState);
+    const rightWall = movementBound(map, this.playerX, "right", objState);
+    if (leftWall !== null) min = Math.max(min, leftWall + 30); // 30px buffer so you can't overlap
+    if (rightWall !== null) max = Math.min(max, rightWall - 30);
+
+    return Math.max(min, Math.min(max, x));
+  }
+
+  // --- Interactions ---------------------------------------------------------
+
+  private getObjState(): ObjectiveState {
+    return this.state.player.getState().daily.objectiveState;
+  }
+
+  private interactWithNpc(npc: MapNpc) {
+    this.busy = true;
+    this.scene.pause();
+    this.scene.launch("DialogueScene", { npcId: npc.npcId });
+  }
+
+  private interactWithDoor(door: MapDoor) {
+    const objState = this.getObjState();
+    if (!isDoorUnlocked(door, objState)) return; // locked, do nothing
+
+    // If the door leads to the same map, just warp the player.
+    if (door.targetMapId === this.currentMapId) {
+      this.playerX = door.targetX;
+      this.player.x = door.targetX;
       return;
     }
 
-    const speed = 180;
-    const keys = this.input.keyboard!.addKeys("W,A,S,D") as Record<
-      string,
-      Phaser.Input.Keyboard.Key
-    >;
-    let vx = 0;
-    let vy = 0;
-    if (this.cursors.left.isDown || keys.A.isDown) vx = -speed;
-    else if (this.cursors.right.isDown || keys.D.isDown) vx = speed;
-    if (this.cursors.up.isDown || keys.W.isDown) vy = -speed;
-    else if (this.cursors.down.isDown || keys.S.isDown) vy = speed;
-
-    // Keyboard input cancels any tap-to-move destination.
-    if (vx !== 0 || vy !== 0) {
-      this.moveTarget = null;
-      this.pendingNpc = null;
-    } else if (this.moveTarget) {
-      const dist = Phaser.Math.Distance.Between(
-        this.player.x,
-        this.player.y,
-        this.moveTarget.x,
-        this.moveTarget.y,
-      );
-      // Arrived? Stop, and fire any queued NPC interaction.
-      const arriveRadius = this.pendingNpc ? 44 : 8;
-      if (dist <= arriveRadius) {
-        this.moveTarget = null;
-        if (this.pendingNpc) {
-          const npc = this.pendingNpc;
-          this.pendingNpc = null;
-          this.startDialogue(npc);
-        }
-      } else {
-        const angle = Phaser.Math.Angle.Between(
-          this.player.x,
-          this.player.y,
-          this.moveTarget.x,
-          this.moveTarget.y,
-        );
-        vx = Math.cos(angle) * speed;
-        vy = Math.sin(angle) * speed;
-      }
-    }
-
-    this.playerBody.setVelocity(vx, vy);
-
-    if (vx < 0) this.facing = "left";
-    else if (vx > 0) this.facing = "right";
-    else if (vy < 0) this.facing = "up";
-    else if (vy > 0) this.facing = "down";
-
-    this.updateAreaContext();
-    this.handleInteraction();
-    this.broadcastMovement(vx !== 0 || vy !== 0);
+    // Transition to another map.
+    this.loadMap(door.targetMapId, door.targetX);
   }
 
-  /** Throttle movement broadcasts (~10Hz) through the presence port. */
-  private broadcastMovement(moving: boolean) {
-    if (!moving) return;
-    const now = this.time.now;
-    if (now - this.lastBroadcast < 100) return;
-    this.lastBroadcast = now;
-    this.state.adapters.presence.move({
-      x: this.player.x,
-      y: this.player.y,
-      facing: this.facing,
-    });
-  }
+  private interactWithItem(item: MapItem) {
+    const objState = this.getObjState();
+    if (!isItemVisible(item, objState)) return;
 
-  private updateAreaContext() {
-    const area = areaAt(this.player.x, this.player.y);
-    if (area && area.id !== this.currentArea?.id) {
-      this.currentArea = area;
-      this.cameras.main.flash(250, 255, 255, 255, false);
-      this.game.events.emit("areaChanged", area);
+    // For now, the only item is the flower → triggers day-complete.
+    if (item.itemId === "water-bottle") {
+      this.triggerDayComplete();
     }
   }
 
-  private nearestNpc(): NpcSprite | undefined {
-    let best: NpcSprite | undefined;
-    let bestDist = Infinity;
-    for (const n of this.npcs) {
-      const d = Phaser.Math.Distance.Between(
-        this.player.x,
-        this.player.y,
-        n.container.x,
-        n.container.y,
-      );
-      if (d < 48 && d < bestDist) {
-        best = n;
-        bestDist = d;
-      }
-    }
-    return best;
-  }
-
-  private handleInteraction() {
-    const near = this.nearestNpc();
-    // Highlight the interactable NPC.
-    for (const n of this.npcs) {
-      n.label.setColor(n === near ? "#ffe08a" : "#ffffff");
-    }
-
-    if (near && Phaser.Input.Keyboard.JustDown(this.interactKey)) {
-      this.startDialogue(near);
-    }
-  }
-
-  /** Open dialogue with an NPC (shared by keyboard SPACE + tap-to-interact). */
-  private startDialogue(npc: NpcSprite) {
-    if (this.busy) return;
+  private triggerDayComplete() {
     this.busy = true;
     this.scene.pause();
-    this.scene.launch("DialogueScene", { npcId: npc.npc.id });
+    this.scene.launch("SuccessScene");
   }
 }

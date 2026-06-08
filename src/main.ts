@@ -7,6 +7,7 @@ import { TradeScene } from "./scenes/TradeScene";
 import { HudScene } from "./scenes/HudScene";
 import { DevScene } from "./scenes/DevScene";
 import { AuthScene } from "./scenes/AuthScene";
+import { SuccessScene } from "./scenes/SuccessScene";
 import { GameState, REGISTRY_KEY } from "./game/state";
 import { composeApp } from "./app/composition";
 import { cloudConfigured } from "./app/composition";
@@ -40,6 +41,7 @@ const config: Phaser.Types.Core.GameConfig = {
     TradeScene,
     DevScene,
     AuthScene,
+    SuccessScene,
   ],
 };
 
