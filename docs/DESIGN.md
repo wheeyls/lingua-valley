@@ -1,245 +1,172 @@
-# Lingua Valley — Resources, Persistence & Multiplayer Design
+# Lingua Valley — Design
 
-This document is the source of truth for the economy, data model, server-authoritative
-reward flow, auth, and real-time multiplayer. Build against this.
+A Spanish-learning app disguised as a simple point-and-click adventure. No game
+engine, no animations, no canvas — just a website focused entirely on the
+mechanics of progression, rewards, and the voice conversation experience.
+
+## Core concept
+
+You visit a neighborhood. You walk into houses and talk to people in Spanish.
+That's it. The conversations are the game. Everything else exists to give those
+conversations structure, repetition, and a reason to come back tomorrow.
 
 ## Guiding principles
 
-1. **Practice is the labor.** Every resource is earned by producing real Spanish that
-   the LLM grades. Repetition is the *excuse* to practice; rewards require correctness.
-2. **Server-authoritative economy.** The client never grants itself pesos, mastery, or
-   resources. Grants happen in serverless functions after grading, then persist to Postgres.
-3. **Guest-first.** Play instantly as a guest (local save). Sign up later to *claim* the
-   guest progress into a real account and sync across devices.
-4. **Domain-first, framework-light.** All economy/SRS rules live in `src/domain/` as pure,
-   tested functions. Phaser, Supabase, and HTTP are thin layers around them.
-5. **Multiplayer-ready from day one.** Schema and state shapes assume many players in a
-   shared world even though the first milestone only syncs presence + movement.
+1. **It's a website, not a game engine.** Pure HTML/CSS/DOM. No Phaser, no
+   canvas, no sprites. Rooms are static screens with tappable cards. This lets
+   us focus entirely on the conversation experience and progression mechanics
+   without fighting rendering tech.
 
-## The economy (Stardew loop → Spanish practice)
+2. **Conversations are the core mechanic.** Every meaningful interaction is a
+   voice conversation graded by an LLM. The player speaks Spanish, gets
+   real-time feedback, and improves through repetition. Everything else
+   (navigation, objectives, rewards) exists to motivate and structure practice.
 
-| Stardew concept    | Lingua Valley resource | How it's earned / spent |
-|--------------------|------------------------|--------------------------|
-| Energy / stamina   | **Focus**              | Daily budget; regenerates each day. Spent to start practice activities. |
-| Gold               | **Pesos**              | Granted server-side per graded activity, scaled by score. Spent on tools/cosmetics. |
-| Crops / foraging   | **Vocab cards**        | Each target word is an SRS card. Correct use "waters" it; it matures to *mastered*. |
-| Skill XP tracks    | **Skills**             | speaking / listening / vocab — each activity feeds the relevant track. |
-| Tools              | **Unlocks** (later)    | Phrasebook entries, hint abilities, new activity types. |
+3. **Daily practice cadence.** The game is designed for short, regular sessions
+   — not marathon grinding. Each day has a fixed set of objectives (3 today).
+   Complete them, come back in 12 hours. You can replay for fun but won't
+   advance. This mirrors how language learning actually works: spaced,
+   consistent practice beats cramming.
 
-### Reward formulas (pure functions in `src/domain/economy.ts`)
+4. **Domain-first, fully testable.** All game logic lives in `src/domain/` as
+   pure TypeScript with zero framework imports. The UI is a thin adapter. Every
+   rule (objectives, dependencies, completion, rewards) is unit-tested without
+   a browser.
 
-Inputs from a graded activity: `communication` (0..1), `accuracy` (0..1), `level` (CEFR).
+5. **Objectives are code-driven and composable.** Each objective is a class
+   implementing the `Objective` interface. Objectives can depend on each other,
+   produce outputs that downstream objectives consume (e.g. Marisol's story →
+   Pablo's retelling quiz), and be composed into daily graphs. Adding new
+   content means writing a class and registering it.
 
-```
-quality   = 0.6*communication + 0.4*accuracy           // 0..1
-levelMult = 1 + 0.25 * levelRank(level)                // A1=1.0, A2=1.25, ...
-pesos     = round(BASE_PESOS * quality * levelMult)    // BASE_PESOS = 10
-focusCost = ACTIVITY_FOCUS_COST                        // 5 per conversation
-skillGain = round(100 * quality)                       // points into the activity's skill
-```
+## The daily loop
 
-Pesos are only granted when `quality >= REWARD_THRESHOLD` (0.5); below that the player
-keeps practicing for free (Focus still spent) but earns nothing — incentivizes real effort.
+Each "day" (12-hour cycle) has a fixed sequence of objectives:
 
-### Focus (daily stamina)
+### Today's objectives
 
-```
-FOCUS_MAX = 100
-Regen: on first activity of a new UTC day, refill to FOCUS_MAX.
-Spend: focusCost per activity; if insufficient, activity is blocked ("rest until tomorrow").
-```
+1. **Rosa (greeting)** — Practice casual greetings in Spanish. Standalone,
+   always available. A1 level.
 
-### Vocab cards = SM-2-lite spaced repetition (`src/domain/srs.ts`)
+2. **Marisol (story)** — Listen to Marisol tell you about her morning in simple
+   past tense. She tells you 2 specific, memorable things she did. Standalone,
+   always available. A2 level.
 
-Each card: `{ wordId, ease, intervalDays, dueAt, reps, state }` where
-`state ∈ {seedling, growing, mature}`.
+3. **Pablo (retelling)** — Marisol's brother asks you to retell what she said.
+   Depends on Marisol's objective — won't activate until Marisol is done, and
+   receives her story as input so the LLM knows what to quiz you on. Pablo
+   prompts you through each point if you struggle. A2 level.
 
-```
-On a correct use (quality q in 0..1, pass = q >= 0.6):
-  if pass:
-    reps += 1
-    ease = clamp(ease + (0.1 - (1-q)*0.4), 1.3, 2.8)
-    interval = reps==1 ? 1 : reps==2 ? 3 : round(prevInterval * ease)
-    state = reps>=4 ? mature : growing
-  else:
-    reps = 0; interval = 0; state = seedling   // reset, must re-water
-  dueAt = now + interval days
-```
+After all three: the day is "done" for 12 hours. You can replay any conversation
+but earn no additional rewards.
 
-A word counts toward an objective's *mastery* once its card is `mature`.
+### Completion flow
 
-## Data model (Postgres / Supabase)
+1. Visit Rosa's house on the street.
+2. Tap Rosa → dialogue intro → voice conversation.
+3. Tap Marisol → dialogue intro → voice conversation (she tells a story).
+4. Pablo unlocks (green badge on Rosa + Marisol, Pablo's lock disappears).
+5. Tap Pablo → retelling conversation.
+6. Return home → water your flower → success screen.
+7. Come back in 12 hours.
 
-All tables have RLS enabled. `auth.uid()` owns its rows. A guest has no `auth` row; guest
-state lives only client-side until claimed (then we upsert into these tables).
-
-```sql
--- One row per player.
-profiles (
-  id            uuid primary key references auth.users on delete cascade,
-  display_name  text not null default 'Aprendiz',
-  avatar_color  int  not null default 16763985,
-  created_at    timestamptz not null default now()
-)
-
--- One row per player: scalar resources. Server-authoritative.
-player_state (
-  user_id       uuid primary key references auth.users on delete cascade,
-  pesos         int  not null default 0,
-  focus         int  not null default 100,
-  focus_day     date not null default current_date,   -- for daily regen
-  skills        jsonb not null default '{}',           -- { speaking:int, listening:int, vocab:int }
-  mastered_ids  text[] not null default '{}',          -- mastered objective ids
-  updated_at    timestamptz not null default now()
-)
-
--- One row per (player, word): the SRS cards.
-vocab_cards (
-  user_id       uuid not null references auth.users on delete cascade,
-  word_id       text not null,
-  ease          real not null default 2.3,
-  interval_days int  not null default 0,
-  reps          int  not null default 0,
-  due_at        timestamptz not null default now(),
-  state         text not null default 'seedling',
-  primary key (user_id, word_id)
-)
-
--- Audit log of graded activities (also powers leaderboards later).
-activity_log (
-  id            bigserial primary key,
-  user_id       uuid not null references auth.users on delete cascade,
-  npc_id        text,
-  objective_id  text,
-  level         text,
-  communication real, accuracy real, quality real,
-  pesos_awarded int,
-  created_at    timestamptz not null default now()
-)
-```
-
-Multiplayer presence/movement is **ephemeral** (Supabase Realtime presence channel), not a
-table — positions don't need durability. Durable shared state (e.g. who mastered what) reads
-from the tables above.
-
-## Server-authoritative reward flow
-
-The existing `/api/converse` returns a grade. We add reward granting so the client can't
-fabricate currency:
+## Objective system (`src/domain/objective.ts`)
 
 ```
-POST /api/activity/complete
-  body: { sessionToken, npcId, objectiveId, level, grade:{communication,accuracy} }
-  server:
-    1. Identify user from Supabase JWT (or guest -> reject server grant, client-local only).
-    2. Recompute quality/pesos/skillGain from the grade (never trust client numbers).
-    3. Check & spend Focus (daily regen first). Block if insufficient.
-    4. Update player_state (pesos, skills, focus), upsert vocab_cards via SRS, maybe mastered_ids.
-    5. Insert activity_log row.
-    6. Return the authoritative new PlayerState snapshot.
+Objective interface
+├── id, npcId, dependsOn[], reward
+├── buildTheme(ctx)       → LLM conversation instructions
+└── extractOutputs(lines) → data for downstream objectives
 ```
 
-Guests: the same domain functions run **client-side** so guests get the full loop locally;
-on account claim we replay/merge into the server tables (server re-validates).
+**ObjectiveGraph** manages the set:
+- `isAvailable(id, state)` — checks all deps complete
+- `gatherInputs(id, state)` — collects outputs from completed deps
+- `complete(id, state, npcLines, now)` — stores outputs + marks done
+- `earnsReward(id, state)` — true first time, false on replay
 
-## Auth & guest/claim
+Current objectives:
+- `RosaGreeting` — standalone, no deps/outputs
+- `MarisolStory` — standalone, produces `storyText`
+- `PabloRetelling` — depends on `marisol-story`, consumes `storyText`
 
-- **Guest:** generate a local `guestId`; all state in `localStorage` under that id.
-- **Sign in:** Supabase Auth (email magic link + Google). On first sign-in, create
-  `profiles` + `player_state`. If a guest save exists, **claim**: merge guest pesos/skills/
-  mastery/cards into the new account (max/most-progressed wins), then clear local guest save.
-- Client holds the Supabase session; API functions verify the JWT for server-authoritative writes.
+## Navigation
 
-## Multiplayer (milestone 1: presence + movement)
+Point-and-click rooms. No movement, no scrolling, no player character.
 
-- One Supabase Realtime channel per area (`presence:area:<areaId>`).
-- Each client tracks its `{ userId, displayName, color, x, y, facing }` via presence.
-- On `presence sync`, render/update other players' avatars (interpolated movement).
-- Broadcast lightweight movement deltas at ~10Hz; presence carries identity + last position.
-- **Emotes/text:** broadcast events on the same channel (`emote`, `chat`).
-- **Later milestones:** player-to-player voice (WebRTC) and co-op graded activities.
+- **Street** → doors to Your House and Rosa's House
+- **Your House** → flower (appears after all objectives done)
+- **Rosa's House** → Rosa, Marisol, Pablo (Pablo locked until deps met)
 
-## Architecture: hexagonal (ports & adapters) — NON-NEGOTIABLE
+Each room is a static screen with tappable cards: NPC cards (with avatar and
+status badge), door cards (locked/unlocked), item cards. Tap to interact.
 
-This is **not a Phaser app**. It is a **domain application** with Phaser as one of several
-adapters. We actively resist letting frameworks (Phaser, Supabase, OpenAI, HTTP) absorb the
-domain — the same failure mode where game logic leaks into `scene.update()` or persistence
-shapes dictate game rules.
+NPC cards show a green ✓ badge when that character's conversation is done today.
+Locked NPCs are dimmed with a 🔒 hint.
+
+## Voice conversation flow
+
+1. Tap an NPC → dialogue intro (explains what you'll do).
+2. Tap "Talk" → conversation overlay opens.
+3. NPC greets you (TTS audio + text).
+4. Tap mic → record your Spanish → tap again to send.
+5. Whisper transcribes → cleanup LLM fixes transcription errors →
+   grading LLM evaluates + NPC replies.
+6. Repeat for several turns until the conversation wraps up naturally
+   (minimum 3 player turns).
+7. "Continue" button returns you to the room.
+8. Objective completes, NPC badge updates, doors may unlock.
+
+### Transcription cleanup
+
+A preprocessing LLM call between Whisper and the grading LLM fixes
+speech-to-text artifacts (misheard words, English insertions, garbled text) so
+the grader evaluates what you MEANT, not what Whisper misheard. The conversation
+NPC already rolls with it naturally; the cleanup prevents the feedback from
+lecturing about transcription errors.
+
+### LLM prompt constraints
+
+Each CEFR level has concrete constraints in the prompt (not just the label):
+- **A1**: 3-6 word sentences, present tense only, most basic words, add English
+  for uncommon words.
+- **A2**: daily-life vocab, simple past tense, short sentences.
+- **B1**: past/future tenses, moderate vocabulary, longer sentences OK.
+
+When `conversationComplete` is true, the NPC's reply MUST be a closing statement
+(goodbye), not a question — the player won't get another turn.
+
+## Architecture
 
 ```
-   DRIVING ADAPTERS            DOMAIN (core)              DRIVEN ADAPTERS
-   (call the domain)        pure TS, no frameworks       (domain calls them via ports)
-
-   Phaser scenes  ────▶   economy · srs · player    ◀────  Supabase repos  (PlayerStateRepo)
-   input / UI     ────▶   proficiency · comprehension ◀──  OpenAI client   (RewardGrader)
-                          conversation                ◀──  Realtime        (PresenceGateway)
-                          + PORTS (interfaces)
+src/domain/     ← pure logic, zero framework imports, fully testable
+src/content/    ← map/NPC/objective/curriculum data
+src/app/        ← application orchestration (GameController, PlayerService, etc.)
+src/ui/html/    ← DOM rendering (room views, conversation/dialogue overlays)
+src/game/       ← voice capture, audio playback, API client
+api/            ← Vercel serverless (converse, transcribe, speak, clean-transcription)
 ```
 
-### Laws
+**Dependency direction:** UI → app → domain. Domain points outward to nobody.
 
-1. **`src/domain/` imports nothing framework-y.** No `phaser`, no `@supabase/*`, no `openai`,
-   no `fetch`/`Response`. Only other domain modules and TS types. It must run in Node, browser,
-   and tests identically.
-2. **The domain owns the interfaces (ports) it needs.** e.g. `PlayerStateRepository`,
-   `RewardGrader`, `PresenceGateway`. The domain depends on these abstractions, never on a
-   concrete vendor.
-3. **Adapters live outside the domain and implement ports.** `src/net/SupabasePlayerRepository`,
-   `src/net/HttpRewardClient`, `src/net/SupabasePresenceGateway`, Phaser scene renderers.
-   Adapters translate vendor/transport types ⇄ domain types. They contain no game rules.
-4. **Phaser scenes are a thin rendering layer.** They subscribe to domain state and invoke
-   domain methods on input. No reward math, no SRS, no economy rules inside `update()`.
-5. **Persistence shape ≠ domain shape.** The Postgres tables are an adapter detail; a mapper
-   converts rows ⇄ domain `PlayerState`. The domain never sees a DB row.
-6. **Composition root wires it up.** `src/main.ts` (and API handlers) are the only places that
-   construct concrete adapters and inject them into the domain. Nothing else `new`s an adapter.
-7. **The test is the proof.** Every rule is unit-testable with zero framework mocks. If a test
-   needs Phaser or a live Supabase, the logic is in the wrong layer — extract it.
+All domain logic is tested with zero framework mocks. The UI is a thin adapter
+that reads domain state and calls domain methods on user input.
 
-## Module map (planned)
+## Tech stack
 
-```
-src/domain/                 ← CORE. zero framework imports. fully unit-tested.
-  economy.ts                  reward formulas, Focus regen/spend (pure)
-  srs.ts                      spaced-repetition card updates (pure)
-  player.ts                   PlayerState type + reducer applying an activity result
-  ports.ts                    interfaces the domain requires:
-                                PlayerStateRepository, RewardGrader, PresenceGateway,
-                                Clock, IdGenerator
-  proficiency.ts / comprehension.ts / conversation.ts  (existing pure modules)
+- **Rendering:** Pure HTML/CSS/DOM. No canvas, no game engine.
+- **Voice:** Whisper (STT) → GPT-4o (grading + NPC replies) → OpenAI TTS.
+- **Persistence:** localStorage for guests; Supabase Postgres for accounts.
+- **Hosting:** Vercel (static site + serverless functions).
+- **CI:** GitHub Actions (typecheck + tests + Supabase migrations).
 
-src/net/                    ← DRIVEN ADAPTERS. implement domain ports. no game rules.
-  supabaseClient.ts           browser Supabase client construction
-  SupabasePlayerRepository.ts implements PlayerStateRepository (row ⇄ domain mapper)
-  HttpRewardClient.ts         implements RewardGrader by calling /api (server-authoritative)
-  SupabasePresenceGateway.ts  implements PresenceGateway over Realtime
-  auth.ts                     guest id, sign-in, claim/merge orchestration
+## Adding new content
 
-api/                        ← SERVER ADAPTERS (composition root for server side)
-  _lib/supabaseAdmin.ts       service-role client + JWT verification
-  activity/complete.ts        server-authoritative reward grant (uses domain economy/srs)
-  state/load.ts               load player state
+1. Write an `Objective` class in `src/domain/objectives/`.
+2. Register it in the daily graph (`src/domain/objectives/daily.ts`).
+3. Add an NPC to `src/content/world.ts` with `teachesObjectiveId`.
+4. Add the NPC to the appropriate room in `src/content/maps.ts`.
+5. Tests + typecheck.
 
-src/scenes/                 ← DRIVING ADAPTERS (Phaser rendering only)
-  WorldScene                  movement + remote avatars (reads PresenceGateway view)
-  ConversationScene           invokes RewardGrader port; renders result
-  HudScene                    renders PlayerState (Focus/Pesos/skills)
-  (login overlay)             invokes auth; renders session state
-
-src/main.ts                 ← COMPOSITION ROOT. constructs adapters, injects into domain,
-                              hands the wired-up services to scenes via the registry.
-```
-
-**Dependency direction:** `scenes → domain ← net/api`. Domain points outward to nobody.
-Adapters depend on the domain's port interfaces, not vice versa.
-
-## Sequencing (foundation first)
-
-1. Pure domain: `economy.ts`, `srs.ts`, `player.ts` + unit tests.
-2. Supabase schema + RLS migration.
-3. Browser Supabase client, guest id, auth + claim/merge.
-4. Server-authoritative `/api/activity/complete` + `/api/state/load`.
-5. Wire ConversationScene reward → server (guest → local domain).
-6. Resource HUD + login overlay.
-7. Realtime presence: remote avatars moving in the shared world.
-8. Emotes/text. (Voice + co-op activities: later milestones.)
+The objective's `buildTheme()` tells the LLM how to behave; `extractOutputs()`
+passes data to downstream objectives; `dependsOn` controls activation order.

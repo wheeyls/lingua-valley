@@ -1,62 +1,63 @@
 # Agent Instructions
 
-## Architecture: Hexagonal (Ports & Adapters), Framework-Light
+## Architecture: Domain-First, Framework-Free
 
-This is **NOT a Phaser app.** It is a **domain application** (a game) for which Phaser,
-Supabase, OpenAI, and HTTP are merely **adapters at the edges**. Game engines and SDKs love to
-"eat" a domain — rules migrate into `scene.update()`, persistence row shapes start dictating
-game logic, and the design scatters across the framework. We actively resist this.
+This is a **website**, not a game engine app. It's a Spanish-learning tool built
+as a point-and-click adventure with voice conversations. Pure HTML/CSS/DOM
+rendering — no Phaser, no canvas, no sprites. The focus is on conversation
+mechanics, progression, and rewards.
 
-See `docs/DESIGN.md` for the full picture. The short version:
+See `docs/DESIGN.md` for the full design.
 
 ```
-   DRIVING ADAPTERS          DOMAIN (core)            DRIVEN ADAPTERS
-   Phaser scenes  ──▶   pure TS, no frameworks   ◀──  Supabase / OpenAI / Realtime
-   input / UI     ──▶   + the PORTS it needs     ◀──  (implement those ports)
+   UI (HTML/DOM)  ──▶   DOMAIN (core)   ◀──  Adapters (Supabase, OpenAI, HTTP)
+   thin adapter         pure TS, zero        implement domain ports
+                        framework imports
 ```
 
-### The Laws (do not break these)
+### The Laws
 
-1. **`src/domain/` imports nothing framework-y.** No `phaser`, `@supabase/*`, `openai`, or
-   `fetch`/DOM/`Response`. Only other domain modules + TS types. Domain runs in Node, the
-   browser, and tests identically.
-2. **The domain defines the interfaces (ports) it depends on** in `src/domain/ports.ts`
-   (e.g. `PlayerStateRepository`, `RewardGrader`, `PresenceGateway`, `Clock`). The domain
-   talks to abstractions, never to a vendor SDK.
-3. **Adapters implement ports and live outside the domain** (`src/net/`, `api/`, Phaser
-   scenes). Adapters translate transport/vendor types ⇄ domain types and contain **no game
+1. **`src/domain/` imports nothing framework-y.** No DOM, no `@supabase/*`, no
+   `openai`, no `fetch`/`Response`. Only other domain modules + TS types. Domain
+   runs in Node, the browser, and tests identically.
+
+2. **The domain defines the interfaces (ports) it depends on** in
+   `src/domain/ports.ts`. The domain talks to abstractions, never to a vendor.
+
+3. **Adapters live outside the domain** (`src/net/`, `api/`, `src/ui/html/`).
+   They translate vendor/transport types ⇄ domain types and contain **no game
    rules**.
-4. **Phaser scenes are a thin rendering layer.** Subscribe to domain state, call domain
-   methods on input. No economy/SRS/reward math in `update()` or event handlers.
-5. **Persistence shape ≠ domain shape.** DB rows are an adapter concern; a mapper converts
-   rows ⇄ domain types. The domain never imports a row type.
-6. **Composition happens only at the roots:** `src/main.ts` (client) and each `api/*` handler
-   (server). These are the *only* places that `new` a concrete adapter and inject it.
-7. **Server-authoritative economy.** Reward/currency/mastery grants are computed and persisted
-   server-side from the LLM grade. The client never grants itself resources.
+
+4. **The UI is a thin rendering layer.** HTML views read domain state and call
+   domain methods on user input. No economy/objective/progression rules in UI
+   code.
+
+5. **Objectives are code-driven.** Each objective is a class implementing the
+   `Objective` interface. Adding new content means writing a class, registering
+   it, and adding an NPC/room — no framework changes.
+
+6. **Server-authoritative economy** when signed in. Reward/currency grants are
+   computed server-side from the LLM grade. The client falls back to local
+   computation if the server fails (gameplay never breaks).
+
+7. **The test is the proof.** Every rule is testable with zero framework mocks.
+   If a test needs a browser or a live service, the logic is in the wrong layer.
 
 ### Where Things Live
 
-| Concern | Location | Examples |
-|---------|----------|----------|
-| Rules, formulas, state machines | `src/domain/` | economy reward math, SRS, focus regen, comprehension |
-| Interfaces the domain needs | `src/domain/ports.ts` | `PlayerStateRepository`, `RewardGrader`, `PresenceGateway` |
-| Persistence adapters | `src/net/`, `api/_lib/` | `SupabasePlayerRepository`, row⇄domain mappers |
-| Network/transport adapters | `src/net/`, `api/` | `HttpRewardClient`, presence gateway, API handlers |
-| Rendering / input | `src/scenes/` | Phaser scenes (presentational) |
-| Wiring | `src/main.ts`, `api/*` | construct + inject adapters |
+| Concern | Location |
+|---------|----------|
+| Objectives, economy, daily loop, map rules | `src/domain/` |
+| Map/NPC/curriculum data | `src/content/` |
+| App orchestration (GameController, PlayerService) | `src/app/` |
+| Room views, conversation/dialogue overlays | `src/ui/html/` |
+| Voice capture, audio playback, API client | `src/game/` |
+| Serverless functions (converse, transcribe, TTS) | `api/` |
 
-### Test Philosophy
+### Adding a Feature
 
-Domain logic must be testable with **zero framework mocks**. Tests live in
-`src/domain/__tests__/` and exercise domain functions/classes directly. If something can only
-be tested by booting Phaser or hitting a live Supabase, the logic is in the wrong layer —
-extract it into the domain behind a port.
-
-### Adding a Feature (the order)
-
-1. Model it in `src/domain/` as pure functions/types. Add a port if it needs the outside world.
+1. Model it in `src/domain/` as pure functions/types.
 2. Unit-test the domain logic.
-3. Implement the adapter(s) for any new port in `src/net/` or `api/`.
-4. Wire it in the composition root (`main.ts` / api handler).
-5. Build the Phaser/UI rendering last — thin, calling into the domain.
+3. Implement any adapters in `src/net/` or `api/`.
+4. Wire in `src/app/`.
+5. Build the HTML/CSS rendering last — thin, calling into the domain.
