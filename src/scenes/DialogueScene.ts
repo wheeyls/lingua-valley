@@ -95,9 +95,11 @@ export class DialogueScene extends Phaser.Scene {
       lineIndex: this.lineIndex,
       lineCount: this.npc.lines.length,
       continueLabel: isLast
-        ? teachable
-          ? "Start lesson ▶"
-          : "Done"
+        ? (this.npc.conversation || this.npc.lessonSlug || this.npc.givesQuest)
+          ? "Talk ▶"
+          : teachable
+            ? "Start lesson ▶"
+            : "Done"
         : "Continue ▶",
       lessonLabel: teachable ? objectiveById(objId!)?.label : undefined,
       canTrade: this.canTrade(),
