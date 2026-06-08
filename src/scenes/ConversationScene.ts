@@ -40,6 +40,7 @@ export class ConversationScene extends Phaser.Scene {
   private qualityTurns = 0;
   private townUnlockedThisVisit = false;
   private strictness = 1;
+  private activeObjective?: import("../domain/objective").Objective;
 
   constructor() {
     super("ConversationScene");
@@ -55,8 +56,19 @@ export class ConversationScene extends Phaser.Scene {
     this.townUnlockedThisVisit = false;
     const obj = objectiveById(this.npc.teachesObjectiveId!)!;
 
-    // Set a specific theme/instruction per NPC role in the daily loop.
-    const theme = this.themeForNpc();
+    // Look up this NPC's objective in the daily graph. The objective drives the
+    // conversation theme and handles completion/data-flow — no ad-hoc wiring.
+    const graph = this.state.objectives;
+    this.activeObjective = graph.forNpc(this.npc.id);
+    const dailyState = this.state.player.getState().daily;
+    let theme: string | undefined;
+    if (this.activeObjective) {
+      const inputs = graph.gatherInputs(this.activeObjective.id, dailyState.objectiveState);
+      theme = this.activeObjective.buildTheme({
+        inputs,
+        state: dailyState.objectiveState,
+      });
+    }
 
     const town = townOfNpc(this.npc.id);
     this.strictness = town ? gradingStrictness(townInfoOf(town)) : 1;
@@ -140,40 +152,6 @@ export class ConversationScene extends Phaser.Scene {
     for (const line of lines) await this.npcSay(line);
     this.phase = "awaitInput";
     this.view.setStatus(this.turnPrompt());
-  }
-
-  /** Build a role-specific theme/instruction for the LLM based on the NPC's daily role. */
-  private themeForNpc(): string | undefined {
-    const step = this.npc.dailyStep;
-    if (step === "rosa") {
-      return "A casual, friendly greeting between neighbors. Keep it very simple — ask how they are, what's new, basic small talk. Stay at the most basic beginner level.";
-    }
-    if (step === "marisol") {
-      return (
-        "You are telling the player about YOUR morning — what YOU did today. " +
-        "Tell them exactly 2-3 specific, discrete things you did, using simple past tense. " +
-        "For example: 'Me desperté temprano. Fui al mercado. Compré tomates.' " +
-        "Use VERY simple vocabulary. Speak slowly and clearly. After telling your story, " +
-        "ask if they understood: '¿Entendiste?' The player just needs to listen and " +
-        "respond with simple acknowledgments like 'sí' or 'ah, ok'. " +
-        "Keep your story to 2-3 short sentences about concrete actions."
-      );
-    }
-    if (step === "pablo") {
-      // Get today's story from daily state so Pablo can reference it.
-      const story = this.state.player.getState().daily.todayStory;
-      return (
-        "You are Marisol's brother. Marisol just told the player about her morning. " +
-        "Ask the player: '¿Qué hizo Marisol hoy?' (What did Marisol do today?) " +
-        (story
-          ? `Marisol's story was: "${story}". The player should try to retell these things. `
-          : "The player should try to retell what Marisol told them. ") +
-        "Prompt them through it one thing at a time. If they get stuck, give hints: " +
-        "'¿Y luego?' (And then?), '¿Qué más?' (What else?), or give the first word. " +
-        "Be patient and encouraging. When they've covered the main points, praise them."
-      );
-    }
-    return undefined;
   }
 
   private turnPrompt(): string {
@@ -266,12 +244,10 @@ export class ConversationScene extends Phaser.Scene {
       await this.npcSay(outcome.npcReply);
 
       if (outcome.complete) {
-        // If Marisol just finished, save her story so Pablo can reference it.
-        if (this.npc.dailyStep === "marisol") {
-          await this.saveMarisStory();
-        }
+        // Complete the objective: store outputs (e.g. Marisol's story for Pablo),
+        // award reward if it's a first daily completion. All via the pure graph.
+        await this.completeObjective();
         await this.maybeUnlockTown();
-
         this.finish();
       } else {
         this.phase = "awaitInput";
@@ -300,19 +276,29 @@ export class ConversationScene extends Phaser.Scene {
     }
   }
 
-  /** Extract Marisol's story from the conversation and save it for Pablo. */
-  private async saveMarisStory() {
+  /**
+   * Complete the active objective: store outputs in the daily objective state
+   * (e.g. Marisol's story for Pablo), and award pesos if it's a first completion.
+   * All logic lives in the pure ObjectiveGraph — this is just the adapter wiring.
+   */
+  private async completeObjective() {
+    const objective = this.activeObjective;
+    if (!objective) return;
+    const graph = this.state.objectives;
     const npcLines = this.session.history
       .filter((t) => t.role === "npc")
       .map((t) => t.text);
-    const story = npcLines.join(" ");
-    if (story) {
-      const { setTodayStory } = await import("../domain/dailyLoop");
-      await this.state.player.update((s) => ({
+
+    await this.state.player.update((s) => {
+      const prevObjState = s.daily.objectiveState;
+      const earns = graph.earnsReward(objective.id, prevObjState);
+      const newObjState = graph.complete(objective.id, prevObjState, npcLines, new Date());
+      return {
         ...s,
-        daily: setTodayStory(s.daily, story),
-      }));
-    }
+        pesos: earns ? s.pesos + objective.reward : s.pesos,
+        daily: { ...s.daily, objectiveState: newObjState },
+      };
+    });
   }
 
   private finish() {

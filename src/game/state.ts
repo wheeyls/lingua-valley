@@ -9,6 +9,8 @@ import { Proficiency } from "../domain/proficiency";
 import { curriculumByLevel } from "../content/curriculum";
 import type { PlayerService } from "../app/PlayerService";
 import { QuestService } from "../app/QuestService";
+import { buildDailyGraph } from "../domain/objectives/daily";
+import type { ObjectiveGraph } from "../domain/objective";
 import type { Adapters } from "../app/adapters";
 
 export class GameState {
@@ -16,12 +18,15 @@ export class GameState {
   readonly proficiency: Proficiency;
   readonly player: PlayerService;
   readonly quests: QuestService;
+  /** The daily objective graph (pure domain — deps, data flow, completion). */
+  readonly objectives: ObjectiveGraph;
   readonly adapters: Adapters;
 
   constructor(adapters: Adapters, player: PlayerService) {
     this.adapters = adapters;
     this.player = player;
     this.quests = new QuestService(player);
+    this.objectives = buildDailyGraph();
     this.proficiency = new Proficiency(
       curriculumByLevel(),
       player.getState().masteredObjectiveIds,

@@ -13,6 +13,8 @@
  * Pure domain: state + rules only, no framework.
  */
 
+import type { ObjectiveState } from "./objective.js";
+
 export type DailyStepId = "rosa" | "marisol" | "pablo";
 
 export const DAILY_STEPS: DailyStepId[] = ["rosa", "marisol", "pablo"];
@@ -26,12 +28,15 @@ export interface DailyState {
   dayStartedAt: string;
   /** The LLM-generated story Marisol told today (set after the Marisol step). */
   todayStory: string;
+  /** Per-objective completion state for this cycle (keyed by objective id). */
+  objectiveState: ObjectiveState;
 }
 
 export const INITIAL_DAILY_STATE: DailyState = {
   completedSteps: [],
   dayStartedAt: "",
   todayStory: "",
+  objectiveState: {},
 };
 
 /** Whether a new day has started (12h since the last dayStartedAt). */
@@ -46,6 +51,7 @@ export function startNewDay(now: Date): DailyState {
     completedSteps: [],
     dayStartedAt: now.toISOString(),
     todayStory: "",
+    objectiveState: {},
   };
 }
 
