@@ -42,13 +42,13 @@ export class HtmlWorldView {
     document.body.appendChild(this.root);
   }
 
-  loadMap(map: GameMap, objState: ObjectiveState) {
+  loadMap(map: GameMap, objState: ObjectiveState, completedNpcIds: Set<string> = new Set()) {
     this.currentMap = map;
-    this.renderRoom(map, objState);
+    this.renderRoom(map, objState, completedNpcIds);
   }
 
-  refresh(objState: ObjectiveState) {
-    this.renderRoom(this.currentMap, objState);
+  refresh(objState: ObjectiveState, completedNpcIds: Set<string> = new Set()) {
+    this.renderRoom(this.currentMap, objState, completedNpcIds);
   }
 
   updateHud(pesos: number) {
@@ -57,39 +57,34 @@ export class HtmlWorldView {
   }
 
   /**
-   * Update the HUD status line showing daily progress.
-   * Shows objective completion dots and time until reset when done.
+   * Show a single daily status in the HUD: either "done + reset time"
+   * or nothing (when not done — character cards show per-NPC status instead).
    */
   updateDailyStatus(opts: {
-    objectives: { name: string; done: boolean }[];
     allDone: boolean;
     hoursUntilReset?: number;
     minutesUntilReset?: number;
   }) {
     let statusEl = this.barEl.querySelector(".hud-daily") as HTMLElement | null;
+    if (!opts.allDone) {
+      if (statusEl) statusEl.remove();
+      return;
+    }
     if (!statusEl) {
       statusEl = document.createElement("div");
       statusEl.className = "hud-daily";
       this.barEl.appendChild(statusEl);
     }
-
-    if (opts.allDone) {
-      const h = opts.hoursUntilReset ?? 0;
-      const m = opts.minutesUntilReset ?? 0;
-      const timeStr = h > 0 ? `${h}h` : `${m}m`;
-      statusEl.innerHTML = `<span class="hud-done">✅ Done! Come back in ${timeStr}</span>`;
-    } else {
-      const dots = opts.objectives
-        .map((o) => `<span title="${o.name}" class="${o.done ? "dot-done" : "dot-todo"}">${o.done ? "✓" : "○"} ${o.name}</span>`)
-        .join(" ");
-      statusEl.innerHTML = `<span class="hud-progress">${dots}</span>`;
-    }
+    const h = opts.hoursUntilReset ?? 0;
+    const m = opts.minutesUntilReset ?? 0;
+    const timeStr = h > 0 ? `${h}h` : m > 0 ? `${m}m` : "soon";
+    statusEl.innerHTML = `✅ Done! Back in ${timeStr}`;
   }
 
   getPlayerX(): number { return 0; }
   destroy() { this.root.remove(); }
 
-  private renderRoom(map: GameMap, objState: ObjectiveState) {
+  private renderRoom(map: GameMap, objState: ObjectiveState, completedNpcIds: Set<string> = new Set()) {
     // Top bar
     this.barEl.innerHTML = `
       <span class="room-name">${map.name}</span>
@@ -118,20 +113,24 @@ export class HtmlWorldView {
     // NPC cards — SVG avatar as the icon
     for (const npc of npcsOn(map)) {
       const available = isNpcAvailable(npc, objState);
+      const done = completedNpcIds.has(npc.npcId);
       const color = `#${npc.color.toString(16).padStart(6, "0")}`;
       const initial = npc.name[0].toUpperCase();
       const card = document.createElement("div");
-      card.className = "card card-npc";
+      card.className = `card card-npc${done ? " card-npc-done" : ""}`;
       if (!available) card.style.opacity = "0.45";
       card.innerHTML = `
-        <div class="card-avatar">
-          ${npc.art
-            ? `<img src="${npc.art}" alt="${npc.name}" class="card-avatar-img"/>`
-            : npcAvatarSvg(color, initial)
-          }
+        <div class="card-avatar-wrap">
+          <div class="card-avatar">
+            ${npc.art
+              ? `<img src="${npc.art}" alt="${npc.name}" class="card-avatar-img"/>`
+              : npcAvatarSvg(color, initial)
+            }
+          </div>
+          ${done ? '<div class="card-npc-badge">✓</div>' : ""}
         </div>
         <div class="card-label">${npc.name}</div>
-        <div class="card-hint">${available ? "Tap to talk" : "🔒 Talk to others first"}</div>
+        <div class="card-hint">${!available ? "🔒 Talk to others first" : done ? "Done today ✓" : "Tap to talk"}</div>
       `;
       if (available) {
         card.addEventListener("pointerdown", (e) => {

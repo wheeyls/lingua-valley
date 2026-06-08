@@ -56,11 +56,6 @@ export class GameController {
       onItemTap: (item) => this.onItemTap(item),
     });
     this.loadMap("street");
-    this.player.subscribe((state) => {
-      this.worldView.updateHud(state.pesos);
-      this.updateHudStatus();
-    });
-    this.updateHudStatus();
     // Tick the countdown every 60s so the reset timer stays current.
     setInterval(() => this.updateHudStatus(), 60_000);
   }
@@ -71,29 +66,33 @@ export class GameController {
 
   private loadMap(mapId: string) {
     this.currentMapId = mapId;
-    const map = getMap(mapId);
-    if (!map) return;
-    this.worldView.loadMap(map, this.getObjState());
-    this.worldView.updateHud(this.player.getState().pesos);
-    this.updateHudStatus();
+    this.updateHudStatus(); // renders the map with badges + HUD
   }
 
-  /** Build and push the daily progress status to the HUD. */
+  /** Push daily status to the HUD + character badges. */
   private updateHudStatus() {
     const daily = this.player.getState().daily;
     const objState = daily.objectiveState;
     const now = new Date();
 
-    const objectiveStatus = this.objectives.all().map((obj) => ({
-      name: obj.npcId.charAt(0).toUpperCase() + obj.npcId.slice(1), // capitalize
-      done: objState[obj.id] != null,
-    }));
+    const allDone = this.objectives.all().every((obj) => objState[obj.id] != null);
 
-    const allDone = objectiveStatus.every((o) => o.done);
+    // Which NPCs have had their objective completed today?
+    const completedNpcIds = new Set(
+      this.objectives.all()
+        .filter((obj) => objState[obj.id] != null)
+        .map((obj) => obj.npcId),
+    );
+
+    // Refresh the room so NPC badges update.
+    const map = getMap(this.currentMapId);
+    if (map) {
+      this.worldView.loadMap(map, objState, completedNpcIds);
+      this.worldView.updateHud(this.player.getState().pesos);
+    }
 
     let hoursUntilReset: number | undefined;
     let minutesUntilReset: number | undefined;
-
     if (allDone && daily.dayStartedAt) {
       const elapsed = now.getTime() - new Date(daily.dayStartedAt).getTime();
       const remainingMs = Math.max(0, 12 * 60 * 60 * 1000 - elapsed);
@@ -101,12 +100,7 @@ export class GameController {
       minutesUntilReset = Math.ceil((remainingMs % (60 * 60 * 1000)) / 60_000);
     }
 
-    this.worldView.updateDailyStatus({
-      objectives: objectiveStatus,
-      allDone,
-      hoursUntilReset,
-      minutesUntilReset,
-    });
+    this.worldView.updateDailyStatus({ allDone, hoursUntilReset, minutesUntilReset });
   }
 
   private onNpcTap(mapNpc: MapNpc) {
@@ -345,10 +339,7 @@ export class GameController {
   }
 
   private refreshWorld() {
-    const map = getMap(this.currentMapId);
-    if (map) {
-      this.worldView.refresh(this.getObjState());
-    }
+    this.updateHudStatus();
   }
 
   private showSuccess() {

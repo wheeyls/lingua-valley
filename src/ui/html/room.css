@@ -37,29 +37,12 @@
   font-size: clamp(13px, 2.5vw, 17px);
   color: #f4ecd8;
 }
-/* Daily progress in the HUD bar */
+/* Daily done badge in the HUD bar — only shows when all objectives complete */
 .hud-daily {
-  font-size: clamp(11px, 2vw, 14px);
+  font-size: clamp(12px, 2.2vw, 15px);
+  font-weight: bold;
+  color: #9bc995;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 50vw;
-}
-.hud-daily .hud-done {
-  color: #9bc995;
-  font-weight: bold;
-}
-.hud-daily .hud-progress {
-  display: flex;
-  gap: 8px;
-  flex-wrap: nowrap;
-}
-.hud-daily .dot-done {
-  color: #9bc995;
-  font-weight: bold;
-}
-.hud-daily .dot-todo {
-  color: #8a8290;
 }
 
 /* --- Room body --- */
@@ -102,16 +85,39 @@
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
+.card-npc-done {
+  border-color: #9bc995;
+}
+.card-avatar-wrap {
+  position: relative;
+  margin-bottom: 8px;
+}
 .card-avatar {
   width: clamp(56px, 12vw, 88px);
   height: clamp(74px, 16vw, 117px);
-  margin-bottom: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .card-avatar svg { width: 100%; height: 100%; }
 .card-avatar-img { width: 100%; height: 100%; object-fit: contain; }
+/* Green checkmark badge on completed NPC cards */
+.card-npc-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #4a7c59;
+  color: white;
+  font-size: 13px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #1a1423;
+}
 .card-npc .card-label {
   font-size: clamp(15px, 3vw, 20px);
   font-weight: bold;
