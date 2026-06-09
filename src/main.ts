@@ -29,12 +29,16 @@ async function main() {
       return;
     }
     const auth = new SupabaseAuthGateway(sb, "reg");
-    const view = new HtmlRegisterView(async (email, password) => {
+    new HtmlRegisterView(async (email, password) => {
       try {
         await auth.register(email, password);
-        view.showSuccess();
+        window.location.href = "/";
       } catch (err) {
-        view.showError(err instanceof Error ? err.message : "Registration failed");
+        // view reference captured by the constructor's callback
+        const errEl = document.querySelector(".error");
+        if (errEl) errEl.textContent = err instanceof Error ? err.message : "Registration failed";
+        const btn = document.querySelector(".btn-register") as HTMLButtonElement | null;
+        if (btn) { btn.textContent = "Create account"; btn.disabled = false; }
       }
     });
     return;
