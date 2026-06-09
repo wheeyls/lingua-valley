@@ -25,7 +25,7 @@ export class FakeAuthGateway implements AuthGateway {
     return this.user;
   }
 
-  async signIn(email?: string): Promise<AuthUser> {
+  async signIn(email?: string, _password?: string): Promise<AuthUser> {
     this.user = email
       ? { ...this.nextAccount, displayName: email }
       : { ...this.nextAccount };

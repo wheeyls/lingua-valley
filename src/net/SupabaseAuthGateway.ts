@@ -1,9 +1,8 @@
 /**
  * SupabaseAuthGateway — AuthGateway over Supabase Auth.
  *
- * Default state is a guest (no Supabase session). signIn() triggers an OAuth /
- * magic-link flow; on an active session we report a real account. Translates
- * Supabase user → domain AuthUser; no game rules.
+ * Uses email + password authentication. Registration is invite-only via a
+ * secret URL; login is a standard email/password form.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -16,23 +15,18 @@ export class SupabaseAuthGateway implements AuthGateway {
   constructor(
     private readonly sb: SupabaseClient,
     guestId: string,
-    private readonly redirectTo: string | undefined = undefined,
   ) {
-    this.user = { id: guestId, displayName: "Invitado", isGuest: true };
+    this.user = { id: guestId, displayName: "Guest", isGuest: true };
 
-    // React to auth state changes (sign-in/out, token refresh).
     this.sb.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         this.user = {
           id: session.user.id,
-          displayName:
-            (session.user.user_metadata?.name as string | undefined) ??
-            session.user.email ??
-            "Aprendiz",
+          displayName: session.user.email ?? "User",
           isGuest: false,
         };
       } else {
-        this.user = { id: guestId, displayName: "Invitado", isGuest: true };
+        this.user = { id: guestId, displayName: "Guest", isGuest: true };
       }
       this.emit();
     });
@@ -42,21 +36,18 @@ export class SupabaseAuthGateway implements AuthGateway {
     return this.user;
   }
 
-  /**
-   * Send a passwordless magic link to `email`. The session completes when the
-   * player clicks the emailed link (onAuthStateChange then updates state).
-   * Requires an email; throws if none is provided.
-   */
-  async signIn(email?: string): Promise<AuthUser> {
-    if (!email) throw new Error("Email required for magic-link sign-in");
-    const { error } = await this.sb.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: this.redirectTo ?? window.location.origin,
-      },
-    });
+  /** Sign in with email + password. */
+  async signIn(email?: string, password?: string): Promise<AuthUser> {
+    if (!email || !password) throw new Error("Email and password required");
+    const { error } = await this.sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
     return this.user;
+  }
+
+  /** Register a new account (invite-only, called from the secret registration page). */
+  async register(email: string, password: string): Promise<void> {
+    const { error } = await this.sb.auth.signUp({ email, password });
+    if (error) throw error;
   }
 
   async signOut(): Promise<void> {

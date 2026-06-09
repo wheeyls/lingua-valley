@@ -56,6 +56,15 @@ export class GameController {
       onItemTap: (item) => this.onItemTap(item),
     });
     this.loadMap("street");
+
+    // Show user + logout in the HUD.
+    const user = this.adapters.auth.current();
+    this.worldView.setUser(user.displayName, () => {
+      void this.adapters.auth.signOut().then(() => {
+        window.location.reload();
+      });
+    });
+
     // Tick the countdown every 60s so the reset timer stays current.
     setInterval(() => this.updateHudStatus(), 60_000);
   }

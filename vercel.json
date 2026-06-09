@@ -7,5 +7,8 @@
     "api/**/*.ts": {
       "includeFiles": "src/**"
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/register/:path*", "destination": "/index.html" }
+  ]
 }

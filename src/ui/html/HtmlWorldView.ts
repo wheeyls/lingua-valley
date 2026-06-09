@@ -56,6 +56,24 @@ export class HtmlWorldView {
     if (info) info.textContent = `💰 ${pesos}`;
   }
 
+  /** Show the current user email + logout button in the HUD bar. */
+  setUser(displayName: string, onLogout: () => void) {
+    let userEl = this.barEl.querySelector(".hud-user") as HTMLElement | null;
+    if (!userEl) {
+      userEl = document.createElement("div");
+      userEl.className = "hud-user";
+      this.barEl.appendChild(userEl);
+    }
+    userEl.innerHTML = `
+      <span class="hud-user-name">${displayName}</span>
+      <button class="hud-logout-btn">Logout</button>
+    `;
+    userEl.querySelector(".hud-logout-btn")!.addEventListener("pointerdown", (e) => {
+      e.stopPropagation();
+      onLogout();
+    });
+  }
+
   /**
    * Show a single daily status in the HUD: either "done + reset time"
    * or nothing (when not done — character cards show per-NPC status instead).

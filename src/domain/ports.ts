@@ -59,12 +59,8 @@ export interface AuthUser {
 export interface AuthGateway {
   /** The current user (guest by default). */
   current(): AuthUser;
-  /**
-   * Sign in. The real adapter sends an email magic link (pass the email); the
-   * fake resolves instantly. Returns the current (possibly still-guest) user —
-   * for magic link, the session completes later via a redirect.
-   */
-  signIn(email?: string): Promise<AuthUser>;
+  /** Sign in with email + password. */
+  signIn(email?: string, password?: string): Promise<AuthUser>;
   /** Sign out, returning to guest. */
   signOut(): Promise<void>;
   /** Subscribe to user changes. Returns unsubscribe. */

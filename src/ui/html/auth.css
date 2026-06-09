@@ -1,0 +1,94 @@
+/*
+ * Login wall + registration page styles.
+ */
+
+.auth-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #1a1423;
+  font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  color: #f4ecd8;
+  padding: 24px;
+  z-index: 100;
+}
+
+.auth-card {
+  background: #2a2436;
+  border: 3px solid #d9b08c;
+  border-radius: 20px;
+  padding: clamp(24px, 5vw, 40px);
+  width: min(380px, 90vw);
+  text-align: center;
+}
+
+.auth-card h1 {
+  font-size: clamp(22px, 5vw, 30px);
+  color: #ffe08a;
+  margin-bottom: 4px;
+}
+.auth-card .subtitle {
+  font-size: clamp(13px, 3vw, 16px);
+  color: #9bc995;
+  margin-bottom: 24px;
+}
+
+.auth-card input {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  border: 2px solid #555;
+  border-radius: 12px;
+  background: #1a1423;
+  color: #f4ecd8;
+  font-size: 17px;
+  font-family: inherit;
+  outline: none;
+}
+.auth-card input:focus {
+  border-color: #ffe08a;
+}
+.auth-card input::placeholder {
+  color: #8a8290;
+}
+
+.auth-card button {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: bold;
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  margin-top: 8px;
+}
+.auth-card .btn-login {
+  background: #3d5a80;
+  color: #f4ecd8;
+}
+.auth-card .btn-register {
+  background: #4a7c59;
+  color: #f4ecd8;
+}
+.auth-card button:active {
+  opacity: 0.85;
+}
+
+.auth-card .error {
+  color: #b56576;
+  font-size: 15px;
+  margin-top: 10px;
+  min-height: 22px;
+}
+.auth-card .success {
+  color: #9bc995;
+  font-size: 15px;
+  margin-top: 10px;
+}
