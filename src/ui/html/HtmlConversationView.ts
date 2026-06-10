@@ -35,9 +35,12 @@ export class HtmlConversationView {
     this.root.className = "overlay convo-overlay";
     this.root.innerHTML = `
       <div class="convo-header">
-        <div class="convo-npc-name"></div>
-        <div class="convo-friendship"></div>
-        <div class="convo-goal"></div>
+        <div class="convo-header-main">
+          <div class="convo-npc-name"></div>
+          <div class="convo-friendship"></div>
+          <div class="convo-goal"></div>
+        </div>
+        <button class="convo-leave-btn" type="button">Leave</button>
       </div>
       <div class="convo-body">
         <div class="convo-npc-speech"></div>
@@ -49,9 +52,7 @@ export class HtmlConversationView {
         <button class="mic-btn" type="button">🎤</button>
         <div class="mic-hint">Tap to speak · tap again to send</div>
       </div>
-      <div class="convo-actions">
-        <button class="btn btn-danger" type="button">Leave</button>
-      </div>
+      <div class="convo-actions"></div>
     `;
 
     this.npcNameEl = this.root.querySelector(".convo-npc-name")!;
@@ -65,7 +66,7 @@ export class HtmlConversationView {
     this.micHint = this.root.querySelector(".mic-hint")!;
 
     this.callbacks = callbacks;
-    const leaveBtn = this.root.querySelector(".btn-danger")!;
+    const leaveBtn = this.root.querySelector(".convo-leave-btn")!;
     leaveBtn.addEventListener("pointerdown", (e) => {
       e.stopPropagation();
       callbacks.onLeave();
@@ -85,9 +86,11 @@ export class HtmlConversationView {
    * closing is obvious and intentional (no surprise close).
    */
   showEndState(message: string, color: string): void {
-    // Hide the mic + its hint.
+    // Hide the mic and the Leave button (no bailing out after completing).
     const micArea = this.root.querySelector(".convo-mic-area") as HTMLElement;
     micArea.style.display = "none";
+    const leaveBtn = this.root.querySelector(".convo-leave-btn") as HTMLElement | null;
+    if (leaveBtn) leaveBtn.style.display = "none";
 
     // Show the wrap-up message prominently in the status line.
     this.statusEl.textContent = message;

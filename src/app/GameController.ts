@@ -211,17 +211,18 @@ export class GameController {
     const view = new HtmlConversationView({
       onMicTap: () => { unlockAudio(); },
       onLeave: () => {
+        // Left early — do NOT complete the objective. No progress awarded.
         this.recorder.release();
         view.destroy();
         unblockCanvas();
-        this.completeObjective(npc, session);
         this.refreshWorld();
       },
       onContinue: () => {
+        // Conversation reached a natural end — complete the objective.
         this.recorder.release();
         view.destroy();
         unblockCanvas();
-        this.completeObjective(npc, session);
+        void this.completeObjective(npc, session);
         this.refreshWorld();
       },
     });
@@ -328,14 +329,21 @@ export class GameController {
   private async completeObjective(npc: Npc, session: ConversationSession) {
     const objective = this.objectives.forNpc(npc.id);
     if (!objective) return;
-    const npcLines = session.history.filter((t) => t.role === "npc").map((t) => t.text);
 
+    // Idempotent: if already complete today, don't re-write (prevents toggling
+    // when the user replays a conversation).
+    const alreadyDone = this.objectives.isComplete(
+      objective.id,
+      this.player.getState().daily.objectiveState,
+    );
+    if (alreadyDone) return;
+
+    const npcLines = session.history.filter((t) => t.role === "npc").map((t) => t.text);
     const now = new Date();
     await this.player.update((s) => {
       const prevObjState = s.daily.objectiveState;
       const earns = this.objectives.earnsReward(objective.id, prevObjState);
       const newObjState = this.objectives.complete(objective.id, prevObjState, npcLines, now);
-      // Set dayStartedAt on the first objective completion of the day.
       const dayStartedAt = s.daily.dayStartedAt || now.toISOString();
       return {
         ...s,
@@ -343,7 +351,6 @@ export class GameController {
         daily: { ...s.daily, objectiveState: newObjState, dayStartedAt },
       };
     });
-    // Refresh the HUD status after completing.
     this.updateHudStatus();
   }
 

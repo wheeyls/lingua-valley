@@ -23,9 +23,16 @@
 }
 
 .convo-header {
-  text-align: center;
-  padding: max(12px, env(safe-area-inset-top, 0px)) 20px 8px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: max(12px, env(safe-area-inset-top, 0px)) 16px 8px;
   flex-shrink: 0;
+  gap: 12px;
+}
+.convo-header-main {
+  flex: 1;
+  text-align: center;
 }
 .convo-npc-name {
   font-size: clamp(20px, 5vw, 30px);
@@ -42,8 +49,24 @@
   color: #9bc995;
   font-style: italic;
   margin-top: 6px;
-  padding: 0 12px;
 }
+/* Leave: small, clearly secondary, top-right — hard to hit by accident */
+.convo-leave-btn {
+  background: none;
+  border: 1px solid #555;
+  border-radius: 8px;
+  color: #8a8290;
+  font-size: clamp(12px, 2.5vw, 15px);
+  padding: 6px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+.convo-leave-btn:active { opacity: 0.7; }
 
 .convo-body {
   flex: 1;
