@@ -1,8 +1,9 @@
 /**
- * Map definitions — the side-scroller world.
+ * Map definitions — room-based point-and-click.
  *
- * Street: your house (left) → practice house (right)
- * Practice house interior: entryway (Rosa + Marisol) → door → Pablo's room → door → item room
+ * Street: Rosa (outside) + your house + Marisol's house
+ * Your house: flower (after all objectives)
+ * Marisol's house: Marisol + Pablo (locked until Rosa + Marisol done)
  */
 
 import type { GameMap } from "../domain/gameMap.js";
@@ -17,12 +18,20 @@ export const STREET: GameMap = {
   backgroundSvg: STREET_BG,
   entities: [
     {
+      id: "rosa-npc",
+      kind: "npc",
+      x: 0,
+      npcId: "rosa",
+      name: "Rosa",
+      color: 0xe07a5f,
+    },
+    {
       id: "home-door",
       kind: "door",
       x: 100,
       targetMapId: "home",
       targetX: 200,
-      unlockedBy: [], // always open
+      unlockedBy: [],
       label: "Your house",
     },
     {
@@ -31,8 +40,8 @@ export const STREET: GameMap = {
       x: 500,
       targetMapId: "practice-house",
       targetX: 80,
-      unlockedBy: [], // always open
-      label: "Rosa & Marisol's house",
+      unlockedBy: [],
+      label: "Marisol's house",
     },
   ],
 };
@@ -67,20 +76,12 @@ export const HOME: GameMap = {
 
 export const PRACTICE_HOUSE: GameMap = {
   id: "practice-house",
-  name: "Casa de Rosa",
+  name: "Casa de Marisol",
   width: 900,
   groundColor: 0x5f4b66,
   spawnX: 0,
   backgroundSvg: PRACTICE_BG,
   entities: [
-    {
-      id: "rosa-npc",
-      kind: "npc",
-      x: 0,
-      npcId: "rosa",
-      name: "Rosa",
-      color: 0xe07a5f,
-    },
     {
       id: "marisol-npc",
       kind: "npc",
