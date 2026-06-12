@@ -12,12 +12,15 @@ import { allObjectivesComplete } from "../dayComplete";
 import { buildDailyGraph } from "../objectives/daily";
 
 describe("gameMap (room-based)", () => {
-  it("lists NPCs on the practice house", () => {
+  it("lists NPCs on the practice house (Marisol + Pablo only)", () => {
     expect(npcsOn(PRACTICE_HOUSE).map((n) => n.npcId)).toEqual([
-      "rosa",
       "marisol",
       "pablo",
     ]);
+  });
+
+  it("Rosa is on the street", () => {
+    expect(npcsOn(STREET).map((n) => n.npcId)).toEqual(["rosa"]);
   });
 
   it("street has doors to home and practice house", () => {
@@ -42,7 +45,7 @@ describe("gameMap (room-based)", () => {
   });
 
   it("NPCs without availableAfter are always available", () => {
-    const rosa = npcsOn(PRACTICE_HOUSE).find((n) => n.npcId === "rosa")!;
+    const rosa = npcsOn(STREET).find((n) => n.npcId === "rosa")!;
     expect(isNpcAvailable(rosa, {})).toBe(true);
   });
 
