@@ -10,7 +10,7 @@
  * Colors are designed to feel warm, cartoonish, and friendly.
  */
 
-/** Street scene — sunny day, sidewalk, two house facades visible */
+/** Street scene — generic outdoor/street, no houses (those are clickable cards) */
 export const STREET_BG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 220" style="width:100%;height:100%;display:block;">
   <!-- Sky -->
   <rect width="400" height="220" fill="#87CEEB"/>
@@ -21,60 +21,32 @@ export const STREET_BG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4
   <ellipse cx="80" cy="35" rx="38" ry="18" fill="white" opacity="0.85"/>
   <ellipse cx="108" cy="30" rx="26" ry="16" fill="white" opacity="0.85"/>
   <ellipse cx="58" cy="30" rx="22" ry="14" fill="white" opacity="0.85"/>
-  <ellipse cx="220" cy="50" rx="30" ry="14" fill="white" opacity="0.7"/>
-  <!-- Ground/road -->
-  <rect y="155" width="400" height="65" fill="#9B8F7A"/>
-  <rect y="155" width="400" height="8" fill="#7A6E60"/>
-  <!-- Sidewalk -->
-  <rect y="163" width="400" height="30" fill="#C8BFB0"/>
-  <!-- Road markings -->
-  <rect x="90" y="175" width="50" height="6" rx="3" fill="#FFF5" />
-  <rect x="210" y="175" width="50" height="6" rx="3" fill="#FFF5" />
-  <!-- House 1 — Your house (left) -->
-  <rect x="20" y="80" width="100" height="80" fill="#E8D5B7"/>
-  <rect x="20" y="80" width="100" height="80" fill="none" stroke="#9B7B4D" stroke-width="2"/>
-  <!-- Roof 1 -->
-  <polygon points="10,82 70,44 130,82" fill="#C0392B"/>
-  <polygon points="10,82 70,44 130,82" fill="none" stroke="#96281B" stroke-width="2"/>
-  <!-- Window 1 -->
-  <rect x="35" y="100" width="22" height="22" rx="3" fill="#AED6F1" stroke="#9B7B4D" stroke-width="1.5"/>
-  <line x1="46" y1="100" x2="46" y2="122" stroke="#9B7B4D" stroke-width="1"/>
-  <line x1="35" y1="111" x2="57" y2="111" stroke="#9B7B4D" stroke-width="1"/>
-  <!-- Door 1 -->
-  <rect x="85" y="120" width="24" height="40" rx="4" fill="#7D5A3C" stroke="#5C3D1E" stroke-width="2"/>
-  <circle cx="89" cy="141" r="2.5" fill="#FFD700"/>
-  <!-- House label -->
-  <text x="70" y="175" text-anchor="middle" font-size="9" fill="#5C3D1E" font-family="Trebuchet MS">Tu Casa</text>
-  <!-- House 2 — Rosa's house (right) -->
-  <rect x="265" y="75" width="115" height="85" fill="#F5CBA7"/>
-  <rect x="265" y="75" width="115" height="85" fill="none" stroke="#BDC3C7" stroke-width="2"/>
-  <!-- Roof 2 -->
-  <polygon points="255,77 322,35 390,77" fill="#2980B9"/>
-  <polygon points="255,77 322,35 390,77" fill="none" stroke="#1A5276" stroke-width="2"/>
-  <!-- Window 2a -->
-  <rect x="275" y="95" width="22" height="22" rx="3" fill="#AED6F1" stroke="#BDC3C7" stroke-width="1.5"/>
-  <line x1="286" y1="95" x2="286" y2="117" stroke="#BDC3C7" stroke-width="1"/>
-  <line x1="275" y1="106" x2="297" y2="106" stroke="#BDC3C7" stroke-width="1"/>
-  <!-- Window 2b -->
-  <rect x="350" y="95" width="22" height="22" rx="3" fill="#AED6F1" stroke="#BDC3C7" stroke-width="1.5"/>
-  <line x1="361" y1="95" x2="361" y2="117" stroke="#BDC3C7" stroke-width="1"/>
-  <line x1="350" y1="106" x2="372" y2="106" stroke="#BDC3C7" stroke-width="1"/>
-  <!-- Door 2 -->
-  <rect x="307" y="118" width="28" height="42" rx="5" fill="#8E44AD" stroke="#6C3483" stroke-width="2"/>
-  <circle cx="312" cy="140" r="2.5" fill="#FFD700"/>
-  <!-- Flower box -->
-  <rect x="268" y="127" width="22" height="8" rx="2" fill="#7D5A3C"/>
-  <circle cx="272" cy="124" r="4" fill="#E74C3C"/>
-  <circle cx="280" cy="122" r="4" fill="#F39C12"/>
-  <circle cx="288" cy="124" r="4" fill="#E74C3C"/>
-  <!-- House label -->
-  <text x="322" y="172" text-anchor="middle" font-size="9" fill="#5C3D1E" font-family="Trebuchet MS">Casa de Rosa</text>
-  <!-- Path to door -->
-  <rect x="307" y="160" width="28" height="3" fill="#BDC3C7"/>
+  <ellipse cx="250" cy="50" rx="30" ry="14" fill="white" opacity="0.7"/>
+  <!-- Distant mountains -->
+  <polygon points="0,140 60,80 120,140" fill="#6B8F71" opacity="0.4"/>
+  <polygon points="80,140 160,60 240,140" fill="#5A7D62" opacity="0.35"/>
+  <polygon points="200,140 300,70 400,140" fill="#6B8F71" opacity="0.4"/>
+  <!-- Trees (background) -->
+  <circle cx="50" cy="120" r="22" fill="#4A7C59" opacity="0.7"/>
+  <rect x="47" y="120" width="6" height="20" fill="#7D5A3C" opacity="0.7"/>
+  <circle cx="350" cy="115" r="26" fill="#4A7C59" opacity="0.6"/>
+  <rect x="347" y="115" width="6" height="25" fill="#7D5A3C" opacity="0.6"/>
+  <circle cx="180" cy="125" r="18" fill="#5A8F5A" opacity="0.5"/>
+  <rect x="177" y="125" width="6" height="15" fill="#7D5A3C" opacity="0.5"/>
+  <!-- Ground -->
+  <rect y="140" width="400" height="80" fill="#A8C686"/>
+  <!-- Path/sidewalk -->
+  <rect y="170" width="400" height="28" rx="4" fill="#C8BFB0" opacity="0.7"/>
+  <rect y="170" width="400" height="5" fill="#B5AC9E" opacity="0.4"/>
   <!-- Ground details -->
-  <circle cx="155" cy="168" r="3" fill="#7A6E60"/>
-  <circle cx="165" cy="170" r="2" fill="#7A6E60"/>
-  <circle cx="240" cy="167" r="2.5" fill="#7A6E60"/>
+  <circle cx="30" cy="155" r="3" fill="#8FB86A" opacity="0.5"/>
+  <circle cx="100" cy="160" r="2" fill="#8FB86A" opacity="0.5"/>
+  <circle cx="280" cy="152" r="2.5" fill="#8FB86A" opacity="0.5"/>
+  <circle cx="370" cy="158" r="2" fill="#8FB86A" opacity="0.5"/>
+  <!-- Small flowers -->
+  <circle cx="70" cy="150" r="3" fill="#E74C3C" opacity="0.6"/>
+  <circle cx="310" cy="148" r="3" fill="#F39C12" opacity="0.6"/>
+  <circle cx="150" cy="155" r="2.5" fill="#9B59B6" opacity="0.5"/>
 </svg>`;
 
 /** Your home interior — cozy, warm, wooden floor */
