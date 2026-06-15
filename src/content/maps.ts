@@ -61,7 +61,7 @@ export const HOME: GameMap = {
       targetMapId: "street",
       targetX: 100,
       unlockedBy: [],
-      label: "Go outside",
+      label: "← Leave",
     },
     {
       id: "flower",
