@@ -1,30 +1,26 @@
 # Lingua Valley
 
-A Stardew Valley–inspired RPG where **you don't level up by grinding XP — you level up by learning Spanish.**
+A tiny farming game where **you grow crops by learning Spanish.**
 
-The world is divided into areas, each tied to a CEFR proficiency level (A1, A2, …).
-You can physically walk anywhere, but the areas are guarded by a **soft gate**: if
-you wander into a zone above your level, the NPCs literally speak over your head.
-Their dialogue is *garbled in proportion to how little you understand*, and you
-can't act on quests you can't comprehend. The only way forward is to stay in your
-current area, play its learning challenges, and master the skills the next zone
-demands.
+You live in a house with a field out back. To grow a crop, you talk to your
+neighbours in Spanish — the conversations *are* the game. The farm gives them a
+daily rhythm and a goal: earn money, buy a train ticket, move to the next town.
 
-## The core loop
+## The farming loop
 
-1. **Explore** an area (arrow keys / WASD).
-2. **Talk** to NPCs (walk close, press SPACE). Each NPC speaks at their area's level.
-3. **Learn** — NPCs offer learning challenges:
-   - **Voiced conversation gate** (Rosa, the greetings NPC): she *speaks* to you
-     (OpenAI TTS), you reply *by voice* (hold SPACE), Whisper transcribes it, and
-     GPT-4o — playing both the NPC and a CEFR examiner — grades whether you actually
-     communicated at the target level. Only a genuine spoken exchange opens the gate.
-   - **Multiple-choice vocab quiz** (other NPCs): the lighter fallback challenge.
-4. **Progress** — once you master *every* objective of your level, your effective
-   level rises, and the next area's speech becomes clear enough to act on.
+1. **Get seeds** from **Don Semilla** (seed farm) — an intro conversation that
+   sets this week's lesson and plants one crop.
+2. **Water daily** with **Aguamarina** (water tower) — each day's practice
+   conversation grows your crop **+1 unit**, gated to once per day.
+3. **Sell the harvest** to **Doña Tienda** (store) after ~5 days — a review
+   conversation that pays out **money**.
+4. **Buy a train ticket** at the station to reach the next town.
 
-There is no health, no XP bar, no character level. Your "level" is simply the
-highest CEFR tier whose objectives you've fully mastered.
+You can practice as much as you like, but rewards (money, growth) come **once
+per day** — regular short sessions beat cramming, just like real language
+learning.
+
+See **`docs/DESIGN.md`** for the full design.
 
 ## AI voice & conversation (Whisper + GPT-4o + TTS)
 
@@ -33,61 +29,54 @@ in `/api` so the API key never reaches the browser:
 
 | Endpoint | Purpose | Model |
 |----------|---------|-------|
-| `POST /api/transcribe` | Speech → text (player's spoken Spanish) | `whisper-1` |
-| `POST /api/converse`   | NPC reply + CEFR grading (structured JSON) | `gpt-4o` |
-| `POST /api/speak`      | Text → speech (NPC voices) | `gpt-4o-mini-tts` |
+| `POST /api/transcribe`        | Speech → text (player's spoken Spanish) | `whisper-1` |
+| `POST /api/clean-transcription` | Fix STT artifacts before grading | `gpt-4o` |
+| `POST /api/converse`          | NPC reply + grading (structured JSON) | `gpt-4o` |
+| `POST /api/speak`             | Text → speech (NPC voices) | `gpt-4o-mini-tts` |
+| `POST /api/activity-complete` | Server-authoritative money grant | — |
 
-The wire contract lives in `src/domain/conversation.ts` and is shared by both the
-client and the functions. The gate only opens when the model says the objective is
-met *and* the latest utterance clears the `gateShouldOpen` thresholds
-(`src/domain/conversation.ts`) — covered by unit tests.
+The wire contract lives in `src/domain/conversation.ts`, shared by the client and
+the functions. The conversation counts as passed when the model says the objective
+is met *and* the latest grade clears the `gateShouldOpen` thresholds — covered by
+unit tests.
 
-If the backend is unreachable or the mic is unavailable, the conversation scene
-degrades gracefully (shows a message; you can leave with ESC).
-
-## The vertical slice
-
-- **Plaza del Saludo (A1)** — greetings, introductions, numbers 1–10, courtesy.
-- **El Mercado (A2)** — market quantities, food vocab, bargaining.
-
-Walk through the archway on the right into the Mercado before finishing A1 and
-you'll see the soft gate in action: the vendor's speech is mostly `····` noise.
+If the backend is unreachable or the mic is unavailable, the conversation overlay
+degrades gracefully (shows a message; you can leave).
 
 ## Architecture (domain-first)
 
-Language-learning logic is kept **pure and testable**, separate from Phaser:
+Pure HTML/CSS/DOM — no game engine, no canvas. Game logic is kept **pure and
+testable**, separate from rendering:
 
 ```
 api/                 ← serverless functions (run on Vercel; keys server-side)
-  transcribe.ts      ← Whisper STT
-  converse.ts        ← GPT-4o NPC reply + CEFR grading
-  speak.ts           ← OpenAI TTS
-  _lib/openai.ts     ← shared client + model config
+  transcribe.ts          ← Whisper STT
+  clean-transcription.ts ← STT cleanup pass
+  converse.ts            ← GPT-4o NPC reply + grading
+  speak.ts               ← OpenAI TTS
+  activity-complete.ts   ← authoritative money grant (runs applyActivity)
+  _lib/                  ← shared OpenAI + Supabase-admin clients
 src/
-  domain/            ← pure logic, no Phaser (unit-tested)
-    cefr.ts          ← CEFR levels + learning objective types
-    proficiency.ts   ← what the player has mastered; computes effective level
-    comprehension.ts ← the soft-gate model: clarity + dialogue garbling
-    conversation.ts  ← wire contract + gate thresholds for voiced conversation
+  domain/            ← pure logic, no framework (unit-tested)
+    field.ts         ← field/slots/crops/growth/harvest
+    inventory.ts     ← items the player holds (train tickets)
+    economy.ts       ← grade → money
+    dailyLoop.ts     ← 12h day + per-role reward gate
+    player.ts        ← PlayerState + applyActivity reducer
+    objective.ts     ← code-driven conversations
+    objectives/      ← SeedsIntro / WaterPractice / StoreReview (+ Lesson)
+    conversation.ts  ← wire contract + gate thresholds
+    gameMap.ts       ← room/card model for the navigator
   content/
-    curriculum.ts    ← A1/A2 objectives + vocab
-    world.ts         ← areas, NPCs, level-tagged dialogue, voices
-  game/
-    state.ts         ← bridges domain ↔ Phaser, persists to localStorage
-    voice.ts         ← mic capture + audio playback
-    api.ts           ← client wrapper for the /api endpoints
-  scenes/            ← Phaser rendering layer
-    WorldScene       ← map, movement, NPC proximity/interaction
-    DialogueScene    ← renders dialogue through the comprehension model
-    ConversationScene← voiced conversation gate (Whisper + GPT-4o + TTS)
-    MinigameScene    ← the vocab quiz that masters objectives
-    HudScene         ← proficiency tracker + over-level warnings
+    lessons.ts       ← per-area Lesson content
+    world.ts         ← areas, NPCs, ticket prices, voices
+    maps.ts          ← the Barrio room (NPC cards)
+  app/               ← GameController, PlayerService, ConversationSession
+  ui/html/           ← DOM views (world, conversation, dialogue, auth)
+  game/              ← voice capture + audio playback + API client
+  net/               ← adapters (Supabase, HTTP, local, fakes)
   main.ts
 ```
-
-The comprehension/soft-gate rules live in `src/domain/comprehension.ts` and the
-voiced-gate thresholds in `src/domain/conversation.ts`; both are covered by tests
-in `src/domain/__tests__/`.
 
 ## Run it
 
@@ -145,34 +134,31 @@ that's the only place that changes.
 npm run dev    then open  http://localhost:5173/?dev=fakes
 ```
 
-A **dev harness** (`DevScene`) appears bottom-left with shortcuts:
-- `G` — spawn a wandering ghost player (tests remote avatars with no network)
-- `N` — advance the clock one day (tests Focus regen + SRS card maturation)
-- `P` / `F` — set the next conversation grade to PASS / FAIL
-- live readout of pesos, focus, skills, mastery
-
-You can also force a profile with `VITE_ADAPTER_PROFILE=local-fakes`.
+You can also force a profile with `VITE_ADAPTER_PROFILE=local-fakes`. The
+`FakeClock` is advanceable, so tests fast-forward days to exercise crop growth
+and the daily reward gate.
 
 ### Gameplay tests
 
 `src/app/__tests__/scenarios.test.ts` drives whole sessions against the fakes:
-single graded turn → rewards; multi-day practice → objective mastery; Focus
-budget exhaustion + next-day refill; presence join/move/leave + ghosts; auth
-guest→account. All deterministic, zero framework mocks.
+a graded turn → money; a week of watering → a harvest-ready crop; the daily gate
+blocking a second same-day reward and resetting after the cooldown; presence
+join/move/leave; auth; reward-grant resilience. All deterministic, zero
+framework mocks.
 
 ## Extending
 
-- **New objectives/vocab:** add to `src/content/curriculum.ts`.
-- **New areas/NPCs/dialogue:** add to `src/content/world.ts` (tag lines with a CEFR level).
-- **New mini-game types:** add a scene like `MinigameScene` and launch it from `DialogueScene`.
-- **Tune the gate difficulty:** edit `clarityFor` / `ACTIONABLE_THRESHOLD` in `comprehension.ts`.
-- **Tune the economy:** edit pure functions in `src/domain/economy.ts` / `srs.ts` (covered by tests).
+- **New lesson content:** add a `Lesson` to `src/content/lessons.ts`.
+- **New areas/NPCs:** add the area (+ ticket price + `nextAreaId`) and its three
+  NPCs to `src/content/world.ts`, and the room to `src/content/maps.ts`.
+- **Tune growth:** edit `MAX_GROWTH` in `src/domain/field.ts` (covered by tests).
+- **Tune the economy:** edit pure functions in `src/domain/economy.ts`.
 - **Add a real service:** implement the relevant port (`PlayerStateRepository`,
   `PresenceGateway`, etc.) in `src/net/`, then wire it in `makeAdapters("cloud")`.
-  Nothing else changes — the domain and scenes are untouched.
+  Nothing else changes — the domain and UI are untouched.
 
-See `docs/DESIGN.md` for the economy, schema, and architecture, and `AGENTS.md`
-for the ports-and-adapters laws.
+See `docs/DESIGN.md` for the full design and `AGENTS.md` for the
+ports-and-adapters laws.
 
 Guest progress is saved to `localStorage`; signed-in progress will sync to
 Supabase (cloud profile) once configured.

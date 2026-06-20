@@ -15,6 +15,8 @@
  * PURE DOMAIN: pure domain, no framework imports. Fully testable.
  */
 
+import type { DailyRole } from "./dailyLoop.js";
+
 /** The completion record for one objective in one daily cycle. */
 export interface ObjectiveCompletion {
   completedAt: string; // ISO timestamp
@@ -38,14 +40,14 @@ export interface ObjectiveContext {
  * interface for each type of interaction (greeting, story, retelling, etc.).
  */
 export interface Objective {
-  /** Unique id (e.g. "rosa-greeting", "marisol-story", "pablo-retelling"). */
+  /** Unique id (e.g. "seeds-intro", "water-practice", "store-review"). */
   readonly id: string;
   /** The NPC this objective is tied to. */
   readonly npcId: string;
+  /** Which daily-loop role this objective fulfills (gates reward + growth). */
+  readonly role: DailyRole;
   /** Ids of objectives that must complete before this one activates. */
   readonly dependsOn: string[];
-  /** Pesos awarded on first daily completion. */
-  readonly reward: number;
 
   /**
    * Build the LLM conversation theme/instructions for this objective.

@@ -47,12 +47,14 @@ See `docs/DESIGN.md` for the full design.
 
 | Concern | Location |
 |---------|----------|
-| Objectives, economy, daily loop, map rules | `src/domain/` |
-| Map/NPC/curriculum data | `src/content/` |
-| App orchestration (GameController, PlayerService) | `src/app/` |
+| Field/crops, inventory, economy, daily loop, objectives, map rules | `src/domain/` |
+| Area/NPC/map data + lessons | `src/content/` |
+| App orchestration (GameController, PlayerService, ConversationSession) | `src/app/` |
 | Room views, conversation/dialogue overlays | `src/ui/html/` |
 | Voice capture, audio playback, API client | `src/game/` |
-| Serverless functions (converse, transcribe, TTS) | `api/` |
+| Serverless functions (converse, transcribe, TTS, activity-complete) | `api/` |
+
+See `docs/DESIGN.md` for the farming loop (seeds → water → store → ticket).
 
 ### Adding a Feature
 

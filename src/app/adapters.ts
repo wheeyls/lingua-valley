@@ -15,7 +15,6 @@ import type {
   PresenceGateway,
   AuthGateway,
 } from "../domain/ports";
-import { objectiveWordIds } from "../content/curriculum";
 
 import { LocalPlayerRepository } from "../net/LocalPlayerRepository";
 import { LocalRewardGrader } from "../net/LocalRewardGrader";
@@ -65,7 +64,7 @@ export function makeAdapters(profile: AdapterProfile): Adapters {
       const bus = new PresenceBus();
       const presence = new FakePresenceGateway(bus);
       const auth = new FakeAuthGateway(getOrCreateGuestIdSafe());
-      const rewardGrader = new LocalRewardGrader(repo, clock, objectiveWordIds);
+      const rewardGrader = new LocalRewardGrader(repo, clock);
       return {
         profile,
         clock,
@@ -82,7 +81,7 @@ export function makeAdapters(profile: AdapterProfile): Adapters {
       // Local persistence + REAL LLM grading, but no multiplayer/cloud yet.
       const clock = systemClock;
       const repo = new LocalPlayerRepository(getOrCreateGuestIdSafe());
-      const rewardGrader = new LocalRewardGrader(repo, clock, objectiveWordIds);
+      const rewardGrader = new LocalRewardGrader(repo, clock);
       return {
         profile,
         clock,
@@ -100,7 +99,7 @@ export function makeAdapters(profile: AdapterProfile): Adapters {
       // actually configured, this is just the guest path.
       const clock = systemClock;
       const repo = new LocalPlayerRepository(getOrCreateGuestIdSafe());
-      const rewardGrader = new LocalRewardGrader(repo, clock, objectiveWordIds);
+      const rewardGrader = new LocalRewardGrader(repo, clock);
       return {
         profile,
         clock,
@@ -156,7 +155,7 @@ export async function resolveCloudAdapters(): Promise<Adapters> {
     profile: "cloud",
     clock,
     repo,
-    rewardGrader: new LocalRewardGrader(repo, clock, objectiveWordIds),
+    rewardGrader: new LocalRewardGrader(repo, clock),
     conversationGrader,
     presence: new NoopPresenceGateway(),
     auth,

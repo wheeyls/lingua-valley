@@ -3,11 +3,8 @@ import {
   INITIAL_DAILY_STATE,
   isNewDay,
   startNewDay,
-  currentStep,
-  completeStep,
-  isDayDone,
-  setTodayStory,
-  stepEarnsReward,
+  roleEarnsReward,
+  claimRole,
   hoursUntilNextDay,
   DAY_COOLDOWN_MS,
 } from "../dailyLoop";
@@ -15,26 +12,11 @@ import {
 const NOW = new Date("2025-06-01T12:00:00Z");
 
 describe("daily loop", () => {
-  it("starts as a new day with rosa as the first step", () => {
+  it("starts as a new day with no roles claimed", () => {
     expect(isNewDay(INITIAL_DAILY_STATE, NOW)).toBe(true);
     const day = startNewDay(NOW);
-    expect(currentStep(day)).toBe("rosa");
-    expect(isDayDone(day)).toBe(false);
-  });
-
-  it("progresses through rosa → marisol → pablo, then day is done", () => {
-    let s = startNewDay(NOW);
-    expect(currentStep(s)).toBe("rosa");
-
-    s = completeStep(s, "rosa");
-    expect(currentStep(s)).toBe("marisol");
-
-    s = completeStep(s, "marisol");
-    expect(currentStep(s)).toBe("pablo");
-
-    s = completeStep(s, "pablo");
-    expect(isDayDone(s)).toBe(true);
-    expect(currentStep(s)).toBeNull();
+    expect(day.rewardedRoles).toEqual([]);
+    expect(roleEarnsReward(day, "water")).toBe(true);
   });
 
   it("is not a new day until 12 hours have passed", () => {
@@ -46,24 +28,26 @@ describe("daily loop", () => {
     expect(isNewDay(s, twelveHoursLater)).toBe(true);
   });
 
-  it("duplicate step completion is idempotent", () => {
+  it("tracks rewards per role: first claim earns, replay doesn't", () => {
     let s = startNewDay(NOW);
-    s = completeStep(s, "rosa");
-    const again = completeStep(s, "rosa");
-    expect(again.completedSteps).toEqual(["rosa"]);
+    expect(roleEarnsReward(s, "water")).toBe(true);
+    s = claimRole(s, "water", NOW);
+    expect(roleEarnsReward(s, "water")).toBe(false); // replay
+    // other roles still available
+    expect(roleEarnsReward(s, "seeds")).toBe(true);
+    expect(roleEarnsReward(s, "store")).toBe(true);
   });
 
-  it("tracks rewards: first completion earns, replay doesn't", () => {
+  it("claiming a role is idempotent", () => {
     let s = startNewDay(NOW);
-    expect(stepEarnsReward(s, "rosa")).toBe(true);
-    s = completeStep(s, "rosa");
-    expect(stepEarnsReward(s, "rosa")).toBe(false); // replay
+    s = claimRole(s, "water", NOW);
+    const again = claimRole(s, "water", NOW);
+    expect(again.rewardedRoles).toEqual(["water"]);
   });
 
-  it("stores and retrieves today's story", () => {
-    let s = startNewDay(NOW);
-    s = setTodayStory(s, "Ayer fui al mercado.");
-    expect(s.todayStory).toBe("Ayer fui al mercado.");
+  it("first claim from a blank day stamps dayStartedAt", () => {
+    const s = claimRole(INITIAL_DAILY_STATE, "seeds", NOW);
+    expect(s.dayStartedAt).toBe(NOW.toISOString());
   });
 
   it("reports hours until next day", () => {

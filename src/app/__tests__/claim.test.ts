@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import { ClaimService, type GuestSource } from "../ClaimService";
 import { InMemoryPlayerRepository } from "../../net/fakes/InMemoryPlayerRepository";
 import { initialPlayerState, type PlayerState } from "../../domain/player";
+import { plantSeed } from "../../domain/field";
+import { add as addItem, ticketId, hasTicketTo } from "../../domain/inventory";
 
 function guestWith(state: PlayerState | null): GuestSource & { cleared: boolean } {
   return {
@@ -21,51 +23,55 @@ describe("ClaimService", () => {
     const svc = new ClaimService(account);
 
     const guestState: PlayerState = {
-      ...initialPlayerState("Guest", 1, "2025-06-01"),
-      pesos: 120,
-      skills: { speaking: 200, listening: 50, vocab: 30 },
-      masteredObjectiveIds: ["a1.greetings"],
+      ...initialPlayerState("Guest", 1),
+      money: 120,
+      inventory: addItem({}, ticketId("mercado")),
     };
     const guest = guestWith(guestState);
 
     const merged = await svc.claim(guest);
 
-    expect(merged.pesos).toBe(120);
-    expect(merged.masteredObjectiveIds).toContain("a1.greetings");
+    expect(merged.money).toBe(120);
+    expect(hasTicketTo(merged.inventory, "mercado")).toBe(true);
     expect(guest.cleared).toBe(true);
-    // Persisted to the account repo.
-    expect((await account.load())!.pesos).toBe(120);
+    expect((await account.load())!.money).toBe(120);
   });
 
-  it("sums pesos and unions mastery when the account already has progress", async () => {
+  it("sums money and keeps the more-grown field when the account has progress", async () => {
+    let accountField = initialPlayerState().field;
+    accountField = plantSeed(accountField, "g", "2025-06-01");
+    accountField.slots[0]!.growth = 1;
     const account = new InMemoryPlayerRepository({
-      ...initialPlayerState("Acct", 1, "2025-06-01"),
-      pesos: 50,
-      masteredObjectiveIds: ["a1.numbers"],
+      ...initialPlayerState("Acct", 1),
+      money: 50,
+      field: accountField,
     });
     const svc = new ClaimService(account);
 
+    let guestField = initialPlayerState().field;
+    guestField = plantSeed(guestField, "g", "2025-06-01");
+    guestField.slots[0]!.growth = 4;
     const guest = guestWith({
-      ...initialPlayerState("Guest", 2, "2025-06-01"),
-      pesos: 30,
-      masteredObjectiveIds: ["a1.greetings"],
+      ...initialPlayerState("Guest", 2),
+      money: 30,
+      field: guestField,
     });
 
     const merged = await svc.claim(guest);
-    expect(merged.pesos).toBe(80);
-    expect(merged.masteredObjectiveIds.sort()).toEqual(["a1.greetings", "a1.numbers"]);
+    expect(merged.money).toBe(80);
+    expect(merged.field.slots[0]!.growth).toBe(4); // guest more grown
   });
 
   it("no-ops gracefully when there is no guest progress", async () => {
     const account = new InMemoryPlayerRepository({
-      ...initialPlayerState("Acct", 1, "2025-06-01"),
-      pesos: 42,
+      ...initialPlayerState("Acct", 1),
+      money: 42,
     });
     const svc = new ClaimService(account);
     const guest = guestWith(null);
 
     const result = await svc.claim(guest);
-    expect(result.pesos).toBe(42);
+    expect(result.money).toBe(42);
     expect(guest.cleared).toBe(false);
   });
 });

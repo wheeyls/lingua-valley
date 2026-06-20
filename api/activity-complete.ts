@@ -1,14 +1,11 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getAdminClient, userIdFromAuthHeader } from "./_lib/supabaseAdmin.js";
 import { applyActivity, initialPlayerState, type ActivityResult } from "../src/domain/player.js";
-import { objectiveWordIds } from "../src/content/curriculum.js";
 import {
   rowsToPlayerState,
   playerStateToRow,
-  cardsToRows,
   type ProfileRow,
   type PlayerStateRow,
-  type VocabCardRow,
 } from "../src/net/supabaseMappers.js";
 
 export const config = { api: { bodyParser: { sizeLimit: "1mb" } } };
@@ -38,28 +35,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!activity?.objectiveId) return res.status(400).json({ error: "Missing activity" });
 
     // Load current authoritative state.
-    const [profile, state, cards] = await Promise.all([
+    const [profile, state] = await Promise.all([
       admin.from("profiles").select("id,display_name,avatar_color").eq("id", userId).maybeSingle(),
       admin.from("player_state").select("*").eq("user_id", userId).maybeSingle(),
-      admin.from("vocab_cards").select("*").eq("user_id", userId),
     ]);
 
     const prev = state.data
       ? rowsToPlayerState(
           (profile.data as ProfileRow) ?? null,
           state.data as PlayerStateRow,
-          (cards.data as VocabCardRow[]) ?? [],
         )
       : initialPlayerState();
 
     // THE authoritative economy step — identical domain logic to the client.
-    const result = applyActivity(prev, activity, new Date(), objectiveWordIds);
+    const result = applyActivity(prev, activity, new Date());
     const next = result.state;
 
-    // Persist new scalar state + affected cards.
+    // Persist new state.
     await admin.from("player_state").upsert(playerStateToRow(userId, next));
-    const cardRows = cardsToRows(userId, next);
-    if (cardRows.length > 0) await admin.from("vocab_cards").upsert(cardRows);
 
     // Audit log (also powers leaderboards later).
     await admin.from("activity_log").insert({
@@ -69,8 +62,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       level: activity.level,
       communication: activity.communication,
       accuracy: activity.accuracy,
-      quality: result.reward?.quality ?? null,
-      pesos_awarded: result.reward?.pesos ?? 0,
+      quality: result.reward.quality,
+      money_awarded: result.earnedReward ? result.reward.money : 0,
     });
 
     return res.status(200).json(result);

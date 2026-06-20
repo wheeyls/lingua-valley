@@ -18,12 +18,24 @@ export interface WorldViewCallbacks {
   onItemTap: (item: MapItem) => void;
 }
 
+/** A live, state-driven card injected by the controller (field, station, …). */
+export interface ExtraCard {
+  id: string;
+  icon: string;
+  label: string;
+  hint: string;
+  onTap: () => void;
+}
+
 export class HtmlWorldView {
   private root: HTMLDivElement;
   private barEl: HTMLDivElement;
   private bodyEl: HTMLDivElement;
   private callbacks: WorldViewCallbacks;
   private currentMap!: GameMap;
+  private extraCards: ExtraCard[] = [];
+  private lastObjState: ObjectiveState = {};
+  private lastCompleted: Set<string> = new Set();
 
   constructor(callbacks: WorldViewCallbacks) {
     this.callbacks = callbacks;
@@ -44,16 +56,28 @@ export class HtmlWorldView {
 
   loadMap(map: GameMap, objState: ObjectiveState, completedNpcIds: Set<string> = new Set()) {
     this.currentMap = map;
+    this.lastObjState = objState;
+    this.lastCompleted = completedNpcIds;
     this.renderRoom(map, objState, completedNpcIds);
   }
 
   refresh(objState: ObjectiveState, completedNpcIds: Set<string> = new Set()) {
+    this.lastObjState = objState;
+    this.lastCompleted = completedNpcIds;
     this.renderRoom(this.currentMap, objState, completedNpcIds);
   }
 
-  updateHud(pesos: number) {
+  /** Set the live, controller-driven cards (field, station) and re-render. */
+  setExtraCards(cards: ExtraCard[]) {
+    this.extraCards = cards;
+    if (this.currentMap) {
+      this.renderRoom(this.currentMap, this.lastObjState, this.lastCompleted);
+    }
+  }
+
+  updateHud(money: number) {
     const info = this.barEl.querySelector(".hud-info");
-    if (info) info.textContent = `💰 ${pesos}`;
+    if (info) info.textContent = `💰 ${money}`;
   }
 
   /** Show the current user email + logout button in the HUD bar. */
@@ -189,6 +213,22 @@ export class HtmlWorldView {
       card.addEventListener("pointerdown", (e) => {
         e.stopPropagation();
         this.callbacks.onItemTap(item);
+      });
+      this.bodyEl.appendChild(card);
+    }
+
+    // Live, controller-driven cards (field, station).
+    for (const extra of this.extraCards) {
+      const card = document.createElement("div");
+      card.className = "card card-item";
+      card.innerHTML = `
+        <div class="card-icon-text">${extra.icon}</div>
+        <div class="card-label">${extra.label}</div>
+        <div class="card-hint">${extra.hint}</div>
+      `;
+      card.addEventListener("pointerdown", (e) => {
+        e.stopPropagation();
+        extra.onTap();
       });
       this.bodyEl.appendChild(card);
     }
