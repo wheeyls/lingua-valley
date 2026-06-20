@@ -32,7 +32,7 @@ function withCrop(): PlayerState {
 }
 
 describe("applyActivity — money", () => {
-  it("awards money on the first reward-bearing completion of a role", () => {
+  it("awards money on the first completion of an objective", () => {
     const s0 = withCrop();
     const { state, reward, earnedReward } = applyActivity(s0, activity(), NOW);
     expect(reward.money).toBeGreaterThan(0);
@@ -40,7 +40,7 @@ describe("applyActivity — money", () => {
     expect(state.money).toBe(reward.money);
   });
 
-  it("does not pay twice for the same role on the same day", () => {
+  it("does not pay twice for the same objective on the same day", () => {
     let s = withCrop();
     const first = applyActivity(s, activity(), NOW);
     s = first.state;
@@ -49,15 +49,24 @@ describe("applyActivity — money", () => {
     expect(second.state.money).toBe(first.state.money); // unchanged
   });
 
-  it("pays each role independently", () => {
+  it("pays each objective independently — even two sharing the water role", () => {
     let s = withCrop();
-    s = applyActivity(s, activity({ role: "water" }), NOW).state;
-    const seeds = applyActivity(s, activity({ role: "seeds" }), NOW);
-    expect(seeds.earnedReward).toBe(true);
-    expect(seeds.state.money).toBeGreaterThan(s.money);
+    s = applyActivity(
+      s,
+      activity({ objectiveId: "story-telling", role: "water" }),
+      NOW,
+    ).state;
+    const moneyAfterStory = s.money;
+    const retell = applyActivity(
+      s,
+      activity({ objectiveId: "story-retell", role: "water" }),
+      NOW,
+    );
+    expect(retell.earnedReward).toBe(true);
+    expect(retell.state.money).toBeGreaterThan(moneyAfterStory);
   });
 
-  it("low-quality conversation earns the gate but no money", () => {
+  it("low-quality conversation claims the objective but pays no money", () => {
     const s0 = withCrop();
     const res = applyActivity(s0, activity({ communication: 0.3, accuracy: 0.3 }), NOW);
     expect(res.reward.money).toBe(0);
@@ -86,6 +95,24 @@ describe("applyActivity — growth", () => {
     const res = applyActivity(s, activity({ role: "seeds" }), NOW);
     expect(res.grown).toBe(0);
     expect(res.state.field.slots[0]!.growth).toBe(0);
+  });
+
+  it("two water objectives in a day still only grow the field once", () => {
+    let s = withCrop();
+    const story = applyActivity(
+      s,
+      activity({ objectiveId: "story-telling", role: "water" }),
+      NOW,
+    );
+    expect(story.grown).toBe(1);
+    s = story.state;
+    const retell = applyActivity(
+      s,
+      activity({ objectiveId: "story-retell", role: "water" }),
+      NOW,
+    );
+    expect(retell.grown).toBe(0); // growth gated once/day per role
+    expect(retell.state.field.slots[0]!.growth).toBe(1);
   });
 });
 
@@ -141,6 +168,7 @@ describe("settleDailyState (daily reset on load)", () => {
       daily: {
         dayStartedAt: NOW.toISOString(),
         rewardedRoles: ["water", "seeds"],
+        rewardedObjectives: ["story-telling"],
         objectiveState: {},
       },
     };
@@ -156,6 +184,7 @@ describe("settleDailyState (daily reset on load)", () => {
       daily: {
         dayStartedAt: NOW.toISOString(),
         rewardedRoles: ["water"],
+        rewardedObjectives: [],
         objectiveState: {},
       },
     };

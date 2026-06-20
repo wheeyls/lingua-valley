@@ -8,7 +8,8 @@
  * No game rules live here — those are in the domain. This is wiring + caching.
  */
 
-import type { PlayerStateRepository, RewardGrader } from "../domain/ports";
+import type { PlayerStateRepository, RewardGrader, Clock } from "../domain/ports";
+import { systemClock } from "../domain/ports";
 import {
   initialPlayerState,
   settleDailyState,
@@ -27,6 +28,7 @@ export class PlayerService {
   constructor(
     private readonly repo: PlayerStateRepository,
     private readonly grader: RewardGrader,
+    private readonly clock: Clock = systemClock,
   ) {}
 
   /** Load persisted state (or initialize a fresh one) and notify. */
@@ -42,7 +44,7 @@ export class PlayerService {
     // daily activity counter on a new day) the moment we load.
     this.state = settleDailyState(
       loaded ?? initialPlayerState(),
-      new Date(),
+      this.clock.now(),
     );
     // Persist if brand-new OR if settling changed anything (e.g. decay applied).
     if (!loaded || this.state !== (loaded ?? null)) {
@@ -90,12 +92,20 @@ export class PlayerService {
    * continues. The server stays the source of truth when it's reachable.
    */
   async completeActivity(activity: ActivityResult): Promise<ApplyResult> {
+    // Roll over to a new day if the cooldown elapsed since the last activity, so
+    // the daily reward/growth gate resets mid-session (not only on reload).
+    const settled = settleDailyState(this.state, this.clock.now());
+    if (settled !== this.state) {
+      this.state = settled;
+      await this.repo.save(this.state).catch(() => {});
+    }
+
     let result: ApplyResult;
     try {
       result = await this.grader.grant(activity);
     } catch (err) {
       console.error("[PlayerService] reward grant failed; applying locally.", err);
-      result = applyActivity(this.state, activity, new Date());
+      result = applyActivity(this.state, activity, this.clock.now());
       // Best-effort local persist (also non-fatal).
       this.repo.save(result.state).catch(() => {});
     }

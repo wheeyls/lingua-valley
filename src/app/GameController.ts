@@ -16,10 +16,10 @@ import { HtmlWorldView } from "../ui/html/HtmlWorldView";
 import { HtmlDialogueView, type DialogueViewData } from "../ui/html/HtmlDialogueView";
 import { HtmlConversationView } from "../ui/html/HtmlConversationView";
 import { blockCanvas, unblockCanvas } from "../ui/html/canvasBlock";
-import { getMap } from "../content/maps";
+import { getMap, HUB_MAP_ID } from "../content/maps";
 import { findNpc, CURRENT_AREA, type Npc } from "../content/world";
 import { CURRENT_LESSON } from "../content/lessons";
-import type { MapNpc } from "../domain/gameMap";
+import type { MapNpc, MapDoor } from "../domain/gameMap";
 import { buildDailyGraph } from "../domain/objectives/daily";
 import type { ObjectiveGraph } from "../domain/objective";
 import {
@@ -45,6 +45,8 @@ export class GameController {
   private worldView!: HtmlWorldView;
   private objectives: ObjectiveGraph;
   private recorder = new MicRecorder();
+  /** Which map is on screen: the hub, or a location room. */
+  private currentMapId = HUB_MAP_ID;
 
   constructor(
     private readonly player: PlayerService,
@@ -56,7 +58,7 @@ export class GameController {
   start() {
     this.worldView = new HtmlWorldView({
       onNpcTap: (npc) => this.onNpcTap(npc),
-      onDoorTap: () => {},
+      onDoorTap: (door) => this.onDoorTap(door),
       onItemTap: () => {},
     });
 
@@ -84,15 +86,16 @@ export class GameController {
         .map((obj) => obj.npcId),
     );
 
-    const map = getMap("barrio")!;
+    const map = getMap(this.currentMapId) ?? getMap(HUB_MAP_ID)!;
     this.worldView.loadMap(map, objState, completedNpcIds);
     this.worldView.updateHud(state.money);
 
-    // Inject the live field + station cards (they depend on player state).
-    this.worldView.setExtraCards([
-      this.fieldCard(),
-      this.stationCard(),
-    ]);
+    // The live field + station cards only live on the hub.
+    this.worldView.setExtraCards(
+      this.currentMapId === HUB_MAP_ID
+        ? [this.fieldCard(), this.stationCard()]
+        : [],
+    );
 
     const now = new Date();
     const hours = hoursUntilNextDay(state.daily, now);
@@ -103,6 +106,13 @@ export class GameController {
       allDone: allClaimed,
       hoursUntilReset: hours,
     });
+  }
+
+  // --- Navigation -----------------------------------------------------------
+
+  private onDoorTap(door: MapDoor) {
+    this.currentMapId = door.targetMapId;
+    this.render();
   }
 
   private fieldCard() {
@@ -167,11 +177,11 @@ export class GameController {
       return;
     }
     if (!crop) {
-      this.toast("Visit Don Semilla at the seed farm to get seeds to plant.");
+      this.toast("Visit the seed farm to get seeds to plant.");
       return;
     }
     this.toast(
-      `Your crop is growing (${crop.growth}/${MAX_GROWTH}). Practice with Aguamarina each day to water it.`,
+      `Your crop is growing (${crop.growth}/${MAX_GROWTH}). Do your daily practice at La Plaza to water it.`,
     );
   }
 
@@ -296,9 +306,12 @@ export class GameController {
         this.recorder.release();
         view.destroy();
         unblockCanvas();
-        void this.completeObjective(npc, session);
+        void this.completeObjective(npc, session, grewThisConversation);
       },
     });
+
+    // Track whether the field grew at any point during this conversation.
+    let grewThisConversation = false;
 
     view.setHeader(npc.name, "", lesson.canDo);
 
@@ -354,6 +367,7 @@ export class GameController {
             outcome.applied.earnedReward && outcome.applied.reward.money > 0
               ? `+${outcome.applied.reward.money} 💰`
               : "";
+          if (outcome.applied.grown > 0) grewThisConversation = true;
           const grew = outcome.applied.grown > 0 ? "💧 Your crop grew!" : "";
           view.setFeedback(outcome.grade.feedback, corr, [earned, grew].filter(Boolean).join("  "));
 
@@ -401,7 +415,11 @@ export class GameController {
    * Record that the player completed an NPC's conversation today, then apply the
    * role's side effect on the field/inventory (plant on seeds, sell on store).
    */
-  private async completeObjective(npc: Npc, session: ConversationSession) {
+  private async completeObjective(
+    npc: Npc,
+    session: ConversationSession,
+    grew: boolean,
+  ) {
     const objective = this.objectives.forNpc(npc.id);
     if (!objective) {
       this.render();
@@ -448,7 +466,7 @@ export class GameController {
       return next;
     });
 
-    this.afterConversation(objective.role);
+    this.afterConversation(objective.role, grew);
     this.render();
   }
 
@@ -470,15 +488,19 @@ export class GameController {
     return { ...s, field: res.field, money: s.money + payout };
   }
 
-  private afterConversation(role: string) {
+  private afterConversation(role: string, grew: boolean) {
     const s = this.player.getState();
     if (role === "seeds" && s.field.slots[0]) {
-      this.toast("🌱 Seeds planted! Water daily with Aguamarina to grow them.");
+      this.toast("🌱 Seeds planted! Do your daily practice at La Plaza to grow them.");
     } else if (role === "store") {
       this.toast("🛒 Sold! Money added. Save up for a train ticket. 💰");
     } else if (role === "water") {
-      if (hasHarvest(s.field)) {
-        this.toast("🌻 A crop is fully grown — sell it at the store!");
+      if (grew) {
+        this.toast(
+          hasHarvest(s.field)
+            ? "🌻 Your crop is fully grown — sell it at the store!"
+            : "💧 Nice retelling! Your crop grew a step.",
+        );
       }
     }
   }

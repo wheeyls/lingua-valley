@@ -1,15 +1,22 @@
 /**
- * World definition — the farming neighbourhood.
+ * World definition — the campaign you're currently playing.
  *
- * One area with three people you talk to:
- *   - Seedsman   — the seed farm. Intro conversation; gives you seeds to plant.
- *   - Waterkeeper— the water tower. Daily practice; waters your field.
- *   - Shopkeeper — the store. Review conversation; buys your harvest for money.
+ * A campaign (one CEFR level / one week's lesson) is laid out as a HUB with a
+ * handful of LOCATIONS you click into:
  *
- * Money buys a train ticket to the next area.
+ *   - Field        — your crops (rendered live from player state, not an NPC).
+ *   - Seed farm    — intro conversation; plants this week's crop.
+ *   - Practice     — the daily drill. May have TWO people (story-teller + the
+ *                    one who quizzes you on it). Waters the field.
+ *   - Store        — review conversation; sells the harvest for money.
+ *   - Station      — buy a train ticket to the next campaign (live card).
+ *
+ * Each location maps to one farming ROLE (seeds / water / store). A location can
+ * host more than one NPC; you talk to them in sequence to complete the role.
  */
 
 import type { CefrLevel } from "../domain/cefr.js";
+import type { DailyRole } from "../domain/dailyLoop.js";
 
 export interface DialogueLine {
   level: CefrLevel;
@@ -21,63 +28,124 @@ export interface Npc {
   id: string;
   name: string;
   color: number;
-  /** The daily-graph objective this NPC fulfills (seeds-intro/water-practice/store-review). */
-  teachesObjectiveId: string;
   voice?: string;
   conversation: { opener: string };
   lines: DialogueLine[];
+}
+
+/** A clickable place in the campaign hub that hosts one or more NPCs. */
+export interface Location {
+  id: string;
+  name: string;
+  /** The farming role fulfilled here (seeds / water / store). */
+  role: DailyRole;
+  /** Emoji/icon for the hub card. */
+  icon: string;
+  /** One-line description shown on the hub card. */
+  blurb: string;
+  /** NPC ids hosted here, in the order you talk to them. */
+  npcIds: string[];
 }
 
 export interface Area {
   id: string;
   name: string;
   level: CefrLevel;
+  /** Short narrative framing for the campaign (shown in the hub). */
+  blurb: string;
   /** The area this one's train ticket leads to (undefined for the last area). */
   nextAreaId?: string;
   /** Price of the train ticket to the next area, in money. */
   ticketPrice: number;
+  /** Clickable locations in the hub. */
+  locations: Location[];
+  /** All NPCs in the campaign (referenced by locations). */
   npcs: Npc[];
 }
 
 export const AREAS: Area[] = [
   {
-    id: "barrio",
-    name: "El Barrio",
-    level: "A1",
-    nextAreaId: "mercado",
-    ticketPrice: 50,
+    id: "pueblo-del-ayer",
+    name: "Pueblo del Ayer",
+    level: "A2",
+    blurb:
+      "A sleepy village where everyone loves to recount their day. This week: " +
+      "talking about the past — understand a story, retell it, share your own.",
+    nextAreaId: "ciudad-manana",
+    ticketPrice: 60,
+    locations: [
+      {
+        id: "seed-farm",
+        name: "La Granja de Semillas",
+        role: "seeds",
+        icon: "🌱",
+        blurb: "Get this week's seeds from Don Semilla.",
+        npcIds: ["seedsman"],
+      },
+      {
+        id: "plaza",
+        name: "La Plaza",
+        role: "water",
+        icon: "💧",
+        blurb: "Hear Marisol's story, then retell it to Pablo. Waters your field.",
+        npcIds: ["marisol", "pablo"],
+      },
+      {
+        id: "store",
+        name: "La Tienda",
+        role: "store",
+        icon: "🛒",
+        blurb: "Tell Doña Tienda about your day and sell your harvest.",
+        npcIds: ["shopkeeper"],
+      },
+    ],
     npcs: [
       {
         id: "seedsman",
         name: "Don Semilla",
         color: 0x8a5a44,
-        teachesObjectiveId: "seeds-intro",
         voice: "onyx",
         conversation: {
-          opener: "¡Buenas! ¿Vienes por semillas? Te cuento qué cultivamos esta semana.",
+          opener:
+            "¡Buenas! ¿Vienes por semillas? Te cuento qué practicamos esta semana.",
         },
         lines: [
           {
-            level: "A1",
+            level: "A2",
             es: "🌱 Consigue semillas de Don Semilla",
-            en: "Talk to the seed farmer to learn this week's lesson and get a batch of seeds to plant back home. Tap 'Talk' to begin.",
+            en: "Learn this week's lesson and get a batch of seeds to plant. Tap 'Talk' to begin.",
           },
         ],
       },
       {
-        id: "waterkeeper",
-        name: "Aguamarina",
-        color: 0x3d7ea6,
-        teachesObjectiveId: "water-practice",
-        voice: "shimmer",
+        id: "marisol",
+        name: "Marisol",
+        color: 0x2a9d8f,
+        voice: "nova",
         conversation: {
-          opener: "¡Hola! ¿Listo para regar? Practiquemos un poco primero.",
+          opener: "¡Hola! ¿Te cuento lo que hice hoy? Escucha bien…",
         },
         lines: [
           {
-            level: "A1",
-            es: "💧 Practica con Aguamarina",
-            en: "Your daily practice. Have a conversation to earn water for your whole garden — your crops grow one step each day you water. Tap 'Talk' to begin.",
+            level: "A2",
+            es: "👂 Escucha la historia de Marisol",
+            en: "Marisol will tell you what she did today. Listen and understand her story. Tap 'Talk' to begin.",
+          },
+        ],
+      },
+      {
+        id: "pablo",
+        name: "Pablo",
+        color: 0x3d5a80,
+        voice: "echo",
+        conversation: {
+          opener: "Oye, ¿qué hizo Marisol hoy? Cuéntame.",
+        },
+        lines: [
+          {
+            level: "A2",
+            es: "🗣️ Cuéntale a Pablo la historia",
+            en: "Retell what Marisol did, in the past tense. Finishing this waters your field. Tap 'Talk' to begin.",
           },
         ],
       },
@@ -85,16 +153,15 @@ export const AREAS: Area[] = [
         id: "shopkeeper",
         name: "Doña Tienda",
         color: 0xb5793a,
-        teachesObjectiveId: "store-review",
-        voice: "nova",
+        voice: "shimmer",
         conversation: {
-          opener: "¡Bienvenido a la tienda! ¿Qué me traes hoy?",
+          opener: "¡Bienvenido! ¿Qué me traes hoy? Cuéntame, ¿qué hiciste?",
         },
         lines: [
           {
-            level: "A1",
+            level: "A2",
             es: "🛒 Vende tu cosecha en la tienda",
-            en: "Bring a grown crop here to review what you've learned and sell it for money. Save up for a train ticket to the next town! Tap 'Talk' to begin.",
+            en: "Bring a grown crop, tell Doña Tienda about your day, and sell it for money toward a train ticket. Tap 'Talk' to begin.",
           },
         ],
       },
@@ -114,5 +181,9 @@ export function areaOfNpc(npcId: string): Area | undefined {
   return AREAS.find((a) => a.npcs.some((n) => n.id === npcId));
 }
 
-/** The area the player currently lives in (single-area slice for now). */
+/** The campaign the player is currently in (single-area slice for now). */
 export const CURRENT_AREA: Area = AREAS[0];
+
+export function findLocation(areaId: string, locationId: string): Location | undefined {
+  return AREAS.find((a) => a.id === areaId)?.locations.find((l) => l.id === locationId);
+}

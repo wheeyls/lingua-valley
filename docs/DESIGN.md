@@ -6,43 +6,66 @@ progression, rewards, and the voice conversation experience.
 
 ## Core concept
 
-You live in a house with a field out back. To grow crops you talk to your
-neighbours in Spanish. The conversations are the game; the farm gives them
-structure, daily repetition, and a reason to come back tomorrow.
+You play through **campaigns** — one per CEFR level / week's lesson. Each
+campaign is a small village laid out as a **hub** you click around: your field,
+the seed farm, the practice plaza, the store, the train station. To grow crops
+you talk to the villagers in Spanish. The conversations are the game; the farm
+gives them structure, daily repetition, and a reason to come back tomorrow.
+
+## Navigation: a hub of clickable locations
+
+The hub shows a card for each **location**. Tap one to enter its **room** (which
+hosts that location's one or two villagers); a **Back** button returns to the
+hub. The live **Field** and **Station** cards sit on the hub.
+
+```
+            ┌─────────────── HUB (the village) ───────────────┐
+   Field ◀──┤  🌱 Seed farm   💧 La Plaza   🛒 Store   🚂 Station │
+            └──────────────────────┬──────────────────────────┘
+                    tap a location ▼        ▲ Back
+                         ┌──────────────────────────┐
+                         │  Room: its villager(s)   │
+                         └──────────────────────────┘
+```
 
 ## The farming loop
 
 ```
    Seed farm ──▶ plant a crop        (intro: this week's lesson)
-   Water tower ─▶ +1 growth / day    (daily practice on the theme)   ← the loop
+   La Plaza ────▶ +1 growth / day    (daily practice — may be TWO people)  ← loop
    Store ───────▶ sell the harvest   (review / "unit test" → money)
-   Station ─────▶ buy a train ticket (money → next area)
+   Station ─────▶ buy a train ticket (money → next campaign)
 ```
 
-1. **Get seeds** — visit **Don Semilla** at the seed farm. One intro
-   conversation per cycle introduces what you'll learn this week and plants one
-   crop in your field.
-2. **Water daily** — visit **Aguamarina** at the water tower. Each day's
-   practice conversation waters your whole field, growing every crop **+1
-   unit**. This is the growth driver, **gated to once per day**: you can
-   practice as much as you like, but a crop only advances once per real day.
-3. **Harvest & sell** — after **5 days** of watering a crop is ready. Sell it to
-   **Doña Tienda** at the store. Selling is a review/"unit test" conversation
-   over the whole lesson, and pays out **money**.
-4. **Travel** — money buys a **train ticket** at the station to the next area.
+1. **Get seeds** — at the seed farm, one intro conversation per cycle introduces
+   what you'll learn and plants a crop in your field.
+2. **Practice daily** — at the practice location. Completing the day's practice
+   waters your whole field, growing every crop **+1 unit**. This is the growth
+   driver, **gated to once per day**. A practice location can host **two people
+   in sequence** (see below).
+3. **Harvest & sell** — after **5 days** a crop is ready. Sell it at the store —
+   a review/"unit test" conversation that pays out **money**.
+4. **Travel** — money buys a **train ticket** at the station to the next campaign.
 
-So a level is one crop cycle: an intro conversation sets expectations, ~5 days
-of practice grow the crop, and a review conversation cashes it in toward the
-ticket out.
+### Two-person practice (story → retell)
+
+A practice location can chain two conversations. The current campaign's plaza:
+
+- **Marisol** tells you 2 things she did today (you listen & understand).
+- **Pablo** asks *"¿Qué hizo Marisol?"* — you retell it in the past tense.
+
+Pablo is **locked until Marisol's story is done** (objective dependency), and her
+story text is routed into Pablo's prompt so he can check your retelling.
+Completing the pair is the day's watering.
 
 ## Why this shape
 
-- **Daily cadence by construction.** Rewards (money, growth) are earned once per
-  day per role. Regular short sessions beat cramming — exactly how language
-  learning works. Replaying is always allowed for free practice.
-- **Structured progression.** Seeds = "new lesson", water = "daily drill",
-  store = "review test", ticket = "level complete". The crop's growth bar is a
-  visible, motivating progress meter.
+- **Daily cadence by construction.** Growth is gated once/day; **money is earned
+  once per conversation per day** (so a two-person location pays for both).
+  Regular short sessions beat cramming. Replaying is always free practice.
+- **Structured progression.** Seeds = "new lesson", practice = "daily drill",
+  store = "review test", ticket = "level complete". The growth bar is a visible
+  progress meter.
 
 ## Domain model (`src/domain/`)
 
@@ -53,9 +76,9 @@ Pure TypeScript, zero framework imports, fully unit-tested.
 | `field.ts` | The field: N slots, crops, growth, watering (once/day), harvest. |
 | `inventory.ts` | Items the player holds — train tickets (`ticket:<area>`). |
 | `economy.ts` | Turn a graded conversation into **money** (quality × level). |
-| `dailyLoop.ts` | The 12-hour day + per-role reward gate (`seeds`/`water`/`store`). |
+| `dailyLoop.ts` | The 12-hour day; per-day growth gate (role) + per-day money gate (objective). |
 | `player.ts` | `PlayerState` (money, field, inventory, daily) + the `applyActivity` reducer. |
-| `objective.ts` + `objectives/` | Code-driven conversations: `SeedsIntro`, `WaterPractice`, `StoreReview`, each built from a `Lesson`. |
+| `objective.ts` + `objectives/` | Code-driven conversations: `SeedsIntro`, `StoryTelling`→`StoryRetell` (the paired practice), `StoreReview`, each built from a `Lesson`. |
 | `conversation.ts` | Wire contract + gate thresholds for the voiced conversation. |
 | `gameMap.ts` | Room/card model for the point-and-click navigator. |
 
@@ -64,9 +87,9 @@ Pure TypeScript, zero framework imports, fully unit-tested.
 ```
 displayName, avatarColor
 money                         ← earned at the store
-field { slots: (Crop|null)[] }← what you grow (A1 ships with 1 slot)
+field { slots: (Crop|null)[] }← what you grow (1 slot for now)
 inventory                     ← train tickets you hold
-daily { dayStartedAt, rewardedRoles[], objectiveState }
+daily { dayStartedAt, rewardedRoles[], rewardedObjectives[], objectiveState }
 ```
 
 ### The reducer
@@ -74,36 +97,34 @@ daily { dayStartedAt, rewardedRoles[], objectiveState }
 `applyActivity(prev, activity, now)` is the single authoritative step (server
 and guest run the identical function):
 
-- **Money** is granted once per role per day (`rewardEarned`), computed from the
-  raw grade — no client number is trusted.
-- The **water** role waters the field (+1 growth per crop), also gated once/day.
+- **Money** is granted once per **objective** per day (`earnedReward`), computed
+  from the raw grade — no client number is trusted. So both halves of a
+  two-person practice each pay once.
+- A **water** activity waters the field (+1 growth per crop), gated once per day
+  per **role** — the field advances at most one step a day.
 
 ## A crop cycle in objectives
 
 Each conversation is an `Objective` built from a `Lesson` (the week's content):
 
 - `SeedsIntro` (role `seeds`, NPC `seedsman`) → on completion, plant a crop.
-- `WaterPractice` (role `water`, NPC `waterkeeper`) → grows the field daily.
+- The water practice — either a single `WaterPractice` OR the paired
+  `StoryTelling` → `StoryRetell` (`retell` depends on `telling`, and consumes its
+  story text) → grows the field daily.
 - `StoreReview` (role `store`, NPC `shopkeeper`) → harvest ready crops → money.
 
-A new area is just a new `Lesson` (`src/content/lessons.ts`) — no new classes.
-
-## Navigation
-
-Point-and-click. One room (the Barrio) shows tappable cards:
-
-- **Your field** — live card from player state: empty / growing (n/5) / ready.
-- **Seed farm**, **Water tower**, **Store** — the three NPC conversations.
-- **Train station** — buy a ticket once you can afford it.
+A new campaign is mostly a new `Lesson` (`src/content/lessons.ts`) + an `Area`
+with its `locations` and `npcs` (`src/content/world.ts`).
 
 ## Voice conversation flow
 
-1. Tap an NPC → dialogue intro (explains what you'll do).
-2. Tap "Talk" → conversation overlay; the NPC greets (TTS).
+1. Tap a villager → dialogue intro (explains what you'll do).
+2. Tap "Talk" → conversation overlay; the villager greets (TTS).
 3. Tap mic → speak Spanish → Whisper transcribes → a cleanup LLM fixes STT
-   artifacts → the grading LLM evaluates and the NPC replies (min 3 turns).
+   artifacts → the grading LLM evaluates and the villager replies (min 3 turns).
 4. On a natural end, the role's side-effect applies (plant / water / sell) and
-   the field/money update.
+   the field/money update. You stay in the room (e.g. so Pablo unlocks after
+   Marisol), and Back returns to the hub.
 
 ## Architecture
 
@@ -126,13 +147,18 @@ api/            ← Vercel serverless (converse, transcribe, speak, clean, activ
 - **Hosting:** Vercel (static site + serverless functions).
 - **CI:** GitHub Actions (typecheck + tests + Supabase migrations).
 
-## Adding a new area
+## Adding a new campaign
 
-1. Add a `Lesson` to `src/content/lessons.ts`.
-2. Add the area (+ ticket price + `nextAreaId`) and its three NPCs to
-   `src/content/world.ts`.
-3. Point `buildDailyGraph` at the lesson and the map at the area.
+1. Add a `Lesson` to `src/content/lessons.ts` (set `storyTheme`/`retellTheme`
+   for a two-person practice, or `practiceTheme` for a single one).
+2. Add the `Area` to `src/content/world.ts`: its `blurb`, `ticketPrice`,
+   `nextAreaId`, `locations` (each with a `role` + `npcIds`), and `npcs`.
+3. `maps.ts` generates the hub + a room per location automatically.
 4. Tests + typecheck.
 
 The objective's `buildTheme()` tells the LLM how to behave per role; the daily
 gate and growth rules are unchanged.
+
+> **Current campaign:** *Pueblo del Ayer* (A2) — the **past tense**. Marisol
+> recounts her day, Pablo has you retell it, and the shopkeeper asks about your
+> own day. This is the live lesson for students right now.

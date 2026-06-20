@@ -39,7 +39,7 @@ describe("a single graded conversation turn", () => {
 
   beforeEach(async () => {
     adapters = makeAdapters("test");
-    player = new PlayerService(adapters.repo, adapters.rewardGrader);
+    player = new PlayerService(adapters.repo, adapters.rewardGrader, adapters.clock);
     await player.init();
   });
 
@@ -68,7 +68,7 @@ describe("a single graded conversation turn", () => {
     expect(player.getState().money).toBe(0);
   });
 
-  it("does not pay twice for the same role on the same day", async () => {
+  it("does not pay twice for the same conversation on the same day", async () => {
     adapters.fakes!.grader.setDefault({ communication: 0.9, accuracy: 0.9 });
     const s1 = sessionFor(adapters, player, "water");
     s1.begin("¡Hola!");
@@ -87,7 +87,7 @@ describe("a single graded conversation turn", () => {
 describe("the crop grows over a week of watering", () => {
   it("plants, grows one unit per day, and is harvest-ready after MAX_GROWTH days", async () => {
     const adapters = makeAdapters("test");
-    const player = new PlayerService(adapters.repo, adapters.rewardGrader);
+    const player = new PlayerService(adapters.repo, adapters.rewardGrader, adapters.clock);
     await player.init();
     adapters.fakes!.grader.setDefault({ communication: 0.85, accuracy: 0.85 });
 
@@ -112,7 +112,7 @@ describe("the crop grows over a week of watering", () => {
 
   it("watering twice in one day only grows once", async () => {
     const adapters = makeAdapters("test");
-    const player = new PlayerService(adapters.repo, adapters.rewardGrader);
+    const player = new PlayerService(adapters.repo, adapters.rewardGrader, adapters.clock);
     await player.init();
     adapters.fakes!.grader.setDefault({ communication: 0.85, accuracy: 0.85 });
     await player.update((s) => ({
@@ -135,7 +135,7 @@ describe("the crop grows over a week of watering", () => {
 describe("the daily gate resets after the cooldown", () => {
   it("lets you earn money again on a new day", async () => {
     const adapters = makeAdapters("test");
-    const player = new PlayerService(adapters.repo, adapters.rewardGrader);
+    const player = new PlayerService(adapters.repo, adapters.rewardGrader, adapters.clock);
     await player.init();
     adapters.fakes!.grader.setDefault({ communication: 0.9, accuracy: 0.9 });
 
@@ -146,7 +146,7 @@ describe("the daily gate resets after the cooldown", () => {
 
     // Advance past the 12h cooldown and re-init so settleDailyState runs.
     adapters.fakes!.clock.advanceDays(1);
-    const player2 = new PlayerService(adapters.repo, adapters.rewardGrader);
+    const player2 = new PlayerService(adapters.repo, adapters.rewardGrader, adapters.clock);
     await player2.init();
 
     const day2 = sessionFor(adapters, player2, "water");
@@ -198,7 +198,7 @@ describe("free-form conversation (LLM-driven)", () => {
   it("runs several turns, can't end before the minimum, then completes", async () => {
     const { MIN_PLAYER_TURNS } = await import("../ConversationSession");
     const adapters = makeAdapters("test");
-    const player = new PlayerService(adapters.repo, adapters.rewardGrader);
+    const player = new PlayerService(adapters.repo, adapters.rewardGrader, adapters.clock);
     await player.init();
     adapters.fakes!.grader.setDefault({ communication: 0.85, accuracy: 0.8 });
 
@@ -248,8 +248,8 @@ describe("reward grant resilience", () => {
     await player.init();
 
     const result = await player.completeActivity({
-      objectiveId: "water-practice",
-      level: "A1",
+      objectiveId: "story-retell",
+      level: "A2",
       role: "water",
       communication: 1,
       accuracy: 1,

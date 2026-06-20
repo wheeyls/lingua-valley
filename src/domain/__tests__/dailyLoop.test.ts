@@ -5,6 +5,8 @@ import {
   startNewDay,
   roleEarnsReward,
   claimRole,
+  objectiveEarnsReward,
+  claimObjective,
   hoursUntilNextDay,
   DAY_COOLDOWN_MS,
 } from "../dailyLoop";
@@ -48,6 +50,22 @@ describe("daily loop", () => {
   it("first claim from a blank day stamps dayStartedAt", () => {
     const s = claimRole(INITIAL_DAILY_STATE, "seeds", NOW);
     expect(s.dayStartedAt).toBe(NOW.toISOString());
+  });
+
+  it("tracks money rewards per objective, independent of roles", () => {
+    let s = startNewDay(NOW);
+    expect(objectiveEarnsReward(s, "story-telling")).toBe(true);
+    s = claimObjective(s, "story-telling", NOW);
+    expect(objectiveEarnsReward(s, "story-telling")).toBe(false); // replay
+    // A second objective sharing the same role still earns.
+    expect(objectiveEarnsReward(s, "story-retell")).toBe(true);
+  });
+
+  it("claiming an objective is idempotent and stamps the day", () => {
+    let s = claimObjective(INITIAL_DAILY_STATE, "story-telling", NOW);
+    expect(s.dayStartedAt).toBe(NOW.toISOString());
+    s = claimObjective(s, "story-telling", NOW);
+    expect(s.rewardedObjectives).toEqual(["story-telling"]);
   });
 
   it("reports hours until next day", () => {

@@ -18,6 +18,8 @@ import {
   INITIAL_DAILY_STATE,
   roleEarnsReward,
   claimRole,
+  objectiveEarnsReward,
+  claimObjective,
   isNewDay,
   startNewDay,
   type DailyState,
@@ -112,6 +114,9 @@ function normalizeDaily(v: unknown): DailyState {
           (r) => r === "seeds" || r === "water" || r === "store",
         ) as DailyRole[])
       : [],
+    rewardedObjectives: Array.isArray(d.rewardedObjectives)
+      ? d.rewardedObjectives.filter((o): o is string => typeof o === "string")
+      : [],
     objectiveState: isObject(d.objectiveState)
       ? (d.objectiveState as DailyState["objectiveState"])
       : {},
@@ -146,7 +151,7 @@ export interface ApplyResult {
   state: PlayerState;
   /** The money reward computed for this conversation (0 if below threshold). */
   reward: ActivityReward;
-  /** Whether this was the first reward-bearing completion of the role today. */
+  /** Whether this was the first money-bearing completion of the OBJECTIVE today. */
   earnedReward: boolean;
   /** Crops that gained a growth unit (water role, once/day). */
   grown: number;
@@ -160,8 +165,10 @@ export interface ApplyResult {
  * guaranteeing identical rules everywhere.
  *
  * Rules:
- *  - Money is awarded once per role per day (replays earn nothing).
- *  - The WATER role grows the field +1 unit, also gated to once per day.
+ *  - Money is awarded once per OBJECTIVE per day (so a two-person practice pays
+ *    for both conversations); replays earn nothing.
+ *  - The WATER role grows the field +1 unit, gated once per day per ROLE (so the
+ *    field only advances one step a day regardless of how many water chats).
  */
 export function applyActivity(
   prev: PlayerState,
@@ -170,22 +177,24 @@ export function applyActivity(
 ): ApplyResult {
   const day = utcDay(now);
   const reward = computeReward(activity.communication, activity.accuracy, activity.level);
-  const earnedReward = roleEarnsReward(prev.daily, activity.role);
+  const earnedReward = objectiveEarnsReward(prev.daily, activity.objectiveId);
 
-  // Money: only on the first reward-bearing completion of this role today.
+  // Money: only on the first money-bearing completion of this objective today.
   const money = earnedReward ? prev.money + reward.money : prev.money;
 
-  // Growth: the water conversation grows the whole field, once per day.
+  // Growth: a water conversation grows the whole field, once per day per role.
   let field = prev.field;
   let grown = 0;
-  if (activity.role === "water") {
+  let daily = prev.daily;
+  if (activity.role === "water" && roleEarnsReward(prev.daily, "water")) {
     const watered = waterField(prev.field, day);
     field = watered.field;
     grown = watered.grown;
+    if (grown > 0) daily = claimRole(daily, "water", now);
   }
 
-  // Claim the role for today if it earned a reward (gates future replays).
-  const daily = earnedReward ? claimRole(prev.daily, activity.role, now) : prev.daily;
+  // Claim the objective's money for today (gates future replays).
+  if (earnedReward) daily = claimObjective(daily, activity.objectiveId, now);
 
   return {
     state: { ...prev, money, field, daily },

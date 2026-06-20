@@ -67,7 +67,7 @@ export async function composeApp(profile = chooseProfile()): Promise<ComposedApp
 async function composeFor(profile: AdapterProfile): Promise<ComposedApp> {
   const adapters =
     profile === "cloud" ? await resolveCloudAdapters() : makeAdapters(profile);
-  const player = new PlayerService(adapters.repo, adapters.rewardGrader);
+  const player = new PlayerService(adapters.repo, adapters.rewardGrader, adapters.clock);
   await player.init();
 
   // On the cloud profile, claim the guest's local progress into the account the
