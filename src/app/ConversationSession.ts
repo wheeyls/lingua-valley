@@ -5,10 +5,8 @@
  *
  * Conversations are FREE-FORM: the NPC is played by the LLM, which reacts to
  * what the player actually said and stays on the lesson's theme/vocab/level.
- * There is no rigid turn-by-turn script — that caused opener/goal mismatches and
- * script drift. The LLM decides when the chat reaches a natural end
- * (`conversationComplete`); we enforce a small minimum so it can't end after one
- * exchange. Completing a conversation is when friendship grows.
+ * The LLM decides when the chat reaches a natural end (`conversationComplete`);
+ * we enforce a small minimum so it can't end after one exchange.
  *
  * Because it takes ports (not vendor SDKs), the loop is testable against fakes.
  */
@@ -17,7 +15,8 @@ import type { ConversationGrader } from "../domain/ports";
 import type { ConversationTurn, UtteranceGrade } from "../domain/conversation";
 import { gateShouldOpen } from "../domain/conversation";
 import type { CefrLevel } from "../domain/cefr";
-import type { ApplyResult, SkillTrack } from "../domain/player";
+import type { ApplyResult } from "../domain/player";
+import type { DailyRole } from "../domain/dailyLoop";
 import type { PlayerService } from "./PlayerService";
 
 /** A conversation must have at least this many player turns before it can end. */
@@ -25,26 +24,25 @@ export const MIN_PLAYER_TURNS = 3;
 
 export interface ConversationConfig {
   npcId: string;
-  /** The NPC's display name (who they are, e.g. "Rosa"). */
+  /** The NPC's display name (who they are, e.g. "Aguamarina"). */
   npcName?: string;
   level: CefrLevel;
   objectiveId: string;
+  /** Which daily role this conversation fulfills (gates reward + growth). */
+  role: DailyRole;
   canDo: string;
   vocab: { es: string; en: string }[];
-  skill: SkillTrack;
-  /** Short theme/scenario to keep the LLM on-topic (e.g. from a lesson lab). */
+  /** Short theme/scenario to keep the LLM on-topic. */
   theme?: string;
-  /** Grading strictness (>=1) from the town's difficulty. Defaults to 1. */
-  strictness?: number;
 }
 
 export interface TurnOutcome {
   npcReply: string;
   grade: UtteranceGrade;
-  /** Authoritative economy result for this turn (null if blocked). */
+  /** Authoritative economy result for this turn. */
   applied: ApplyResult;
-  /** True if the objective is now mastered (gate opens). */
-  mastered: boolean;
+  /** True if the player demonstrated the objective well enough (gate opens). */
+  passed: boolean;
   /** True if the conversation reached a natural end. */
   complete: boolean;
 }
@@ -71,19 +69,9 @@ export class ConversationSession {
     return [];
   }
 
-  /** Always a free conversation now (kept for the scene's branching/messages). */
-  get isRolePlay(): boolean {
-    return true;
-  }
-
-  /** No per-turn scripted goal anymore — free conversation. */
-  get currentGoal(): string | null {
-    return null;
-  }
-
   /**
-   * Submit one player utterance: grade it, grant rewards, decide mastery and
-   * whether the conversation has reached a natural end. Pure orchestration.
+   * Submit one player utterance: grade it, grant rewards, decide whether the
+   * conversation has reached a natural end. Pure orchestration.
    */
   async submit(utterance: string): Promise<TurnOutcome> {
     this.history.push({ role: "player", text: utterance });
@@ -101,39 +89,23 @@ export class ConversationSession {
       playerUtterance: utterance,
     });
 
-    const gateOpens = gateShouldOpen(
-      res.objectiveMet,
-      res.grade,
-      this.config.strictness ?? 1,
-    );
+    const passed = gateShouldOpen(res.objectiveMet, res.grade, 1);
 
     const npcReply = res.npcReply;
     this.history.push({ role: "npc", text: npcReply });
 
-    // The conversation can only end after a minimum number of exchanges, so it
-    // never wraps up after a single turn.
+    // The conversation can only end after a minimum number of exchanges.
     const complete =
       res.conversationComplete && this.playerTurns >= MIN_PLAYER_TURNS;
 
     const applied = await this.player.completeActivity({
       objectiveId: this.config.objectiveId,
       level: this.config.level,
-      skill: this.config.skill,
-      wordIds: this.config.vocab.map((v) => v.es),
+      role: this.config.role,
       communication: res.grade.communication,
       accuracy: res.grade.accuracy,
-      objectiveMet: gateOpens,
-      npcId: this.config.npcId,
-      // Friendship grows when the whole conversation completes.
-      rolePlayComplete: complete,
     });
 
-    return {
-      npcReply,
-      grade: res.grade,
-      applied,
-      mastered: applied.state.masteredObjectiveIds.includes(this.config.objectiveId),
-      complete,
-    };
+    return { npcReply, grade: res.grade, applied, passed, complete };
   }
 }

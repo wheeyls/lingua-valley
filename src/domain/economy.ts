@@ -1,26 +1,26 @@
 /**
- * The economy: reward formulas and Focus (daily stamina) logic.
+ * The economy: how a graded conversation becomes money.
  *
- * Pure domain. These functions are the SINGLE source of truth for how a graded
- * activity becomes resources. The server runs them authoritatively; guests run
- * the very same functions client-side. No client-supplied numbers are trusted
- * downstream — callers re-derive from the raw grade.
+ * Pure domain. This is the SINGLE source of truth for turning a grade into a
+ * reward. The server runs it authoritatively; guests run the very same function
+ * client-side. No client-supplied numbers are trusted downstream — callers
+ * re-derive from the raw grade.
+ *
+ * The farming loop's stamina model is the DAILY GATE, not a focus pool: each
+ * reward-bearing conversation can only be earned once per day (see dailyLoop).
+ * You can practice as much as you like; you just can't farm rewards.
  */
 
 import type { CefrLevel } from "./cefr.js";
 import { levelRank } from "./cefr.js";
-import { FOCUS_MAX } from "./player.js";
 
-export const BASE_PESOS = 10;
-export const ACTIVITY_FOCUS_COST = 5;
-export const REWARD_THRESHOLD = 0.5; // below this quality, no pesos (but still practice)
+export const BASE_MONEY = 10;
+export const REWARD_THRESHOLD = 0.5; // below this quality, no money (but still practice)
 
 export interface ActivityReward {
   quality: number; // 0..1
-  pesos: number;
-  skillGain: number;
-  /** Quality used for SRS card review (same as `quality`). */
-  cardQuality: number;
+  /** Money awarded for this conversation (0 below the quality threshold). */
+  money: number;
 }
 
 /** Combine the grade components into a single 0..1 quality score. */
@@ -33,53 +33,16 @@ export function levelMultiplier(level: CefrLevel): number {
   return 1 + 0.25 * levelRank(level);
 }
 
-/** Compute the reward for an activity from its raw grade. Pure & deterministic. */
+/** Compute the reward for a conversation from its raw grade. Pure & deterministic. */
 export function computeReward(
   communication: number,
   accuracy: number,
   level: CefrLevel,
 ): ActivityReward {
   const q = quality(communication, accuracy);
-  const pesos =
-    q >= REWARD_THRESHOLD ? Math.round(BASE_PESOS * q * levelMultiplier(level)) : 0;
-  const skillGain = Math.round(100 * q);
-  return { quality: q, pesos, skillGain, cardQuality: q };
-}
-
-// --- Focus (daily stamina) -------------------------------------------------
-
-export interface FocusState {
-  focus: number;
-  focusDay: string;
-}
-
-/**
- * Apply daily regen: if `today` differs from the pool's day, refill to max.
- * Returns a new FocusState (never mutates).
- */
-export function regenFocus(state: FocusState, today: string): FocusState {
-  if (state.focusDay !== today) {
-    return { focus: FOCUS_MAX, focusDay: today };
-  }
-  return state;
-}
-
-export function canAfford(state: FocusState, cost = ACTIVITY_FOCUS_COST): boolean {
-  return state.focus >= cost;
-}
-
-/**
- * Spend focus for an activity. Caller should regen first (pass `today`).
- * Returns the new state and whether it succeeded. Never goes negative.
- */
-export function spendFocus(
-  state: FocusState,
-  today: string,
-  cost = ACTIVITY_FOCUS_COST,
-): { state: FocusState; ok: boolean } {
-  const regenned = regenFocus(state, today);
-  if (regenned.focus < cost) return { state: regenned, ok: false };
-  return { state: { ...regenned, focus: regenned.focus - cost }, ok: true };
+  const money =
+    q >= REWARD_THRESHOLD ? Math.round(BASE_MONEY * q * levelMultiplier(level)) : 0;
+  return { quality: q, money };
 }
 
 function clamp01(n: number): number {

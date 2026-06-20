@@ -5,7 +5,6 @@ import {
   rowsToPlayerState,
   type ProfileRow,
   type PlayerStateRow,
-  type VocabCardRow,
 } from "../src/net/supabaseMappers.js";
 
 export const config = { api: { bodyParser: { sizeLimit: "1mb" } } };
@@ -29,17 +28,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const userId = await userIdFromAuthHeader(req.headers.authorization, admin);
     if (!userId) return res.status(401).json({ error: "Not authenticated" });
 
-    const [profile, state, cards] = await Promise.all([
+    const [profile, state] = await Promise.all([
       admin.from("profiles").select("id,display_name,avatar_color").eq("id", userId).maybeSingle(),
       admin.from("player_state").select("*").eq("user_id", userId).maybeSingle(),
-      admin.from("vocab_cards").select("*").eq("user_id", userId),
     ]);
 
     const playerState = state.data
       ? rowsToPlayerState(
           (profile.data as ProfileRow) ?? null,
           state.data as PlayerStateRow,
-          (cards.data as VocabCardRow[]) ?? [],
         )
       : initialPlayerState();
 

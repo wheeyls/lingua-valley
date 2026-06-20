@@ -13,10 +13,8 @@ import type { PlayerState } from "../domain/player";
 import {
   rowsToPlayerState,
   playerStateToRow,
-  cardsToRows,
   type ProfileRow,
   type PlayerStateRow,
-  type VocabCardRow,
 } from "./supabaseMappers";
 
 export class SupabasePlayerRepository implements PlayerStateRepository {
@@ -26,21 +24,19 @@ export class SupabasePlayerRepository implements PlayerStateRepository {
   ) {}
 
   async load(): Promise<PlayerState | null> {
-    const [profile, state, cards] = await Promise.all([
+    const [profile, state] = await Promise.all([
       this.sb.from("profiles").select("id,display_name,avatar_color").eq("id", this.userId).maybeSingle(),
       this.sb
         .from("player_state")
-        .select("user_id,pesos,focus,focus_day,skills,mastered_ids")
+        .select("user_id,money,field,inventory,daily")
         .eq("user_id", this.userId)
         .maybeSingle(),
-      this.sb.from("vocab_cards").select("*").eq("user_id", this.userId),
     ]);
 
     if (!state.data) return null; // not provisioned yet
     return rowsToPlayerState(
       (profile.data as ProfileRow) ?? null,
       state.data as PlayerStateRow,
-      (cards.data as VocabCardRow[]) ?? [],
     );
   }
 
@@ -56,10 +52,5 @@ export class SupabasePlayerRepository implements PlayerStateRepository {
     });
 
     await this.sb.from("player_state").upsert(playerStateToRow(this.userId, state));
-
-    const cardRows = cardsToRows(this.userId, state);
-    if (cardRows.length > 0) {
-      await this.sb.from("vocab_cards").upsert(cardRows);
-    }
   }
 }

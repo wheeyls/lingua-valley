@@ -1,33 +1,39 @@
 /**
  * Full gameplay scenario tests — driven entirely against FAKE adapters.
  * No OpenAI, no Supabase, no websockets, no waiting on real time. This proves
- * the game loop end-to-end and is the safety net for all future changes.
+ * the farming loop end-to-end and is the safety net for all future changes.
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { makeAdapters, type Adapters } from "../adapters";
 import { PlayerService } from "../PlayerService";
 import { ConversationSession } from "../ConversationSession";
-import { objectiveById } from "../../content/curriculum";
+import { CURRENT_LESSON } from "../../content/lessons";
+import { plantSeed, MAX_GROWTH } from "../../domain/field";
+import type { DailyRole } from "../../domain/dailyLoop";
 import type { RemotePlayer } from "../../domain/ports";
 
-function sessionFor(adapters: Adapters, player: PlayerService, objectiveId: string) {
-  const obj = objectiveById(objectiveId)!;
+function sessionFor(
+  adapters: Adapters,
+  player: PlayerService,
+  role: DailyRole,
+  objectiveId = `${role}-conv`,
+) {
   return new ConversationSession(
     {
-      npcId: "rosa",
-      level: obj.level,
-      objectiveId: obj.id,
-      canDo: obj.canDo,
-      vocab: obj.vocab.map((v) => ({ es: v.es, en: v.en })),
-      skill: "speaking",
+      npcId: `${role}-npc`,
+      level: CURRENT_LESSON.level,
+      objectiveId,
+      role,
+      canDo: CURRENT_LESSON.canDo,
+      vocab: CURRENT_LESSON.vocab.map((v) => ({ es: v.es, en: v.en })),
     },
     adapters.conversationGrader,
     player,
   );
 }
 
-describe("single graded conversation turn", () => {
+describe("a single graded conversation turn", () => {
   let adapters: Adapters;
   let player: PlayerService;
 
@@ -37,89 +43,117 @@ describe("single graded conversation turn", () => {
     await player.init();
   });
 
-  it("awards pesos + skill and advances a vocab card on a good turn", async () => {
+  it("awards money on a good water turn (first of the day)", async () => {
     adapters.fakes!.grader.enqueue({
       communication: 0.9,
       accuracy: 0.85,
       objectiveMet: false,
       conversationComplete: false,
     });
-    const s = sessionFor(adapters, player, "a1.greetings");
-    s.begin("¡Hola! ¿Cómo estás?");
+    const s = sessionFor(adapters, player, "water");
+    s.begin("¡Hola!");
     const outcome = await s.submit("Hola, buenos días.");
 
-    expect(outcome.applied.reward!.pesos).toBeGreaterThan(0);
-    expect(player.getState().pesos).toBe(outcome.applied.reward!.pesos);
-    expect(player.getState().skills.speaking).toBeGreaterThan(0);
-    const firstWord = objectiveById("a1.greetings")!.vocab[0].es;
-    expect(player.getState().cards[firstWord]).toBeDefined();
-    expect(outcome.mastered).toBe(false); // one turn can't mature the words
+    expect(outcome.applied.earnedReward).toBe(true);
+    expect(outcome.applied.reward.money).toBeGreaterThan(0);
+    expect(player.getState().money).toBe(outcome.applied.reward.money);
   });
 
-  it("pays nothing for a poor turn but still spends focus", async () => {
+  it("pays nothing for a poor turn", async () => {
     adapters.fakes!.grader.enqueue({ communication: 0.3, accuracy: 0.3 });
-    const s = sessionFor(adapters, player, "a1.greetings");
+    const s = sessionFor(adapters, player, "water");
     s.begin("¡Hola!");
     const outcome = await s.submit("uhh no sé");
-    expect(outcome.applied.reward!.pesos).toBe(0);
-    expect(player.getState().focus).toBeLessThan(100);
+    expect(outcome.applied.reward.money).toBe(0);
+    expect(player.getState().money).toBe(0);
+  });
+
+  it("does not pay twice for the same role on the same day", async () => {
+    adapters.fakes!.grader.setDefault({ communication: 0.9, accuracy: 0.9 });
+    const s1 = sessionFor(adapters, player, "water");
+    s1.begin("¡Hola!");
+    await s1.submit("Hola.");
+    const firstMoney = player.getState().money;
+    expect(firstMoney).toBeGreaterThan(0);
+
+    const s2 = sessionFor(adapters, player, "water");
+    s2.begin("¡Hola!");
+    const replay = await s2.submit("Hola otra vez.");
+    expect(replay.applied.earnedReward).toBe(false);
+    expect(player.getState().money).toBe(firstMoney); // unchanged
   });
 });
 
-describe("mastery over multiple days (deterministic clock)", () => {
-  it("masters an objective once words mature, opening progression", async () => {
+describe("the crop grows over a week of watering", () => {
+  it("plants, grows one unit per day, and is harvest-ready after MAX_GROWTH days", async () => {
     const adapters = makeAdapters("test");
     const player = new PlayerService(adapters.repo, adapters.rewardGrader);
     await player.init();
+    adapters.fakes!.grader.setDefault({ communication: 0.85, accuracy: 0.85 });
 
-    // Always grade as a strong pass that meets the objective.
-    adapters.fakes!.grader.setDefault({
-      communication: 0.95,
-      accuracy: 0.9,
-      objectiveMet: true,
-      conversationComplete: false,
-    });
+    // Plant a crop (as the seeds conversation would).
+    await player.update((s) => ({
+      ...s,
+      field: plantSeed(s.field, CURRENT_LESSON.id, "2025-06-01"),
+    }));
 
-    let mastered = false;
-    // Practice once per day across several days; the clock drives SRS maturation.
-    for (let day = 0; day < 8 && !mastered; day++) {
-      const s = sessionFor(adapters, player, "a1.greetings");
+    // Water once per day for MAX_GROWTH days; the clock drives the daily gate.
+    for (let day = 0; day < MAX_GROWTH; day++) {
+      const s = sessionFor(adapters, player, "water");
       s.begin("¡Hola!");
-      const outcome = await s.submit("Hola, buenos días, ¿cómo estás?");
-      mastered = outcome.mastered;
-      adapters.fakes!.clock.advanceDays(1); // next day -> focus regens, cards due
+      const outcome = await s.submit("Hola, ¿cómo estás?");
+      expect(outcome.applied.grown).toBe(1);
+      adapters.fakes!.clock.advanceDays(1);
     }
 
-    expect(mastered).toBe(true);
-    expect(player.getState().masteredObjectiveIds).toContain("a1.greetings");
+    const crop = player.getState().field.slots[0]!;
+    expect(crop.growth).toBe(MAX_GROWTH);
+  });
+
+  it("watering twice in one day only grows once", async () => {
+    const adapters = makeAdapters("test");
+    const player = new PlayerService(adapters.repo, adapters.rewardGrader);
+    await player.init();
+    adapters.fakes!.grader.setDefault({ communication: 0.85, accuracy: 0.85 });
+    await player.update((s) => ({
+      ...s,
+      field: plantSeed(s.field, CURRENT_LESSON.id, "2025-06-01"),
+    }));
+
+    const s1 = sessionFor(adapters, player, "water");
+    s1.begin("¡Hola!");
+    await s1.submit("Hola.");
+
+    const s2 = sessionFor(adapters, player, "water");
+    s2.begin("¡Hola!");
+    const again = await s2.submit("Hola de nuevo.");
+    expect(again.applied.grown).toBe(0);
+    expect(player.getState().field.slots[0]!.growth).toBe(1);
   });
 });
 
-describe("focus daily budget", () => {
-  it("blocks activities when focus runs out, then refills next day", async () => {
+describe("the daily gate resets after the cooldown", () => {
+  it("lets you earn money again on a new day", async () => {
     const adapters = makeAdapters("test");
     const player = new PlayerService(adapters.repo, adapters.rewardGrader);
     await player.init();
-    adapters.fakes!.grader.setDefault({ communication: 0.8, accuracy: 0.8 });
+    adapters.fakes!.grader.setDefault({ communication: 0.9, accuracy: 0.9 });
 
-    // FOCUS_MAX=100, cost=5 -> 20 activities, then blocked.
-    let blocked = 0;
-    for (let i = 0; i < 21; i++) {
-      const s = sessionFor(adapters, player, "a1.greetings");
-      s.begin("¡Hola!");
-      const outcome = await s.submit("Hola.");
-      if (outcome.applied.blockedReason === "insufficient-focus") blocked++;
-    }
-    expect(blocked).toBe(1);
-    expect(player.getState().focus).toBe(0);
+    const day1 = sessionFor(adapters, player, "water");
+    day1.begin("¡Hola!");
+    await day1.submit("Hola.");
+    const afterDay1 = player.getState().money;
 
-    // New day refills.
+    // Advance past the 12h cooldown and re-init so settleDailyState runs.
     adapters.fakes!.clock.advanceDays(1);
-    const s = sessionFor(adapters, player, "a1.greetings");
-    s.begin("¡Hola!");
-    const outcome = await s.submit("Hola.");
-    expect(outcome.applied.blockedReason).toBeUndefined();
-    expect(player.getState().focus).toBe(95);
+    const player2 = new PlayerService(adapters.repo, adapters.rewardGrader);
+    await player2.init();
+
+    const day2 = sessionFor(adapters, player2, "water");
+    day2.begin("¡Hola!");
+    const outcome = await day2.submit("Hola otra vez.");
+    expect(outcome.applied.earnedReward).toBe(true);
+    expect(player2.getState().money).toBeGreaterThan(afterDay1);
   });
 });
 
@@ -148,22 +182,6 @@ describe("multiplayer presence (fake in-process bus)", () => {
     await gwB.leave();
     expect(aliceSees.map((p) => p.userId)).toEqual([]);
   });
-
-  it("spawnGhost injects a wandering player others can see", async () => {
-    const adapters = makeAdapters("test");
-    const bus = adapters.fakes!.bus;
-    const { FakePresenceGateway } = await import("../../net/fakes/FakePresenceGateway");
-    const gw = new FakePresenceGateway(bus);
-    await gw.join("plaza", { userId: "me", displayName: "Me", color: 1, x: 0, y: 0, facing: "down" });
-
-    let seen: RemotePlayer[] = [];
-    gw.onPlayers((p) => (seen = p));
-    const ghost: RemotePlayer = { userId: "ghost1", displayName: "Fantasma", color: 9, x: 100, y: 100, facing: "down" };
-    const stop = gw.spawnGhost("plaza", ghost);
-    expect(seen.map((p) => p.userId)).toContain("ghost1");
-    stop();
-    expect(seen.map((p) => p.userId)).not.toContain("ghost1");
-  });
 });
 
 describe("auth + guest claim", () => {
@@ -184,23 +202,7 @@ describe("free-form conversation (LLM-driven)", () => {
     await player.init();
     adapters.fakes!.grader.setDefault({ communication: 0.85, accuracy: 0.8 });
 
-    const obj = objectiveById("a1.greetings")!;
-    const session = new ConversationSession(
-      {
-        npcId: "rosa",
-        npcName: "Rosa",
-        level: obj.level,
-        objectiveId: obj.id,
-        canDo: obj.canDo,
-        vocab: obj.vocab.map((v) => ({ es: v.es, en: v.en })),
-        skill: "speaking",
-        theme: "two neighbors greeting casually",
-      },
-      adapters.conversationGrader,
-      player,
-    );
-
-    // The NPC greets first; the player drives the conversation.
+    const session = sessionFor(adapters, player, "water");
     const opening = session.begin("¡Buenas! ¿Qué onda?");
     expect(opening).toEqual(["¡Buenas! ¿Qué onda?"]);
 
@@ -213,7 +215,6 @@ describe("free-form conversation (LLM-driven)", () => {
     const first = await session.submit("¡Ey! ¿Cómo andas?");
     expect(first.complete).toBe(false); // below MIN_PLAYER_TURNS
 
-    // Reach the minimum, then let the LLM end it naturally.
     let complete = false;
     let turns = 1;
     adapters.fakes!.grader.setDefault({
@@ -228,90 +229,12 @@ describe("free-form conversation (LLM-driven)", () => {
     }
     expect(complete).toBe(true);
     expect(turns).toBeGreaterThanOrEqual(MIN_PLAYER_TURNS);
-    // Friendship grew on completion; player earned pesos.
-    expect(player.getState().pesos).toBeGreaterThan(0);
-    expect(player.getState().rapport["rosa"]?.points ?? 0).toBeGreaterThan(0);
-  });
-});
-
-describe("gatekeeper unlocks producers (the journey)", () => {
-  it("beating the capstone unlocks the town's producers", async () => {
-    const { unlockTown, producerAccessible } = await import("../../domain/town");
-
-    const adapters = makeAdapters("test");
-    const player = new PlayerService(adapters.repo, adapters.rewardGrader);
-    await player.init();
-
-    // Before: producers locked.
-    expect(producerAccessible(player.getState(), "mercado")).toBe(false);
-
-    // Simulate beating the gatekeeper (capstone passed) by unlocking the town
-    // through the same pure transform the scene uses.
-    await player.update((s) => unlockTown(s, "mercado"));
-
-    // After: producers accessible + persisted.
-    expect(producerAccessible(player.getState(), "mercado")).toBe(true);
-    expect((await adapters.repo.load())!.townsUnlocked).toContain("mercado");
-  });
-
-  it("producer goods are cheaper than middleman goods (direct access pays off)", async () => {
-    const { buyPrice } = await import("../../domain/trade");
-    // Middleman apples (vendedora) base 8 vs producer maíz base 5 — producers
-    // carry cheaper staples; the merchant arbitrage is real.
-    const apple = { id: "manzanas", name: "Manzanas", baseValue: 8, requiresTier: "stranger" as const };
-    const maiz = { id: "maiz", name: "Maíz", baseValue: 5, requiresTier: "stranger" as const };
-    expect(buyPrice(maiz, "friend")).toBeLessThan(buyPrice(apple, "friend"));
-  });
-});
-
-describe("quest arc: plan (future) -> do -> recap (past)", () => {
-  it("activates, completes steps by interacting, then awards the reward on recap", async () => {
-    const { QuestService } = await import("../QuestService");
-    const { questById } = await import("../../content/quests");
-
-    const adapters = makeAdapters("test");
-    const player = new PlayerService(adapters.repo, adapters.rewardGrader);
-    await player.init();
-    const quests = new QuestService(player);
-    const quest = questById("market-errands")!;
-
-    // 1. Plan stated (future tense) -> activate.
-    await quests.activate(quest.id);
-    expect(quests.progressFor(quest.id).phase).toBe("active");
-
-    // 2. Do the errands by interacting with the target NPCs.
-    for (const step of quest.steps) {
-      await quests.noteInteraction(step.targetNpcId);
-    }
-    expect(quests.progressFor(quest.id).phase).toBe("recap");
-
-    // 3. Report back (past tense) -> complete + reward.
-    const before = player.getState().pesos;
-    const reward = await quests.finishRecap(quest);
-    expect(reward).toBe(quest.reward);
-    expect(player.getState().pesos).toBe(before + quest.reward);
-    expect(quests.progressFor(quest.id).phase).toBe("done");
-    // Persisted.
-    expect((await adapters.repo.load())!.quests[quest.id].phase).toBe("done");
-  });
-
-  it("interacting with an unrelated NPC doesn't complete steps", async () => {
-    const { QuestService } = await import("../QuestService");
-    const { questById } = await import("../../content/quests");
-    const adapters = makeAdapters("test");
-    const player = new PlayerService(adapters.repo, adapters.rewardGrader);
-    await player.init();
-    const quests = new QuestService(player);
-    const quest = questById("market-errands")!;
-    await quests.activate(quest.id);
-    await quests.noteInteraction("rosa"); // not a target
-    expect(quests.progressFor(quest.id).completedStepIds).toHaveLength(0);
+    expect(player.getState().money).toBeGreaterThan(0);
   });
 });
 
 describe("reward grant resilience", () => {
   it("a throwing grader does not break gameplay — falls back to local economy", async () => {
-    const { PlayerService } = await import("../PlayerService");
     const { InMemoryPlayerRepository } = await import(
       "../../net/fakes/InMemoryPlayerRepository"
     );
@@ -325,20 +248,15 @@ describe("reward grant resilience", () => {
     await player.init();
 
     const result = await player.completeActivity({
-      objectiveId: "a1.greetings",
+      objectiveId: "water-practice",
       level: "A1",
-      skill: "speaking",
-      wordIds: ["hola"],
+      role: "water",
       communication: 1,
       accuracy: 1,
-      objectiveMet: false,
-      npcId: "rosa",
-      rolePlayComplete: true,
     });
 
-    // Did not throw; applied locally (pesos awarded, rapport grew).
-    expect(result.reward).not.toBeNull();
-    expect(player.getState().pesos).toBeGreaterThan(0);
-    expect(player.getState().rapport["rosa"].points).toBeGreaterThan(0);
+    // Did not throw; applied locally (money awarded).
+    expect(result.reward.money).toBeGreaterThan(0);
+    expect(player.getState().money).toBeGreaterThan(0);
   });
 });

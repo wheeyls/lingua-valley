@@ -1,10 +1,15 @@
 /**
- * GameController — the main application controller, the main app controller (no framework)
- * system. Coordinates the HTML world view, conversation/dialogue overlays,
- * and the domain (objectives, daily loop, player state).
+ * GameController — the running game's composition root (no framework).
  *
- * This is the composition root for the running game. Domain logic stays pure;
- * this is just wiring.
+ * Coordinates the HTML world view, conversation/dialogue overlays, and the pure
+ * domain (the farming loop: field, daily gate, money, inventory). Domain logic
+ * stays pure; this is wiring + presentation.
+ *
+ * The loop:
+ *   - Seedsman conversation → plant a crop in your field.
+ *   - Waterkeeper conversation (daily) → water the field, crops grow +1.
+ *   - At full growth, the Shopkeeper conversation → sell the crop for money.
+ *   - The Station → spend money on a train ticket to the next area.
  */
 
 import { HtmlWorldView } from "../ui/html/HtmlWorldView";
@@ -12,33 +17,32 @@ import { HtmlDialogueView, type DialogueViewData } from "../ui/html/HtmlDialogue
 import { HtmlConversationView } from "../ui/html/HtmlConversationView";
 import { blockCanvas, unblockCanvas } from "../ui/html/canvasBlock";
 import { getMap } from "../content/maps";
-import { AREAS } from "../content/world";
-import { objectiveById as getObjective } from "../content/curriculum";
-import { scaffoldingFor } from "../domain/scaffolding";
-import { tierFor, tierLabel } from "../domain/friendship";
-import { isDoorUnlocked, isItemVisible, type MapNpc, type MapDoor, type MapItem } from "../domain/gameMap";
-import { townOfNpc, townInfoOf, type Npc } from "../content/world";
-import { gradingStrictness } from "../domain/town";
-import type { ObjectiveState } from "../domain/objective";
+import { findNpc, CURRENT_AREA, type Npc } from "../content/world";
+import { CURRENT_LESSON } from "../content/lessons";
+import type { MapNpc } from "../domain/gameMap";
 import { buildDailyGraph } from "../domain/objectives/daily";
 import type { ObjectiveGraph } from "../domain/objective";
+import {
+  hasEmptySlot,
+  hasHarvest,
+  harvest,
+  readySlots,
+  plantSeed,
+  MAX_GROWTH,
+} from "../domain/field";
+import { add as addItem, ticketId, hasTicketTo } from "../domain/inventory";
+import { hoursUntilNextDay } from "../domain/dailyLoop";
 import { ConversationSession } from "./ConversationSession";
 import { MicRecorder, playAudioBytes, unlockAudio } from "../game/voice";
 import { transcribe, cleanTranscription, speak } from "../game/api";
 import type { PlayerService } from "./PlayerService";
 import type { Adapters } from "./adapters";
 
-function findNpc(id: string): Npc | undefined {
-  for (const a of AREAS) {
-    const n = a.npcs.find((n) => n.id === id);
-    if (n) return n;
-  }
-  return undefined;
-}
+/** Money paid per harvested crop sold at the store. */
+const CROP_VALUE = 25;
 
 export class GameController {
   private worldView!: HtmlWorldView;
-  private currentMapId = "street";
   private objectives: ObjectiveGraph;
   private recorder = new MicRecorder();
 
@@ -46,71 +50,167 @@ export class GameController {
     private readonly player: PlayerService,
     private readonly adapters: Adapters,
   ) {
-    this.objectives = buildDailyGraph();
+    this.objectives = buildDailyGraph(CURRENT_LESSON);
   }
 
   start() {
     this.worldView = new HtmlWorldView({
       onNpcTap: (npc) => this.onNpcTap(npc),
-      onDoorTap: (door) => this.onDoorTap(door),
-      onItemTap: (item) => this.onItemTap(item),
+      onDoorTap: () => {},
+      onItemTap: () => {},
     });
-    this.loadMap("street");
 
-    // Show user + logout in the HUD.
     const user = this.adapters.auth.current();
     this.worldView.setUser(user.displayName, () => {
-      void this.adapters.auth.signOut().then(() => {
-        window.location.reload();
-      });
+      void this.adapters.auth.signOut().then(() => window.location.reload());
     });
 
-    // Tick the countdown every 60s so the reset timer stays current.
-    setInterval(() => this.updateHudStatus(), 60_000);
+    this.render();
+    // Keep the reset countdown fresh.
+    setInterval(() => this.render(), 60_000);
   }
 
-  private getObjState(): ObjectiveState {
-    return this.player.getState().daily.objectiveState;
-  }
+  // --- Rendering ------------------------------------------------------------
 
-  private loadMap(mapId: string) {
-    this.currentMapId = mapId;
-    this.updateHudStatus(); // renders the map with badges + HUD
-  }
+  private render() {
+    const state = this.player.getState();
+    const objState = state.daily.objectiveState;
 
-  /** Push daily status to the HUD + character badges. */
-  private updateHudStatus() {
-    const daily = this.player.getState().daily;
-    const objState = daily.objectiveState;
-    const now = new Date();
-
-    const allDone = this.objectives.all().every((obj) => objState[obj.id] != null);
-
-    // Which NPCs have had their objective completed today?
+    // Which NPCs have been talked to (reward claimed) today?
     const completedNpcIds = new Set(
-      this.objectives.all()
+      this.objectives
+        .all()
         .filter((obj) => objState[obj.id] != null)
         .map((obj) => obj.npcId),
     );
 
-    // Refresh the room so NPC badges update.
-    const map = getMap(this.currentMapId);
-    if (map) {
-      this.worldView.loadMap(map, objState, completedNpcIds);
-      this.worldView.updateHud(this.player.getState().pesos);
-    }
+    const map = getMap("barrio")!;
+    this.worldView.loadMap(map, objState, completedNpcIds);
+    this.worldView.updateHud(state.money);
 
-    let hoursUntilReset: number | undefined;
-    let minutesUntilReset: number | undefined;
-    if (allDone && daily.dayStartedAt) {
-      const elapsed = now.getTime() - new Date(daily.dayStartedAt).getTime();
-      const remainingMs = Math.max(0, 12 * 60 * 60 * 1000 - elapsed);
-      hoursUntilReset = Math.floor(remainingMs / (60 * 60 * 1000));
-      minutesUntilReset = Math.ceil((remainingMs % (60 * 60 * 1000)) / 60_000);
-    }
+    // Inject the live field + station cards (they depend on player state).
+    this.worldView.setExtraCards([
+      this.fieldCard(),
+      this.stationCard(),
+    ]);
 
-    this.worldView.updateDailyStatus({ allDone, hoursUntilReset, minutesUntilReset });
+    const now = new Date();
+    const hours = hoursUntilNextDay(state.daily, now);
+    const allClaimed = this.objectives
+      .all()
+      .every((obj) => objState[obj.id] != null);
+    this.worldView.updateDailyStatus({
+      allDone: allClaimed,
+      hoursUntilReset: hours,
+    });
   }
+
+  private fieldCard() {
+    const field = this.player.getState().field;
+    const crop = field.slots[0];
+    let icon = "🟫";
+    let label = "Your field";
+    let hint = "Empty — get seeds from the farm";
+
+    if (crop) {
+      const bars = "🌱".repeat(Math.max(1, crop.growth)) || "🌱";
+      if (crop.growth >= MAX_GROWTH) {
+        icon = "🌻";
+        label = "Ready to harvest!";
+        hint = "Tap to harvest, then sell at the store";
+      } else {
+        icon = crop.growth >= 3 ? "🌿" : "🌱";
+        label = `Growing (${crop.growth}/${MAX_GROWTH})`;
+        hint = `${bars} — water daily to grow`;
+      }
+    }
+
+    return {
+      id: "field",
+      icon,
+      label,
+      hint,
+      onTap: () => this.onFieldTap(),
+    };
+  }
+
+  private stationCard() {
+    const state = this.player.getState();
+    const area = CURRENT_AREA;
+    const owned = area.nextAreaId ? hasTicketTo(state.inventory, area.nextAreaId) : false;
+    const canAfford = state.money >= area.ticketPrice;
+
+    let hint: string;
+    if (!area.nextAreaId) hint = "End of the line";
+    else if (owned) hint = "Ticket bought! ✓";
+    else if (canAfford) hint = `Tap to buy a ticket (${area.ticketPrice} 💰)`;
+    else hint = `Need ${area.ticketPrice} 💰 for a ticket`;
+
+    return {
+      id: "station",
+      icon: "🚂",
+      label: "Train station",
+      hint,
+      onTap: () => this.onStationTap(),
+    };
+  }
+
+  // --- Field interactions ---------------------------------------------------
+
+  private onFieldTap() {
+    const field = this.player.getState().field;
+    const crop = field.slots[0];
+
+    if (crop && crop.growth >= MAX_GROWTH) {
+      // Harvest is automatic; selling happens at the store.
+      void this.harvestField();
+      return;
+    }
+    if (!crop) {
+      this.toast("Visit Don Semilla at the seed farm to get seeds to plant.");
+      return;
+    }
+    this.toast(
+      `Your crop is growing (${crop.growth}/${MAX_GROWTH}). Practice with Aguamarina each day to water it.`,
+    );
+  }
+
+  private async harvestField() {
+    await this.player.update((s) => {
+      const res = harvest(s.field);
+      return { ...s, field: res.field };
+    });
+    this.toast("Harvested! Take it to Doña Tienda's store to sell. 🌻");
+    this.render();
+  }
+
+  // --- Station --------------------------------------------------------------
+
+  private onStationTap() {
+    const area = CURRENT_AREA;
+    if (!area.nextAreaId) {
+      this.toast("This is the last town for now — more on the way!");
+      return;
+    }
+    const state = this.player.getState();
+    if (hasTicketTo(state.inventory, area.nextAreaId)) {
+      this.toast("You already have your ticket. ¡Buen viaje!");
+      return;
+    }
+    if (state.money < area.ticketPrice) {
+      this.toast(`A ticket costs ${area.ticketPrice} 💰. Sell more crops to afford it!`);
+      return;
+    }
+    void this.player.update((s) => ({
+      ...s,
+      money: s.money - area.ticketPrice,
+      inventory: addItem(s.inventory, ticketId(area.nextAreaId!)),
+    }));
+    this.toast("🚂 Ticket bought! The next town awaits.");
+    this.render();
+  }
+
+  // --- NPC dialogue + conversation ------------------------------------------
 
   private onNpcTap(mapNpc: MapNpc) {
     const npc = findNpc(mapNpc.npcId);
@@ -118,37 +218,19 @@ export class GameController {
     this.openDialogue(npc);
   }
 
-  private onDoorTap(door: MapDoor) {
-    if (!isDoorUnlocked(door, this.getObjState())) return;
-    this.loadMap(door.targetMapId);
-  }
-
-  private onItemTap(item: MapItem) {
-    if (!isItemVisible(item, this.getObjState())) return;
-    if (item.itemId === "water-bottle") {
-      this.showSuccess();
-    }
-  }
-
-  // --- Dialogue (intro screen before voice conversation) --------------------
-
   private openDialogue(npc: Npc) {
     const line = npc.lines[0];
     if (!line) return;
 
-    const town = townOfNpc(npc.id);
-    const scaffold = scaffoldingFor(town?.englishAvailability ?? 1);
-    const hasConversation = !!(npc.conversation || npc.lessonSlug || npc.givesQuest);
-
     const data: DialogueViewData = {
       npcName: npc.name,
       spanish: line.es,
-      showSpanish: scaffold.spanishSubtitles,
+      showSpanish: true,
       englishHint: line.en,
-      showEnglishHint: scaffold.englishHints,
+      showEnglishHint: true,
       lineIndex: 0,
       lineCount: 1,
-      continueLabel: hasConversation ? "Talk ▶" : "Done",
+      continueLabel: "Talk ▶",
       canTrade: false,
     };
 
@@ -157,48 +239,41 @@ export class GameController {
       onContinue: () => {
         view.destroy();
         unblockCanvas();
-        if (hasConversation) {
-          this.openConversation(npc);
-        }
+        this.openConversation(npc);
       },
       onLeave: () => {
         view.destroy();
         unblockCanvas();
-        this.refreshWorld();
+        this.render();
       },
     });
     view.update(data);
   }
 
-  // --- Voice conversation ---------------------------------------------------
-
   private openConversation(npc: Npc) {
-    const obj = getObjective(npc.teachesObjectiveId!);
-    if (!obj) return;
-
     const objective = this.objectives.forNpc(npc.id);
-    const inputs = objective
-      ? this.objectives.gatherInputs(objective.id, this.getObjState())
-      : {};
-    const theme = objective
-      ? objective.buildTheme({ inputs, state: this.getObjState() })
-      : undefined;
+    if (!objective) return;
+    const lesson = CURRENT_LESSON;
 
-    const town = townOfNpc(npc.id);
-    const strictness = town ? gradingStrictness(townInfoOf(town)) : 1;
-    const rapport = this.player.getState().rapport[npc.id]?.points ?? 0;
+    const inputs = this.objectives.gatherInputs(
+      objective.id,
+      this.player.getState().daily.objectiveState,
+    );
+    const theme = objective.buildTheme({
+      inputs,
+      state: this.player.getState().daily.objectiveState,
+    });
 
     const session = new ConversationSession(
       {
         npcId: npc.id,
         npcName: npc.name,
-        level: obj.level,
-        objectiveId: obj.id,
-        canDo: obj.canDo,
-        vocab: obj.vocab.map((v) => ({ es: v.es, en: v.en })),
-        skill: "speaking",
+        level: lesson.level,
+        objectiveId: objective.id,
+        role: objective.role,
+        canDo: lesson.canDo,
+        vocab: lesson.vocab.map((v) => ({ es: v.es, en: v.en })),
         theme,
-        strictness,
       },
       this.adapters.conversationGrader,
       this.player,
@@ -209,34 +284,30 @@ export class GameController {
     void this.recorder.acquire().catch(() => {});
 
     const view = new HtmlConversationView({
-      onMicTap: () => { unlockAudio(); },
+      onMicTap: () => unlockAudio(),
       onLeave: () => {
-        // Left early — do NOT complete the objective. No progress awarded.
+        // Left early — no completion, no progress.
         this.recorder.release();
         view.destroy();
         unblockCanvas();
-        this.refreshWorld();
+        this.render();
       },
       onContinue: () => {
-        // Conversation reached a natural end — complete the objective.
         this.recorder.release();
         view.destroy();
         unblockCanvas();
         void this.completeObjective(npc, session);
-        this.refreshWorld();
       },
     });
 
-    view.setHeader(npc.name, tierLabel(tierFor(rapport)), obj.canDo);
+    view.setHeader(npc.name, "", lesson.canDo);
 
-    // Start the conversation.
-    const opener = npc.conversation?.opener ?? "¡Hola!";
+    const opener = npc.conversation.opener;
     session.begin(opener);
     void this.npcSay(view, npc, opener).then(() => {
       view.setStatus("Your turn — tap the mic and reply in Spanish.");
     });
 
-    // Mic tap handling — managed outside Phaser now.
     let phase: "awaitInput" | "recording" | "thinking" | "done" = "awaitInput";
 
     const onMicTap = async () => {
@@ -267,7 +338,7 @@ export class GameController {
           }
           view.setStatus("Processing…");
           const lastNpc = session.history.filter((t) => t.role === "npc").pop()?.text ?? "";
-          const { cleaned, corrected } = await cleanTranscription(utterance, lastNpc, obj.level);
+          const { cleaned, corrected } = await cleanTranscription(utterance, lastNpc, lesson.level);
           if (corrected && cleaned !== utterance) {
             view.setTranscript(`Heard: "${utterance}" → You meant: "${cleaned}"`);
           } else {
@@ -277,13 +348,14 @@ export class GameController {
 
           const outcome = await session.submit(cleaned);
 
-          const corr = outcome.grade.corrections.length > 0
-            ? outcome.grade.corrections.join("; ") : "";
-          const earned = outcome.applied.reward && outcome.applied.reward.pesos > 0
-            ? `+${outcome.applied.reward.pesos} pesos` : "";
-          const rapportGain = outcome.applied.rapportGained && outcome.applied.rapportGained > 0
-            ? `♥ +${outcome.applied.rapportGained} friendship` : "";
-          view.setFeedback(outcome.grade.feedback, corr, [earned, rapportGain].filter(Boolean).join("  "));
+          const corr =
+            outcome.grade.corrections.length > 0 ? outcome.grade.corrections.join("; ") : "";
+          const earned =
+            outcome.applied.earnedReward && outcome.applied.reward.money > 0
+              ? `+${outcome.applied.reward.money} 💰`
+              : "";
+          const grew = outcome.applied.grown > 0 ? "💧 Your crop grew!" : "";
+          view.setFeedback(outcome.grade.feedback, corr, [earned, grew].filter(Boolean).join("  "));
 
           await this.npcSay(view, npc, outcome.npcReply);
 
@@ -302,7 +374,6 @@ export class GameController {
       }
     };
 
-    // Wire mic tap — replace the placeholder callback.
     view.setMicVisible(MicRecorder.isSupported());
     const micBtn = document.querySelector(".mic-btn");
     micBtn?.addEventListener("pointerdown", (e) => {
@@ -326,66 +397,105 @@ export class GameController {
     }
   }
 
+  /**
+   * Record that the player completed an NPC's conversation today, then apply the
+   * role's side effect on the field/inventory (plant on seeds, sell on store).
+   */
   private async completeObjective(npc: Npc, session: ConversationSession) {
     const objective = this.objectives.forNpc(npc.id);
-    if (!objective) return;
+    if (!objective) {
+      this.render();
+      return;
+    }
 
-    // Idempotent: if already complete today, don't re-write (prevents toggling
-    // when the user replays a conversation).
     const alreadyDone = this.objectives.isComplete(
       objective.id,
       this.player.getState().daily.objectiveState,
     );
-    if (alreadyDone) return;
 
     const npcLines = session.history.filter((t) => t.role === "npc").map((t) => t.text);
     const now = new Date();
+
     await this.player.update((s) => {
-      const prevObjState = s.daily.objectiveState;
-      const earns = this.objectives.earnsReward(objective.id, prevObjState);
-      const newObjState = this.objectives.complete(objective.id, prevObjState, npcLines, now);
-      const dayStartedAt = s.daily.dayStartedAt || now.toISOString();
-      return {
-        ...s,
-        pesos: earns ? s.pesos + objective.reward : s.pesos,
-        daily: { ...s.daily, objectiveState: newObjState, dayStartedAt },
-      };
+      let next = s;
+
+      // Mark the objective complete in the daily objective state (for badges/gating).
+      if (!alreadyDone) {
+        const newObjState = this.objectives.complete(
+          objective.id,
+          s.daily.objectiveState,
+          npcLines,
+          now,
+        );
+        next = {
+          ...next,
+          daily: {
+            ...next.daily,
+            objectiveState: newObjState,
+            dayStartedAt: next.daily.dayStartedAt || now.toISOString(),
+          },
+        };
+      }
+
+      // Role side-effects (only the first completion per role per day matters).
+      if (!alreadyDone) {
+        if (objective.role === "seeds") {
+          next = this.applySeeds(next, now);
+        } else if (objective.role === "store") {
+          next = this.applyStore(next);
+        }
+      }
+      return next;
     });
-    this.updateHudStatus();
+
+    this.afterConversation(objective.role);
+    this.render();
   }
 
-  private refreshWorld() {
-    this.updateHudStatus();
+  /** Planting: if there's room, plant a crop with this week's theme. */
+  private applySeeds(s: ReturnType<PlayerService["getState"]>, now: Date) {
+    if (!hasEmptySlot(s.field)) return s;
+    return {
+      ...s,
+      field: plantSeed(s.field, CURRENT_LESSON.id, now.toISOString().slice(0, 10)),
+    };
   }
 
-  private showSuccess() {
-    blockCanvas();
-    const root = document.createElement("div");
-    root.style.cssText = `
-      position:fixed; inset:0; z-index:20;
-      background:rgba(13,10,18,0.97);
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      font-family:"Trebuchet MS",sans-serif; color:#f4ecd8;
-      padding:24px; text-align:center;
+  /** Selling: harvest any ready crops and pay out money for each. */
+  private applyStore(s: ReturnType<PlayerService["getState"]>) {
+    const ready = readySlots(s.field);
+    if (ready.length === 0) return s;
+    const res = harvest(s.field);
+    const payout = res.harvested.length * CROP_VALUE;
+    return { ...s, field: res.field, money: s.money + payout };
+  }
+
+  private afterConversation(role: string) {
+    const s = this.player.getState();
+    if (role === "seeds" && s.field.slots[0]) {
+      this.toast("🌱 Seeds planted! Water daily with Aguamarina to grow them.");
+    } else if (role === "store") {
+      this.toast("🛒 Sold! Money added. Save up for a train ticket. 💰");
+    } else if (role === "water") {
+      if (hasHarvest(s.field)) {
+        this.toast("🌻 A crop is fully grown — sell it at the store!");
+      }
+    }
+  }
+
+  // --- Small toast overlay --------------------------------------------------
+
+  private toast(message: string) {
+    const el = document.createElement("div");
+    el.style.cssText = `
+      position:fixed; left:50%; bottom:24px; transform:translateX(-50%);
+      z-index:30; max-width:90%; background:rgba(20,16,28,0.96); color:#f4ecd8;
+      border:1px solid #4a7c59; border-radius:12px; padding:12px 18px;
+      font-family:"Trebuchet MS",sans-serif; font-size:15px; text-align:center;
+      box-shadow:0 6px 24px rgba(0,0,0,0.4);
     `;
-    root.innerHTML = `
-      <div style="font-size:48px; margin-bottom:12px;">🌸</div>
-      <div style="font-size:28px; font-weight:bold; color:#ffe08a; margin-bottom:8px;">¡Muy bien!</div>
-      <div style="font-size:20px; color:#9bc995; margin-bottom:20px;">Great practice today!</div>
-      <div style="font-size:16px; color:#8a8290; margin-bottom:30px;">
-        Come back later for new practice!<br>You can replay conversations anytime.
-      </div>
-      <button style="
-        background:#4a7c59; color:#f4ecd8; border:none; border-radius:14px;
-        padding:16px 40px; font-size:20px; font-weight:bold; cursor:pointer;
-        font-family:inherit;
-      ">Continue ▶</button>
-    `;
-    root.querySelector("button")!.addEventListener("pointerdown", (e) => {
-      e.stopPropagation();
-      root.remove();
-      unblockCanvas();
-    });
-    document.body.appendChild(root);
+    el.textContent = message;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3500);
   }
 }

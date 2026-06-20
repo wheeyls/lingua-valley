@@ -13,12 +13,10 @@ import {
   initialPlayerState,
   settleDailyState,
   applyActivity,
-  utcDay,
   type PlayerState,
   type ActivityResult,
   type ApplyResult,
 } from "../domain/player";
-import { objectiveWordIds } from "../content/curriculum";
 
 type Listener = (state: PlayerState) => void;
 
@@ -44,7 +42,7 @@ export class PlayerService {
     // daily activity counter on a new day) the moment we load.
     this.state = settleDailyState(
       loaded ?? initialPlayerState(),
-      utcDay(new Date()),
+      new Date(),
     );
     // Persist if brand-new OR if settling changed anything (e.g. decay applied).
     if (!loaded || this.state !== (loaded ?? null)) {
@@ -97,37 +95,12 @@ export class PlayerService {
       result = await this.grader.grant(activity);
     } catch (err) {
       console.error("[PlayerService] reward grant failed; applying locally.", err);
-      result = applyActivity(
-        this.state,
-        activity,
-        new Date(),
-        objectiveWordIds,
-      );
+      result = applyActivity(this.state, activity, new Date());
       // Best-effort local persist (also non-fatal).
       this.repo.save(result.state).catch(() => {});
     }
     this.state = result.state;
     this.emit();
-    return result;
-  }
-
-  /**
-   * Apply a pure trade transform (buy/sell) to the player's state and persist.
-   * The caller passes a domain function (from trade.ts) that maps state -> a
-   * result with the new state. On success we adopt + persist.
-   *
-   * NOTE: trades are applied locally today (like guest rewards). A server-
-   * authoritative trade endpoint is future work, mirroring /api/activity-complete.
-   */
-  async applyTrade<R extends { state: PlayerState; ok: boolean }>(
-    transform: (state: PlayerState) => R,
-  ): Promise<R> {
-    const result = transform(this.state);
-    if (result.ok) {
-      this.state = result.state;
-      await this.repo.save(this.state);
-      this.emit();
-    }
     return result;
   }
 

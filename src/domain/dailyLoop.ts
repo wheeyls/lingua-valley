@@ -1,41 +1,42 @@
 /**
- * Daily loop — the core gameplay cadence.
+ * Daily loop — the farming cadence.
  *
- * Each "day" (12-hour cycle) has exactly 3 steps in order:
- *   1. Greet Rosa (casual greeting conversation)
- *   2. Listen to Marisol's story (past-tense narration)
- *   3. Retell the story to Pablo (graded retelling)
+ * The day is structured around three roles, each fulfilled by a conversation:
  *
- * After all 3, the day is "done" — you can replay for fun but earn no rewards.
- * The next day starts 12 hours after you completed (or first attempted) today's
- * loop.
+ *   1. SEEDS  — the intro/"new lesson" conversation. Earns a batch of seeds,
+ *               which plants one crop and sets the week's lesson theme.
+ *   2. WATER  — the daily practice conversation. Waters the whole field, which
+ *               grows every crop +1 unit. This is the GROWTH DRIVER and is gated
+ *               to once per day.
+ *   3. STORE  — the review / "unit test" conversation. Sells harvest-ready crops
+ *               for money, which buys a train ticket to the next area.
+ *
+ * Each role can be REWARDED once per day; replaying earns nothing but is always
+ * allowed (free practice). A new day begins 12 hours after the day started.
  *
  * Pure domain: state + rules only, no framework.
  */
 
 import type { ObjectiveState } from "./objective.js";
 
-export type DailyStepId = "rosa" | "marisol" | "pablo";
+export type DailyRole = "seeds" | "water" | "store";
 
-export const DAILY_STEPS: DailyStepId[] = ["rosa", "marisol", "pablo"];
+export const DAILY_ROLES: DailyRole[] = ["seeds", "water", "store"];
 
 export const DAY_COOLDOWN_MS = 12 * 60 * 60 * 1000; // 12 hours
 
 export interface DailyState {
-  /** Which steps have been completed today (in order). */
-  completedSteps: DailyStepId[];
-  /** ISO timestamp when the current day's loop started (first step attempted). */
+  /** ISO timestamp when the current day's loop started (first reward earned). */
   dayStartedAt: string;
-  /** The LLM-generated story Marisol told today (set after the Marisol step). */
-  todayStory: string;
+  /** Roles whose reward has been claimed today (e.g. the water gate). */
+  rewardedRoles: DailyRole[];
   /** Per-objective completion state for this cycle (keyed by objective id). */
   objectiveState: ObjectiveState;
 }
 
 export const INITIAL_DAILY_STATE: DailyState = {
-  completedSteps: [],
   dayStartedAt: "",
-  todayStory: "",
+  rewardedRoles: [],
   objectiveState: {},
 };
 
@@ -48,46 +49,25 @@ export function isNewDay(state: DailyState, now: Date): boolean {
 /** Reset the daily state for a new day. Pure. */
 export function startNewDay(now: Date): DailyState {
   return {
-    completedSteps: [],
     dayStartedAt: now.toISOString(),
-    todayStory: "",
+    rewardedRoles: [],
     objectiveState: {},
   };
 }
 
-/** The next step the player should do (or null if the day is done). */
-export function currentStep(state: DailyState): DailyStepId | null {
-  for (const step of DAILY_STEPS) {
-    if (!state.completedSteps.includes(step)) return step;
-  }
-  return null; // all done
+/** Whether this role's reward is still available today (not yet claimed). */
+export function roleEarnsReward(state: DailyState, role: DailyRole): boolean {
+  return !state.rewardedRoles.includes(role);
 }
 
-/** Mark a step complete. Pure — returns new state. */
-export function completeStep(
-  state: DailyState,
-  step: DailyStepId,
-): DailyState {
-  if (state.completedSteps.includes(step)) return state;
-  return { ...state, completedSteps: [...state.completedSteps, step] };
-}
-
-/** Whether all 3 steps are done (day is over). */
-export function isDayDone(state: DailyState): boolean {
-  return currentStep(state) === null;
-}
-
-/** Store the story Marisol told (for Pablo's retelling comparison). */
-export function setTodayStory(state: DailyState, story: string): DailyState {
-  return { ...state, todayStory: story };
-}
-
-/** Whether this step earns rewards (first completion of the day, not a replay). */
-export function stepEarnsReward(
-  state: DailyState,
-  step: DailyStepId,
-): boolean {
-  return !state.completedSteps.includes(step);
+/** Mark a role's reward as claimed for today. Pure — returns new state. */
+export function claimRole(state: DailyState, role: DailyRole, now: Date): DailyState {
+  if (state.rewardedRoles.includes(role)) return state;
+  return {
+    ...state,
+    dayStartedAt: state.dayStartedAt || now.toISOString(),
+    rewardedRoles: [...state.rewardedRoles, role],
+  };
 }
 
 /** Hours remaining until the next day (0 if already a new day). */

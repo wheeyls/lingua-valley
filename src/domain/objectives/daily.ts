@@ -1,16 +1,17 @@
 /**
- * Build the daily objective graph — the complete set of objectives for one day.
- * Pure factory, no framework.
+ * Build the daily objective graph for a lesson — the three farming-loop
+ * conversations (seeds → water → store). Pure factory, no framework.
  */
 
 import { ObjectiveGraph } from "../objective.js";
-import { RosaGreeting } from "./RosaGreeting.js";
-import { MarisolStory } from "./MarisolStory.js";
-import { PabloRetelling } from "./PabloRetelling.js";
+import type { Lesson } from "./lesson.js";
+import { SeedsIntro } from "./SeedsIntro.js";
+import { WaterPractice } from "./WaterPractice.js";
+import { StoreReview } from "./StoreReview.js";
 
-export function buildDailyGraph(): ObjectiveGraph {
+export function buildDailyGraph(lesson: Lesson): ObjectiveGraph {
   return new ObjectiveGraph()
-    .register(new RosaGreeting())
-    .register(new MarisolStory())
-    .register(new PabloRetelling());
+    .register(new SeedsIntro(lesson))
+    .register(new WaterPractice(lesson))
+    .register(new StoreReview(lesson));
 }

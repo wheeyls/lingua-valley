@@ -1,14 +1,15 @@
 /**
- * World definition — stripped to the daily loop essentials.
+ * World definition — the farming neighbourhood.
  *
- * One area: your neighborhood. Walk south from Home past Rosa, to the
- * Restaurant (Marisol), and then to Pablo. Three NPCs, one path, one focused
- * daily practice loop.
+ * One area with three people you talk to:
+ *   - Seedsman   — the seed farm. Intro conversation; gives you seeds to plant.
+ *   - Waterkeeper— the water tower. Daily practice; waters your field.
+ *   - Shopkeeper — the store. Review conversation; buys your harvest for money.
+ *
+ * Money buys a train ticket to the next area.
  */
 
 import type { CefrLevel } from "../domain/cefr.js";
-import type { Good } from "../domain/trade.js";
-import type { TownInfo } from "../domain/town.js";
 
 export interface DialogueLine {
   level: CefrLevel;
@@ -19,107 +20,81 @@ export interface DialogueLine {
 export interface Npc {
   id: string;
   name: string;
-  tileX: number;
-  tileY: number;
   color: number;
-  teachesObjectiveId?: string;
+  /** The daily-graph objective this NPC fulfills (seeds-intro/water-practice/store-review). */
+  teachesObjectiveId: string;
   voice?: string;
-  conversation?: { opener: string };
-  lessonSlug?: string;
+  conversation: { opener: string };
   lines: DialogueLine[];
-  trades?: Good[];
-  role?: "middleman" | "producer" | "gatekeeper";
-  givesQuest?: string;
-  /** Which daily loop step this NPC fulfills. */
-  dailyStep?: "rosa" | "marisol" | "pablo";
 }
 
 export interface Area {
   id: string;
   name: string;
   level: CefrLevel;
-  groundColor: number;
-  accentColor: number;
-  bounds: { x: number; y: number; width: number; height: number };
+  /** The area this one's train ticket leads to (undefined for the last area). */
+  nextAreaId?: string;
+  /** Price of the train ticket to the next area, in money. */
+  ticketPrice: number;
   npcs: Npc[];
-  depth: number;
-  englishAvailability: number;
-  gatekeeper?: { npcId: string; lessonSlug: string; passQuality: number };
 }
-
-export const TILE = 32;
-
-const AREA_W = 15; // tiles
-const AREA_H = 28; // tiles — a comfortable vertical walk
 
 export const AREAS: Area[] = [
   {
-    id: "neighborhood",
+    id: "barrio",
     name: "El Barrio",
     level: "A1",
-    groundColor: 0x4a7c59,
-    accentColor: 0x9bc995,
-    bounds: { x: 0, y: 0, width: AREA_W * TILE, height: AREA_H * TILE },
-    depth: 0,
-    englishAvailability: 0.8,
+    nextAreaId: "mercado",
+    ticketPrice: 50,
     npcs: [
       {
-        id: "rosa",
-        name: "Rosa",
-        tileX: 7,
-        tileY: 6,
-        color: 0xe07a5f,
-        teachesObjectiveId: "a1.greetings",
-        voice: "nova",
-        dailyStep: "rosa",
+        id: "seedsman",
+        name: "Don Semilla",
+        color: 0x8a5a44,
+        teachesObjectiveId: "seeds-intro",
+        voice: "onyx",
         conversation: {
-          opener: "¡Buenas! ¿Qué onda? ¿Cómo andas?",
+          opener: "¡Buenas! ¿Vienes por semillas? Te cuento qué cultivamos esta semana.",
         },
         lines: [
           {
             level: "A1",
-            es: "🗣 Practice greeting Rosa in Spanish!",
-            en: "Tap 'Talk' to start a voice conversation. Rosa will greet you — respond in Spanish! Tap the mic to speak, tap again to send.",
+            es: "🌱 Consigue semillas de Don Semilla",
+            en: "Talk to the seed farmer to learn this week's lesson and get a batch of seeds to plant back home. Tap 'Talk' to begin.",
           },
         ],
       },
       {
-        id: "marisol",
-        name: "Marisol",
-        tileX: 7,
-        tileY: 14,
-        color: 0x2a9d8f,
-        teachesObjectiveId: "a2.morning_story",
+        id: "waterkeeper",
+        name: "Aguamarina",
+        color: 0x3d7ea6,
+        teachesObjectiveId: "water-practice",
         voice: "shimmer",
-        dailyStep: "marisol",
         conversation: {
-          opener: "¡Hola! Siéntate. Te cuento lo que hice hoy…",
+          opener: "¡Hola! ¿Listo para regar? Practiquemos un poco primero.",
         },
         lines: [
           {
-            level: "A2",
-            es: "🎧 Listen to Marisol's story!",
-            en: "Marisol will tell you about her day in Spanish. Listen carefully — her brother Pablo will ask you about it later! Tap 'Talk' to begin.",
+            level: "A1",
+            es: "💧 Practica con Aguamarina",
+            en: "Your daily practice. Have a conversation to earn water for your whole garden — your crops grow one step each day you water. Tap 'Talk' to begin.",
           },
         ],
       },
       {
-        id: "pablo",
-        name: "Pablo",
-        tileX: 7,
-        tileY: 22,
-        color: 0x3d5a80,
-        teachesObjectiveId: "a2.retell",
-        voice: "onyx",
-        dailyStep: "pablo",
+        id: "shopkeeper",
+        name: "Doña Tienda",
+        color: 0xb5793a,
+        teachesObjectiveId: "store-review",
+        voice: "nova",
         conversation: {
-          opener: "¡Ey! ¿Ya hablaste con Marisol, mi hermana? Cuéntame — ¿qué hizo hoy?",
+          opener: "¡Bienvenido a la tienda! ¿Qué me traes hoy?",
         },
         lines: [
           {
-            level: "A2",
-            es: "🔄 Tell Pablo what Marisol did!",
-            en: "Pablo is Marisol's brother. He'll ask you what Marisol told you. Try to retell her story in Spanish — he'll help if you get stuck! Tap 'Talk' to begin.",
+            level: "A1",
+            es: "🛒 Vende tu cosecha en la tienda",
+            en: "Bring a grown crop here to review what you've learned and sell it for money. Save up for a train ticket to the next town! Tap 'Talk' to begin.",
           },
         ],
       },
@@ -127,46 +102,17 @@ export const AREAS: Area[] = [
   },
 ];
 
-export function areaAt(x: number, y: number): Area | undefined {
-  return AREAS.find(
-    (a) =>
-      x >= a.bounds.x &&
-      x < a.bounds.x + a.bounds.width &&
-      y >= a.bounds.y &&
-      y < a.bounds.y + a.bounds.height,
-  );
+export function findNpc(id: string): Npc | undefined {
+  for (const a of AREAS) {
+    const n = a.npcs.find((n) => n.id === id);
+    if (n) return n;
+  }
+  return undefined;
 }
 
-export function townOfNpc(npcId: string): Area | undefined {
+export function areaOfNpc(npcId: string): Area | undefined {
   return AREAS.find((a) => a.npcs.some((n) => n.id === npcId));
 }
 
-export function townInfoOf(area: Area): TownInfo {
-  return {
-    id: area.id,
-    name: area.name,
-    depth: area.depth,
-    level: area.level,
-    englishAvailability: area.englishAvailability,
-    gatekeeper: area.gatekeeper,
-  };
-}
-
-export const GOOD_NAMES: Record<string, string> = (() => {
-  const out: Record<string, string> = {};
-  for (const area of AREAS) {
-    for (const npc of area.npcs) {
-      for (const g of npc.trades ?? []) out[g.id] = g.name;
-    }
-  }
-  return out;
-})();
-
-export const WORLD_WIDTH = AREAS.reduce(
-  (max, a) => Math.max(max, a.bounds.x + a.bounds.width),
-  0,
-);
-export const WORLD_HEIGHT = AREAS.reduce(
-  (max, a) => Math.max(max, a.bounds.y + a.bounds.height),
-  0,
-);
+/** The area the player currently lives in (single-area slice for now). */
+export const CURRENT_AREA: Area = AREAS[0];

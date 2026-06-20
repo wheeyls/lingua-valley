@@ -4,8 +4,7 @@
  * uses, then persists via the injected repository.
  *
  * It contains no economy rules of its own — those live in the domain. This
- * adapter only orchestrates load → applyActivity → save and supplies the
- * word-id lookup and clock.
+ * adapter only orchestrates load → applyActivity → save and supplies the clock.
  */
 
 import type { RewardGrader, PlayerStateRepository, Clock } from "../domain/ports";
@@ -15,17 +14,11 @@ export class LocalRewardGrader implements RewardGrader {
   constructor(
     private readonly repo: PlayerStateRepository,
     private readonly clock: Clock,
-    private readonly objectiveWordIds: (objectiveId: string) => string[],
   ) {}
 
   async grant(activity: ActivityResult) {
     const prev = (await this.repo.load()) ?? initialPlayerState();
-    const result = applyActivity(
-      prev,
-      activity,
-      this.clock.now(),
-      this.objectiveWordIds,
-    );
+    const result = applyActivity(prev, activity, this.clock.now());
     await this.repo.save(result.state);
     return result;
   }

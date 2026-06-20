@@ -1,121 +1,40 @@
 /**
- * Map definitions — room-based point-and-click.
+ * Map definitions — a single point-and-click neighbourhood.
  *
- * Street: Rosa (outside) + your house + Marisol's house
- * Your house: flower (after all objectives)
- * Marisol's house: Marisol + Pablo (locked until Rosa + Marisol done)
+ * The Barrio shows everything as tappable cards:
+ *   - your House (the field, rendered live by the controller from player state)
+ *   - the Seed Farm (Don Semilla)
+ *   - the Water Tower (Aguamarina)
+ *   - the Store (Doña Tienda)
+ *   - the Train Station (buy a ticket — rendered live by the controller)
+ *
+ * NPC cards are the map entities; the field and station are injected by the
+ * GameController because they depend on live player state, not objective gates.
  */
 
 import type { GameMap } from "../domain/gameMap.js";
-import { STREET_BG, HOME_BG, PRACTICE_BG } from "./art.js";
+import { STREET_BG } from "./art.js";
+import { CURRENT_AREA } from "./world.js";
 
-export const STREET: GameMap = {
-  id: "street",
-  name: "La Calle",
+export const BARRIO: GameMap = {
+  id: "barrio",
+  name: CURRENT_AREA.name,
   width: 800,
-  groundColor: 0x6b705c,
+  groundColor: 0x4a7c59,
   spawnX: 100,
   backgroundSvg: STREET_BG,
-  entities: [
-    {
-      id: "rosa-npc",
-      kind: "npc",
-      x: 0,
-      npcId: "rosa",
-      name: "Rosa",
-      color: 0xe07a5f,
-    },
-    {
-      id: "home-door",
-      kind: "door",
-      x: 100,
-      targetMapId: "home",
-      targetX: 200,
-      unlockedBy: [],
-      label: "Your house",
-    },
-    {
-      id: "practice-door",
-      kind: "door",
-      x: 500,
-      targetMapId: "practice-house",
-      targetX: 80,
-      unlockedBy: [],
-      label: "Marisol's house",
-    },
-  ],
+  entities: CURRENT_AREA.npcs.map((npc, i) => ({
+    id: `${npc.id}-npc`,
+    kind: "npc" as const,
+    x: 100 + i * 200,
+    npcId: npc.id,
+    name: npc.name,
+    color: npc.color,
+  })),
 };
 
-export const HOME: GameMap = {
-  id: "home",
-  name: "Tu Casa",
-  width: 400,
-  groundColor: 0x3d405b,
-  spawnX: 200,
-  backgroundSvg: HOME_BG,
-  entities: [
-    {
-      id: "home-exit",
-      kind: "door",
-      x: 350,
-      targetMapId: "street",
-      targetX: 100,
-      unlockedBy: [],
-      label: "← Leave",
-    },
-    {
-      id: "flower",
-      kind: "item",
-      x: 100,
-      itemId: "water-bottle",
-      name: "🌱 Your flower",
-      appearsAfter: ["pablo-retelling"], // appears after completing Pablo
-    },
-  ],
-};
-
-export const PRACTICE_HOUSE: GameMap = {
-  id: "practice-house",
-  name: "Casa de Marisol",
-  width: 900,
-  groundColor: 0x5f4b66,
-  spawnX: 0,
-  backgroundSvg: PRACTICE_BG,
-  entities: [
-    {
-      id: "marisol-npc",
-      kind: "npc",
-      x: 0,
-      npcId: "marisol",
-      name: "Marisol",
-      color: 0x2a9d8f,
-    },
-    {
-      id: "pablo-npc",
-      kind: "npc",
-      x: 0,
-      npcId: "pablo",
-      name: "Pablo",
-      color: 0x3d5a80,
-      availableAfter: ["rosa-greeting", "marisol-story"],
-    },
-    {
-      id: "practice-exit",
-      kind: "door",
-      x: 0,
-      targetMapId: "street",
-      targetX: 500,
-      unlockedBy: [],
-      label: "← Leave",
-    },
-  ],
-};
-
-/** All maps, keyed by id for lookup. */
 export const ALL_MAPS: Record<string, GameMap> = {
-  street: STREET,
-  home: HOME,
-  "practice-house": PRACTICE_HOUSE,
+  barrio: BARRIO,
 };
 
 export function getMap(id: string): GameMap | undefined {
