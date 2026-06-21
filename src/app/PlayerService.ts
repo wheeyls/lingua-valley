@@ -8,15 +8,23 @@
  * No game rules live here — those are in the domain. This is wiring + caching.
  */
 
-import type { PlayerStateRepository, RewardGrader, Clock } from "../domain/ports";
+import type {
+  PlayerStateRepository,
+  RewardGrader,
+  PlayerActionGateway,
+  Clock,
+} from "../domain/ports";
 import { systemClock } from "../domain/ports";
 import {
   initialPlayerState,
   settleDailyState,
   applyActivity,
+  applyPlayerAction,
   type PlayerState,
   type ActivityResult,
   type ApplyResult,
+  type PlayerAction,
+  type ActionResult,
 } from "../domain/player";
 
 type Listener = (state: PlayerState) => void;
@@ -29,6 +37,7 @@ export class PlayerService {
     private readonly repo: PlayerStateRepository,
     private readonly grader: RewardGrader,
     private readonly clock: Clock = systemClock,
+    private readonly actions?: PlayerActionGateway,
   ) {}
 
   /** Load persisted state (or initialize a fresh one) and notify. */
@@ -111,6 +120,28 @@ export class PlayerService {
     }
     this.state = result.state;
     this.emit();
+    return result;
+  }
+
+  /**
+   * Perform a non-conversation action (e.g. buy a ticket) authoritatively. Like
+   * completeActivity, routes through the gateway when present (server-auth when
+   * signed in) and falls back to the local reducer so gameplay never breaks.
+   */
+  async performAction(action: PlayerAction): Promise<ActionResult> {
+    let result: ActionResult;
+    try {
+      if (!this.actions) throw new Error("no action gateway");
+      result = await this.actions.perform(action);
+    } catch (err) {
+      console.error("[PlayerService] action failed; applying locally.", err);
+      result = applyPlayerAction(this.state, action);
+      if (result.ok) this.repo.save(result.state).catch(() => {});
+    }
+    if (result.ok) {
+      this.state = result.state;
+      this.emit();
+    }
     return result;
   }
 

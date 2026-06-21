@@ -11,6 +11,8 @@ import { systemClock, type Clock } from "../domain/ports";
 import type {
   PlayerStateRepository,
   RewardGrader,
+  PlayerActionGateway,
+  ClaimGateway,
   ConversationGrader,
   PresenceGateway,
   AuthGateway,
@@ -18,6 +20,7 @@ import type {
 
 import { LocalPlayerRepository } from "../net/LocalPlayerRepository";
 import { LocalRewardGrader } from "../net/LocalRewardGrader";
+import { LocalPlayerActionGateway } from "../net/LocalPlayerActionGateway";
 import { HttpConversationGrader } from "../net/HttpConversationGrader";
 import { getOrCreateGuestId } from "../net/guest";
 
@@ -32,6 +35,8 @@ import { SupabasePlayerRepository } from "../net/SupabasePlayerRepository";
 import { SupabaseAuthGateway } from "../net/SupabaseAuthGateway";
 import { SupabasePresenceGateway } from "../net/SupabasePresenceGateway";
 import { HttpRewardClient } from "../net/HttpRewardClient";
+import { HttpPlayerActionClient } from "../net/HttpPlayerActionClient";
+import { HttpClaimClient } from "../net/HttpClaimClient";
 
 export type AdapterProfile = "test" | "local-fakes" | "guest" | "cloud";
 
@@ -40,6 +45,9 @@ export interface Adapters {
   clock: Clock;
   repo: PlayerStateRepository;
   rewardGrader: RewardGrader;
+  playerActions: PlayerActionGateway;
+  /** Present on the cloud profile when signed in — server-authoritative claim. */
+  claim?: ClaimGateway;
   conversationGrader: ConversationGrader;
   presence: PresenceGateway;
   auth: AuthGateway;
@@ -70,6 +78,7 @@ export function makeAdapters(profile: AdapterProfile): Adapters {
         clock,
         repo,
         rewardGrader,
+        playerActions: new LocalPlayerActionGateway(repo),
         conversationGrader: grader,
         presence,
         auth,
@@ -87,6 +96,7 @@ export function makeAdapters(profile: AdapterProfile): Adapters {
         clock,
         repo,
         rewardGrader,
+        playerActions: new LocalPlayerActionGateway(repo),
         conversationGrader: new HttpConversationGrader(),
         presence: new NoopPresenceGateway(),
         auth: new FakeAuthGateway(getOrCreateGuestIdSafe()),
@@ -105,6 +115,7 @@ export function makeAdapters(profile: AdapterProfile): Adapters {
         clock,
         repo,
         rewardGrader,
+        playerActions: new LocalPlayerActionGateway(repo),
         conversationGrader: new HttpConversationGrader(),
         presence: new NoopPresenceGateway(),
         auth: new FakeAuthGateway(getOrCreateGuestIdSafe()),
@@ -143,6 +154,8 @@ export async function resolveCloudAdapters(): Promise<Adapters> {
       clock,
       repo,
       rewardGrader: new HttpRewardClient(),
+      playerActions: new HttpPlayerActionClient(),
+      claim: new HttpClaimClient(),
       conversationGrader,
       presence: new SupabasePresenceGateway(sb),
       auth,
@@ -156,6 +169,7 @@ export async function resolveCloudAdapters(): Promise<Adapters> {
     clock,
     repo,
     rewardGrader: new LocalRewardGrader(repo, clock),
+    playerActions: new LocalPlayerActionGateway(repo),
     conversationGrader,
     presence: new NoopPresenceGateway(),
     auth,

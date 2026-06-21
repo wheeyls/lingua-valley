@@ -34,6 +34,13 @@ export interface ConversationConfig {
   vocab: { es: string; en: string }[];
   /** Short theme/scenario to keep the LLM on-topic. */
   theme?: string;
+  /** The crop theme (lesson id) to plant when a seeds conversation completes. */
+  cropTheme?: string;
+  /**
+   * Extract outputs (e.g. { storyText }) from the NPC lines so far, to persist
+   * in the objective state for dependent objectives. Called each turn.
+   */
+  extractOutputs?: (npcLines: string[]) => Record<string, string>;
 }
 
 export interface TurnOutcome {
@@ -98,12 +105,15 @@ export class ConversationSession {
     const complete =
       res.conversationComplete && this.playerTurns >= MIN_PLAYER_TURNS;
 
+    const npcLines = this.history.filter((t) => t.role === "npc").map((t) => t.text);
     const applied = await this.player.completeActivity({
       objectiveId: this.config.objectiveId,
       level: this.config.level,
       role: this.config.role,
       communication: res.grade.communication,
       accuracy: res.grade.accuracy,
+      theme: this.config.cropTheme,
+      outputs: this.config.extractOutputs?.(npcLines),
     });
 
     return { npcReply, grade: res.grade, applied, passed, complete };

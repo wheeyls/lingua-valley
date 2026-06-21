@@ -25,8 +25,26 @@ import {
   type DailyState,
   type DailyRole,
 } from "./dailyLoop.js";
-import { makeField, waterField, type Field, type Slot } from "./field.js";
-import { emptyInventory, add as addItem, type Inventory } from "./inventory.js";
+import {
+  makeField,
+  waterField,
+  plantSeed,
+  hasEmptySlot,
+  harvest,
+  readySlots,
+  type Field,
+  type Slot,
+} from "./field.js";
+import {
+  emptyInventory,
+  add as addItem,
+  has as hasItem,
+  ticketId,
+  type Inventory,
+} from "./inventory.js";
+
+/** Money paid per harvested crop sold at the store. */
+export const CROP_VALUE = 25;
 
 export interface PlayerState {
   /** Display identity (also used for the multiplayer avatar). */
@@ -144,6 +162,17 @@ export interface ActivityResult {
   /** 0..1 grade components from the grader. */
   communication: number;
   accuracy: number;
+  /**
+   * The crop theme to plant when a SEEDS conversation completes (the lesson id).
+   * Ignored for other roles. Required for planting to be authoritative.
+   */
+  theme?: string;
+  /**
+   * Outputs this conversation produced (e.g. { storyText }) to record in the
+   * daily objectiveState so dependent objectives unlock + receive inputs. Stored
+   * authoritatively so it survives a refresh.
+   */
+  outputs?: Record<string, string>;
 }
 
 /** What `applyActivity` returns: the new state plus what happened. */
@@ -155,6 +184,12 @@ export interface ApplyResult {
   earnedReward: boolean;
   /** Crops that gained a growth unit (water role, once/day). */
   grown: number;
+  /** True if this completion planted a crop (seeds role, first of the day). */
+  planted: boolean;
+  /** Number of crops sold at the store (store role, first of the day). */
+  sold: number;
+  /** Money received from selling. */
+  soldValue: number;
 }
 
 /**
@@ -164,11 +199,16 @@ export interface ApplyResult {
  * the authoritative step; the server and the guest path both call it,
  * guaranteeing identical rules everywhere.
  *
- * Rules:
+ * Rules (all gated to the first qualifying completion per day):
  *  - Money is awarded once per OBJECTIVE per day (so a two-person practice pays
  *    for both conversations); replays earn nothing.
- *  - The WATER role grows the field +1 unit, gated once per day per ROLE (so the
- *    field only advances one step a day regardless of how many water chats).
+ *  - SEEDS plants a crop (once per day per role).
+ *  - WATER grows the field +1 unit (once per day per role, so the field only
+ *    advances one step a day regardless of how many water chats).
+ *  - STORE harvests ready crops and pays out CROP_VALUE each (once per day).
+ *
+ * Doing the field side-effects HERE (not in the UI) keeps them authoritative:
+ * the server persists them, and the guest path runs the identical logic.
  */
 export function applyActivity(
   prev: PlayerState,
@@ -180,28 +220,127 @@ export function applyActivity(
   const earnedReward = objectiveEarnsReward(prev.daily, activity.objectiveId);
 
   // Money: only on the first money-bearing completion of this objective today.
-  const money = earnedReward ? prev.money + reward.money : prev.money;
+  let money = earnedReward ? prev.money + reward.money : prev.money;
 
-  // Growth: a water conversation grows the whole field, once per day per role.
   let field = prev.field;
-  let grown = 0;
   let daily = prev.daily;
+  let grown = 0;
+  let planted = false;
+  let sold = 0;
+  let soldValue = 0;
+
+  // SEEDS: plant a crop the first time the seeds role completes today.
+  if (
+    activity.role === "seeds" &&
+    roleEarnsReward(prev.daily, "seeds") &&
+    hasEmptySlot(field)
+  ) {
+    field = plantSeed(field, activity.theme ?? "crop", day);
+    planted = true;
+    daily = claimRole(daily, "seeds", now);
+  }
+
+  // WATER: grow the whole field once per day.
   if (activity.role === "water" && roleEarnsReward(prev.daily, "water")) {
-    const watered = waterField(prev.field, day);
+    const watered = waterField(field, day);
     field = watered.field;
     grown = watered.grown;
     if (grown > 0) daily = claimRole(daily, "water", now);
   }
 
+  // STORE: harvest ready crops and pay out, once per day.
+  if (activity.role === "store" && roleEarnsReward(prev.daily, "store")) {
+    const ready = readySlots(field);
+    if (ready.length > 0) {
+      const result = harvest(field);
+      field = result.field;
+      sold = result.harvested.length;
+      soldValue = sold * CROP_VALUE;
+      money += soldValue;
+      daily = claimRole(daily, "store", now);
+    }
+  }
+
   // Claim the objective's money for today (gates future replays).
   if (earnedReward) daily = claimObjective(daily, activity.objectiveId, now);
+
+  // Record this objective's completion + outputs in the daily objectiveState so
+  // dependent objectives unlock and receive inputs — persisted authoritatively
+  // so it survives a refresh. Outputs are refreshed each turn (they accumulate
+  // as the conversation grows, e.g. the story text); the completion timestamp is
+  // kept from the first turn.
+  {
+    const existing = daily.objectiveState[activity.objectiveId];
+    daily = {
+      ...daily,
+      objectiveState: {
+        ...daily.objectiveState,
+        [activity.objectiveId]: {
+          completedAt: existing?.completedAt ?? now.toISOString(),
+          outputs: activity.outputs ?? existing?.outputs ?? {},
+        },
+      },
+    };
+  }
 
   return {
     state: { ...prev, money, field, daily },
     reward,
     earnedReward,
     grown,
+    planted,
+    sold,
+    soldValue,
   };
+}
+
+/**
+ * A non-conversation player action that must persist authoritatively. Kept
+ * minimal: today only buying a train ticket. Like ActivityResult, this is the
+ * wire shape the server and guest both reduce with `applyPlayerAction`.
+ */
+export interface PlayerAction {
+  type: "buy-ticket";
+  /** The area the ticket travels to. */
+  areaId: string;
+  /** Ticket price (validated against the player's money). */
+  price: number;
+}
+
+export interface ActionResult {
+  state: PlayerState;
+  /** Whether the action succeeded (e.g. enough money, not already owned). */
+  ok: boolean;
+  /** Reason when `ok` is false (for UI messaging). */
+  reason?: "insufficient-funds" | "already-owned" | "unknown-action";
+}
+
+/**
+ * THE authoritative reducer for non-conversation actions. Pure & deterministic.
+ * The server runs this and persists; the guest path runs the same function.
+ */
+export function applyPlayerAction(
+  prev: PlayerState,
+  action: PlayerAction,
+): ActionResult {
+  if (action.type === "buy-ticket") {
+    const id = ticketId(action.areaId);
+    if (hasItem(prev.inventory, id)) {
+      return { state: prev, ok: false, reason: "already-owned" };
+    }
+    if (prev.money < action.price) {
+      return { state: prev, ok: false, reason: "insufficient-funds" };
+    }
+    return {
+      state: {
+        ...prev,
+        money: prev.money - action.price,
+        inventory: addItem(prev.inventory, id),
+      },
+      ok: true,
+    };
+  }
+  return { state: prev, ok: false, reason: "unknown-action" };
 }
 
 /**

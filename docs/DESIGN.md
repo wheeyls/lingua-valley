@@ -95,13 +95,24 @@ daily { dayStartedAt, rewardedRoles[], rewardedObjectives[], objectiveState }
 ### The reducer
 
 `applyActivity(prev, activity, now)` is the single authoritative step (server
-and guest run the identical function):
+and guest run the identical function). **All farming side-effects live here, not
+in the UI** — so the server persists them and a refresh never loses progress:
 
 - **Money** is granted once per **objective** per day (`earnedReward`), computed
   from the raw grade — no client number is trusted. So both halves of a
   two-person practice each pay once.
-- A **water** activity waters the field (+1 growth per crop), gated once per day
-  per **role** — the field advances at most one step a day.
+- **Seeds** plants a crop (once/day per role).
+- **Water** waters the field (+1 growth per crop), once/day per role — the field
+  advances at most one step a day.
+- **Store** harvests ready crops and pays `CROP_VALUE` each (once/day).
+- It also records the objective's completion + outputs (e.g. the story text) in
+  `daily.objectiveState`, so dependent objectives (Pablo) unlock and receive
+  their inputs after a refresh.
+
+Non-conversation actions (buying a train ticket) go through
+`applyPlayerAction` + `/api/player-action`, and guest→account merges go through
+`/api/claim` — both server-authoritative, so the client never writes
+`player_state` directly (Supabase RLS keeps that table server-owned).
 
 ## A crop cycle in objectives
 
@@ -134,7 +145,8 @@ src/content/    ← area/NPC/map data + lessons
 src/app/        ← orchestration (GameController, PlayerService, ConversationSession)
 src/ui/html/    ← DOM rendering (room view, conversation/dialogue overlays)
 src/game/       ← voice capture, audio playback, API client
-api/            ← Vercel serverless (converse, transcribe, speak, clean, activity-complete)
+api/            ← Vercel serverless: converse, transcribe, speak, clean,
+                  activity-complete, player-action, claim, state-load
 ```
 
 **Dependency direction:** UI → app → domain. The domain points outward to nobody.

@@ -6,7 +6,13 @@
  * the composition root. The domain never imports a vendor SDK.
  */
 
-import type { PlayerState, ActivityResult, ApplyResult } from "./player.js";
+import type {
+  PlayerState,
+  ActivityResult,
+  ApplyResult,
+  PlayerAction,
+  ActionResult,
+} from "./player.js";
 import type { ConverseRequest, ConverseResponse } from "./conversation.js";
 
 /** Time source, so domain logic stays deterministic and testable. */
@@ -37,6 +43,25 @@ export interface PlayerStateRepository {
  */
 export interface RewardGrader {
   grant(activity: ActivityResult): Promise<ApplyResult>;
+}
+
+/**
+ * Performs a non-conversation player action (e.g. buying a train ticket)
+ * authoritatively. The server adapter validates + persists; the guest adapter
+ * runs the same domain reducer locally. Returns the new authoritative state.
+ */
+export interface PlayerActionGateway {
+  perform(action: PlayerAction): Promise<ActionResult>;
+}
+
+/**
+ * Merges a guest's local progress into the signed-in account authoritatively.
+ * The server adapter loads the account state (service role), runs the domain
+ * `mergeStates`, persists, and returns the merged state — keeping player_state
+ * server-owned. Returns the merged PlayerState.
+ */
+export interface ClaimGateway {
+  claim(guest: PlayerState): Promise<PlayerState>;
 }
 
 /**

@@ -74,4 +74,24 @@ describe("ClaimService", () => {
     expect(result.money).toBe(42);
     expect(guest.cleared).toBe(false);
   });
+
+  it("uses the ClaimGateway (server) to merge when one is provided", async () => {
+    // The account repo would be RLS-blocked on cloud, so the gateway owns the
+    // merge+persist. We assert the gateway is used and its result is returned.
+    const account = new InMemoryPlayerRepository();
+    let gatewayCalled = false;
+    const gateway = {
+      async claim(guest: PlayerState): Promise<PlayerState> {
+        gatewayCalled = true;
+        return { ...guest, money: guest.money + 1000 }; // server-merged result
+      },
+    };
+    const svc = new ClaimService(account, gateway);
+    const guest = guestWith({ ...initialPlayerState("Guest", 1), money: 5 });
+
+    const merged = await svc.claim(guest);
+    expect(gatewayCalled).toBe(true);
+    expect(merged.money).toBe(1005);
+    expect(guest.cleared).toBe(true);
+  });
 });

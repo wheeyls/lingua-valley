@@ -23,6 +23,7 @@ import { ClaimService } from "./ClaimService";
 import { supabaseEnv } from "../net/env";
 import { LocalPlayerRepository } from "../net/LocalPlayerRepository";
 import { SupabasePlayerRepository } from "../net/SupabasePlayerRepository";
+import { HttpClaimClient } from "../net/HttpClaimClient";
 import { getSupabase } from "../net/supabaseClient";
 import { getOrCreateGuestId } from "../net/guest";
 
@@ -67,7 +68,12 @@ export async function composeApp(profile = chooseProfile()): Promise<ComposedApp
 async function composeFor(profile: AdapterProfile): Promise<ComposedApp> {
   const adapters =
     profile === "cloud" ? await resolveCloudAdapters() : makeAdapters(profile);
-  const player = new PlayerService(adapters.repo, adapters.rewardGrader, adapters.clock);
+  const player = new PlayerService(
+    adapters.repo,
+    adapters.rewardGrader,
+    adapters.clock,
+    adapters.playerActions,
+  );
   await player.init();
 
   // On the cloud profile, claim the guest's local progress into the account the
@@ -96,7 +102,10 @@ async function claimGuestIntoAccount(
   const guestRepo = new LocalPlayerRepository(guestId);
   const accountRepo = new SupabasePlayerRepository(sb, userId);
 
-  const claim = new ClaimService(accountRepo);
+  // Server-authoritative merge: the /api/claim endpoint loads the account
+  // state, merges the guest payload, and persists (player_state stays
+  // server-owned). The repo is only used to read the account state as a fallback.
+  const claim = new ClaimService(accountRepo, new HttpClaimClient());
   const merged = await claim.claim({
     read: () => guestRepo.loadSync(),
     clear: () => guestRepo.clear(),

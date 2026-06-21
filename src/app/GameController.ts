@@ -22,24 +22,15 @@ import { CURRENT_LESSON } from "../content/lessons";
 import type { MapNpc, MapDoor } from "../domain/gameMap";
 import { buildDailyGraph } from "../domain/objectives/daily";
 import type { ObjectiveGraph } from "../domain/objective";
-import {
-  hasEmptySlot,
-  hasHarvest,
-  harvest,
-  readySlots,
-  plantSeed,
-  MAX_GROWTH,
-} from "../domain/field";
-import { add as addItem, ticketId, hasTicketTo } from "../domain/inventory";
+import { hasHarvest, MAX_GROWTH } from "../domain/field";
+import { hasTicketTo } from "../domain/inventory";
 import { hoursUntilNextDay } from "../domain/dailyLoop";
+import type { ApplyResult } from "../domain/player";
 import { ConversationSession } from "./ConversationSession";
 import { MicRecorder, playAudioBytes, unlockAudio } from "../game/voice";
 import { transcribe, cleanTranscription, speak } from "../game/api";
 import type { PlayerService } from "./PlayerService";
 import type { Adapters } from "./adapters";
-
-/** Money paid per harvested crop sold at the store. */
-const CROP_VALUE = 25;
 
 export class GameController {
   private worldView!: HtmlWorldView;
@@ -172,8 +163,7 @@ export class GameController {
     const crop = field.slots[0];
 
     if (crop && crop.growth >= MAX_GROWTH) {
-      // Harvest is automatic; selling happens at the store.
-      void this.harvestField();
+      this.toast("🌻 Ready! Take it to Doña Tienda's store to sell it.");
       return;
     }
     if (!crop) {
@@ -183,15 +173,6 @@ export class GameController {
     this.toast(
       `Your crop is growing (${crop.growth}/${MAX_GROWTH}). Do your daily practice at La Plaza to water it.`,
     );
-  }
-
-  private async harvestField() {
-    await this.player.update((s) => {
-      const res = harvest(s.field);
-      return { ...s, field: res.field };
-    });
-    this.toast("Harvested! Take it to Doña Tienda's store to sell. 🌻");
-    this.render();
   }
 
   // --- Station --------------------------------------------------------------
@@ -211,12 +192,24 @@ export class GameController {
       this.toast(`A ticket costs ${area.ticketPrice} 💰. Sell more crops to afford it!`);
       return;
     }
-    void this.player.update((s) => ({
-      ...s,
-      money: s.money - area.ticketPrice,
-      inventory: addItem(s.inventory, ticketId(area.nextAreaId!)),
-    }));
-    this.toast("🚂 Ticket bought! The next town awaits.");
+    void this.buyTicket(area.nextAreaId, area.ticketPrice);
+  }
+
+  private async buyTicket(areaId: string, price: number) {
+    const result = await this.player.performAction({
+      type: "buy-ticket",
+      areaId,
+      price,
+    });
+    if (result.ok) {
+      this.toast("🚂 Ticket bought! The next town awaits.");
+    } else if (result.reason === "insufficient-funds") {
+      this.toast(`A ticket costs ${price} 💰. Sell more crops to afford it!`);
+    } else if (result.reason === "already-owned") {
+      this.toast("You already have your ticket. ¡Buen viaje!");
+    } else {
+      this.toast("Couldn't buy the ticket — try again.");
+    }
     this.render();
   }
 
@@ -284,6 +277,8 @@ export class GameController {
         canDo: lesson.canDo,
         vocab: lesson.vocab.map((v) => ({ es: v.es, en: v.en })),
         theme,
+        cropTheme: lesson.id,
+        extractOutputs: (npcLines) => objective.extractOutputs(npcLines),
       },
       this.adapters.conversationGrader,
       this.player,
@@ -306,12 +301,13 @@ export class GameController {
         this.recorder.release();
         view.destroy();
         unblockCanvas();
-        void this.completeObjective(npc, session, grewThisConversation);
+        this.afterConversation(objective.role, lastApplied);
+        this.render();
       },
     });
 
-    // Track whether the field grew at any point during this conversation.
-    let grewThisConversation = false;
+    // The most recent authoritative result, used for end-of-chat toasts.
+    let lastApplied: ApplyResult | null = null;
 
     view.setHeader(npc.name, "", lesson.canDo);
 
@@ -360,6 +356,7 @@ export class GameController {
           view.setStatus(`${npc.name} is thinking…`);
 
           const outcome = await session.submit(cleaned);
+          lastApplied = outcome.applied;
 
           const corr =
             outcome.grade.corrections.length > 0 ? outcome.grade.corrections.join("; ") : "";
@@ -367,7 +364,6 @@ export class GameController {
             outcome.applied.earnedReward && outcome.applied.reward.money > 0
               ? `+${outcome.applied.reward.money} 💰`
               : "";
-          if (outcome.applied.grown > 0) grewThisConversation = true;
           const grew = outcome.applied.grown > 0 ? "💧 Your crop grew!" : "";
           view.setFeedback(outcome.grade.feedback, corr, [earned, grew].filter(Boolean).join("  "));
 
@@ -412,96 +408,24 @@ export class GameController {
   }
 
   /**
-   * Record that the player completed an NPC's conversation today, then apply the
-   * role's side effect on the field/inventory (plant on seeds, sell on store).
+   * End-of-conversation feedback. The field/money/objective side-effects already
+   * happened authoritatively inside `applyActivity` (so they persist server-side);
+   * here we only surface what changed and re-render.
    */
-  private async completeObjective(
-    npc: Npc,
-    session: ConversationSession,
-    grew: boolean,
-  ) {
-    const objective = this.objectives.forNpc(npc.id);
-    if (!objective) {
-      this.render();
-      return;
-    }
-
-    const alreadyDone = this.objectives.isComplete(
-      objective.id,
-      this.player.getState().daily.objectiveState,
-    );
-
-    const npcLines = session.history.filter((t) => t.role === "npc").map((t) => t.text);
-    const now = new Date();
-
-    await this.player.update((s) => {
-      let next = s;
-
-      // Mark the objective complete in the daily objective state (for badges/gating).
-      if (!alreadyDone) {
-        const newObjState = this.objectives.complete(
-          objective.id,
-          s.daily.objectiveState,
-          npcLines,
-          now,
-        );
-        next = {
-          ...next,
-          daily: {
-            ...next.daily,
-            objectiveState: newObjState,
-            dayStartedAt: next.daily.dayStartedAt || now.toISOString(),
-          },
-        };
-      }
-
-      // Role side-effects (only the first completion per role per day matters).
-      if (!alreadyDone) {
-        if (objective.role === "seeds") {
-          next = this.applySeeds(next, now);
-        } else if (objective.role === "store") {
-          next = this.applyStore(next);
-        }
-      }
-      return next;
-    });
-
-    this.afterConversation(objective.role, grew);
-    this.render();
-  }
-
-  /** Planting: if there's room, plant a crop with this week's theme. */
-  private applySeeds(s: ReturnType<PlayerService["getState"]>, now: Date) {
-    if (!hasEmptySlot(s.field)) return s;
-    return {
-      ...s,
-      field: plantSeed(s.field, CURRENT_LESSON.id, now.toISOString().slice(0, 10)),
-    };
-  }
-
-  /** Selling: harvest any ready crops and pay out money for each. */
-  private applyStore(s: ReturnType<PlayerService["getState"]>) {
-    const ready = readySlots(s.field);
-    if (ready.length === 0) return s;
-    const res = harvest(s.field);
-    const payout = res.harvested.length * CROP_VALUE;
-    return { ...s, field: res.field, money: s.money + payout };
-  }
-
-  private afterConversation(role: string, grew: boolean) {
+  private afterConversation(role: string, applied: ApplyResult | null) {
     const s = this.player.getState();
-    if (role === "seeds" && s.field.slots[0]) {
+    if (!applied) return;
+
+    if (applied.planted) {
       this.toast("🌱 Seeds planted! Do your daily practice at La Plaza to grow them.");
-    } else if (role === "store") {
-      this.toast("🛒 Sold! Money added. Save up for a train ticket. 💰");
-    } else if (role === "water") {
-      if (grew) {
-        this.toast(
-          hasHarvest(s.field)
-            ? "🌻 Your crop is fully grown — sell it at the store!"
-            : "💧 Nice retelling! Your crop grew a step.",
-        );
-      }
+    } else if (applied.sold > 0) {
+      this.toast(`🛒 Sold for ${applied.soldValue} 💰! Save up for a train ticket.`);
+    } else if (role === "water" && applied.grown > 0) {
+      this.toast(
+        hasHarvest(s.field)
+          ? "🌻 Your crop is fully grown — sell it at the store!"
+          : "💧 Nice retelling! Your crop grew a step.",
+      );
     }
   }
 

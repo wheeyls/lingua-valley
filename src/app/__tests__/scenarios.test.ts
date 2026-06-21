@@ -10,6 +10,7 @@ import { PlayerService } from "../PlayerService";
 import { ConversationSession } from "../ConversationSession";
 import { CURRENT_LESSON } from "../../content/lessons";
 import { plantSeed, MAX_GROWTH } from "../../domain/field";
+import { hasTicketTo } from "../../domain/inventory";
 import type { DailyRole } from "../../domain/dailyLoop";
 import type { RemotePlayer } from "../../domain/ports";
 
@@ -27,9 +28,19 @@ function sessionFor(
       role,
       canDo: CURRENT_LESSON.canDo,
       vocab: CURRENT_LESSON.vocab.map((v) => ({ es: v.es, en: v.en })),
+      cropTheme: CURRENT_LESSON.id,
     },
     adapters.conversationGrader,
     player,
+  );
+}
+
+function newPlayer(adapters: Adapters): PlayerService {
+  return new PlayerService(
+    adapters.repo,
+    adapters.rewardGrader,
+    adapters.clock,
+    adapters.playerActions,
   );
 }
 
@@ -129,6 +140,72 @@ describe("the crop grows over a week of watering", () => {
     const again = await s2.submit("Hola de nuevo.");
     expect(again.applied.grown).toBe(0);
     expect(player.getState().field.slots[0]!.growth).toBe(1);
+  });
+});
+
+describe("farming side-effects persist across a refresh (the bug)", () => {
+  it("completing the seeds chat plants a crop that survives a reload", async () => {
+    const adapters = makeAdapters("test");
+    const player = newPlayer(adapters);
+    await player.init();
+    adapters.fakes!.grader.setDefault({ communication: 0.9, accuracy: 0.9 });
+
+    // Complete the seeds conversation (as Don Semilla).
+    const seeds = sessionFor(adapters, player, "seeds", "seeds-intro");
+    seeds.begin("¡Buenas!");
+    const outcome = await seeds.submit("Hola, quiero semillas.");
+    expect(outcome.applied.planted).toBe(true);
+    expect(player.getState().field.slots[0]).not.toBeNull();
+
+    // Simulate a browser refresh: a NEW PlayerService loading from the SAME repo.
+    const reloaded = newPlayer(adapters);
+    await reloaded.init();
+    expect(reloaded.getState().field.slots[0]).not.toBeNull();
+    expect(reloaded.getState().field.slots[0]!.theme).toBe(CURRENT_LESSON.id);
+  });
+
+  it("selling at the store persists money + cleared field across a reload", async () => {
+    const adapters = makeAdapters("test");
+    const player = newPlayer(adapters);
+    await player.init();
+    adapters.fakes!.grader.setDefault({ communication: 0.9, accuracy: 0.9 });
+
+    // Seed a ready-to-harvest crop directly via the repo, then reload.
+    await player.update((s) => {
+      const field = plantSeed(s.field, CURRENT_LESSON.id, "2025-06-01");
+      field.slots[0]!.growth = MAX_GROWTH;
+      return { ...s, field };
+    });
+
+    const store = sessionFor(adapters, player, "store", "store-review");
+    store.begin("¡Hola!");
+    const outcome = await store.submit("Ayer fui al mercado y compré pan.");
+    expect(outcome.applied.sold).toBe(1);
+    expect(player.getState().money).toBeGreaterThan(0);
+
+    const reloaded = newPlayer(adapters);
+    await reloaded.init();
+    expect(reloaded.getState().money).toBeGreaterThan(0);
+    expect(reloaded.getState().field.slots[0]).toBeNull();
+  });
+
+  it("buying a ticket persists across a reload", async () => {
+    const adapters = makeAdapters("test");
+    const player = newPlayer(adapters);
+    await player.init();
+    await player.update((s) => ({ ...s, money: 100 }));
+
+    const result = await player.performAction({
+      type: "buy-ticket",
+      areaId: "mercado",
+      price: 60,
+    });
+    expect(result.ok).toBe(true);
+
+    const reloaded = newPlayer(adapters);
+    await reloaded.init();
+    expect(reloaded.getState().money).toBe(40);
+    expect(hasTicketTo(reloaded.getState().inventory, "mercado")).toBe(true);
   });
 });
 
