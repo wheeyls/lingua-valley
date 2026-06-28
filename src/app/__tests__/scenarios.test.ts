@@ -54,7 +54,7 @@ describe("a single graded conversation turn", () => {
     await player.init();
   });
 
-  it("awards money on a good water turn (first of the day)", async () => {
+  it("a good water turn completes the objective but pays no money", async () => {
     adapters.fakes!.grader.enqueue({
       communication: 0.9,
       accuracy: 0.85,
@@ -65,33 +65,16 @@ describe("a single graded conversation turn", () => {
     s.begin("¡Hola!");
     const outcome = await s.submit("Hola, buenos días.");
 
-    expect(outcome.applied.earnedReward).toBe(true);
-    expect(outcome.applied.reward.money).toBeGreaterThan(0);
-    expect(player.getState().money).toBe(outcome.applied.reward.money);
+    expect(outcome.applied.earnedReward).toBe(true); // counts as done today
+    expect(player.getState().money).toBe(0); // money only comes from selling
   });
 
-  it("pays nothing for a poor turn", async () => {
+  it("conversations never pay, regardless of grade", async () => {
     adapters.fakes!.grader.enqueue({ communication: 0.3, accuracy: 0.3 });
     const s = sessionFor(adapters, player, "water");
     s.begin("¡Hola!");
-    const outcome = await s.submit("uhh no sé");
-    expect(outcome.applied.reward.money).toBe(0);
+    await s.submit("uhh no sé");
     expect(player.getState().money).toBe(0);
-  });
-
-  it("does not pay twice for the same conversation on the same day", async () => {
-    adapters.fakes!.grader.setDefault({ communication: 0.9, accuracy: 0.9 });
-    const s1 = sessionFor(adapters, player, "water");
-    s1.begin("¡Hola!");
-    await s1.submit("Hola.");
-    const firstMoney = player.getState().money;
-    expect(firstMoney).toBeGreaterThan(0);
-
-    const s2 = sessionFor(adapters, player, "water");
-    s2.begin("¡Hola!");
-    const replay = await s2.submit("Hola otra vez.");
-    expect(replay.applied.earnedReward).toBe(false);
-    expect(player.getState().money).toBe(firstMoney); // unchanged
   });
 });
 
@@ -210,27 +193,31 @@ describe("farming side-effects persist across a refresh (the bug)", () => {
 });
 
 describe("the daily gate resets after the cooldown", () => {
-  it("lets you earn money again on a new day", async () => {
+  it("re-opens the daily completion gate on a new day", async () => {
     const adapters = makeAdapters("test");
-    const player = new PlayerService(adapters.repo, adapters.rewardGrader, adapters.clock);
+    const player = newPlayer(adapters);
     await player.init();
     adapters.fakes!.grader.setDefault({ communication: 0.9, accuracy: 0.9 });
 
     const day1 = sessionFor(adapters, player, "water");
     day1.begin("¡Hola!");
-    await day1.submit("Hola.");
-    const afterDay1 = player.getState().money;
+    const first = await day1.submit("Hola.");
+    expect(first.applied.earnedReward).toBe(true);
+
+    // Same day: the gate is closed (replay earns nothing).
+    const replay = sessionFor(adapters, player, "water");
+    replay.begin("¡Hola!");
+    expect((await replay.submit("otra vez")).applied.earnedReward).toBe(false);
 
     // Advance past the 12h cooldown and re-init so settleDailyState runs.
     adapters.fakes!.clock.advanceDays(1);
-    const player2 = new PlayerService(adapters.repo, adapters.rewardGrader, adapters.clock);
+    const player2 = newPlayer(adapters);
     await player2.init();
 
     const day2 = sessionFor(adapters, player2, "water");
     day2.begin("¡Hola!");
     const outcome = await day2.submit("Hola otra vez.");
-    expect(outcome.applied.earnedReward).toBe(true);
-    expect(player2.getState().money).toBeGreaterThan(afterDay1);
+    expect(outcome.applied.earnedReward).toBe(true); // gate re-opened
   });
 });
 
@@ -306,7 +293,6 @@ describe("free-form conversation (LLM-driven)", () => {
     }
     expect(complete).toBe(true);
     expect(turns).toBeGreaterThanOrEqual(MIN_PLAYER_TURNS);
-    expect(player.getState().money).toBeGreaterThan(0);
   });
 });
 
@@ -325,15 +311,16 @@ describe("reward grant resilience", () => {
     await player.init();
 
     const result = await player.completeActivity({
-      objectiveId: "story-retell",
+      objectiveId: "store-review",
       level: "A2",
-      role: "water",
+      role: "store",
       communication: 1,
       accuracy: 1,
     });
 
-    // Did not throw; applied locally (money awarded).
-    expect(result.reward.money).toBeGreaterThan(0);
-    expect(player.getState().money).toBeGreaterThan(0);
+    // Did not throw; applied locally. (Money would come from a sale; here the
+    // field is empty so soldValue is 0 — the point is gameplay didn't break.)
+    expect(result.earnedReward).toBe(true);
+    expect(result.sold).toBe(0);
   });
 });

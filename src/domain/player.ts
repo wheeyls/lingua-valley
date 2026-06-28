@@ -20,6 +20,7 @@ import {
   claimRole,
   objectiveEarnsReward,
   claimObjective,
+  recordPlay,
   isNewDay,
   startNewDay,
   type DailyState,
@@ -138,6 +139,8 @@ function normalizeDaily(v: unknown): DailyState {
     objectiveState: isObject(d.objectiveState)
       ? (d.objectiveState as DailyState["objectiveState"])
       : {},
+    streak: typeof d.streak === "number" ? d.streak : 0,
+    lastPlayedDay: typeof d.lastPlayedDay === "string" ? d.lastPlayedDay : "",
   };
 }
 
@@ -200,8 +203,8 @@ export interface ApplyResult {
  * guaranteeing identical rules everywhere.
  *
  * Rules (all gated to the first qualifying completion per day):
- *  - Money is awarded once per OBJECTIVE per day (so a two-person practice pays
- *    for both conversations); replays earn nothing.
+ *  - MONEY comes ONLY from selling crops at the store. Conversations are graded
+ *    (quality feeds feedback) but never pay directly — you earn by farming.
  *  - SEEDS plants a crop (once per day per role).
  *  - WATER grows the field +1 unit (once per day per role, so the field only
  *    advances one step a day regardless of how many water chats).
@@ -217,10 +220,12 @@ export function applyActivity(
 ): ApplyResult {
   const day = utcDay(now);
   const reward = computeReward(activity.communication, activity.accuracy, activity.level);
+  // First completion of this objective today (gates the field side-effects and
+  // badges). Note: this no longer grants money — only the store sale does.
   const earnedReward = objectiveEarnsReward(prev.daily, activity.objectiveId);
 
-  // Money: only on the first money-bearing completion of this objective today.
-  let money = earnedReward ? prev.money + reward.money : prev.money;
+  // Money only ever increases from selling at the store (added below).
+  let money = prev.money;
 
   let field = prev.field;
   let daily = prev.daily;
@@ -282,6 +287,9 @@ export function applyActivity(
       },
     };
   }
+
+  // Advance the daily play streak (once per day, regardless of which activity).
+  daily = recordPlay(daily, now);
 
   return {
     state: { ...prev, money, field, daily },
@@ -364,6 +372,15 @@ export function mergeStates(account: PlayerState, guest: PlayerState): PlayerSta
     money: account.money + guest.money,
     field,
     inventory,
+    // Keep the better streak across the two saves.
+    daily: {
+      ...account.daily,
+      streak: Math.max(account.daily.streak, guest.daily.streak),
+      lastPlayedDay:
+        guest.daily.lastPlayedDay > account.daily.lastPlayedDay
+          ? guest.daily.lastPlayedDay
+          : account.daily.lastPlayedDay,
+    },
   };
 }
 
@@ -378,7 +395,8 @@ function totalGrowth(field: Field): number {
  */
 export function settleDailyState(state: PlayerState, now: Date): PlayerState {
   if (state.daily.dayStartedAt && isNewDay(state.daily, now)) {
-    return { ...state, daily: startNewDay(now) };
+    // Carry the streak/lastPlayedDay forward; only the per-day gates reset.
+    return { ...state, daily: startNewDay(now, state.daily) };
   }
   return state;
 }

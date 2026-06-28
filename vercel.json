@@ -9,6 +9,7 @@
     }
   },
   "rewrites": [
-    { "source": "/register/:path*", "destination": "/index.html" }
+    { "source": "/register/:path*", "destination": "/index.html" },
+    { "source": "/leaderboard", "destination": "/index.html" }
   ]
 }

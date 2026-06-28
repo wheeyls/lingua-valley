@@ -159,6 +159,7 @@
 
 /* --- Door card --- */
 .card-door {
+  position: relative;
   border: 3px solid #d9b08c;
   min-width: clamp(100px, 22vw, 140px);
   backdrop-filter: blur(6px);
@@ -169,6 +170,12 @@
   background: rgba(40, 40, 40, 0.75);
   opacity: 0.7;
   cursor: default;
+}
+.card-door-done { border-color: #9bc995; }
+.card-door .card-hint {
+  font-size: clamp(11px, 2.2vw, 14px);
+  color: #9bc995;
+  margin-top: 4px;
 }
 .card-door-art {
   width: clamp(48px, 10vw, 72px);

@@ -33,45 +33,23 @@ function withCrop(): PlayerState {
   return { ...s, field: plantSeed(s.field, "greetings", "2025-06-01") };
 }
 
-describe("applyActivity — money", () => {
-  it("awards money on the first completion of an objective", () => {
+describe("applyActivity — money comes ONLY from selling at the store", () => {
+  it("a water/practice conversation grants no money", () => {
     const s0 = withCrop();
-    const { state, reward, earnedReward } = applyActivity(s0, activity(), NOW);
-    expect(reward.money).toBeGreaterThan(0);
-    expect(earnedReward).toBe(true);
-    expect(state.money).toBe(reward.money);
+    const { state, earnedReward } = applyActivity(s0, activity({ role: "water" }), NOW);
+    expect(earnedReward).toBe(true); // still counts as completed today
+    expect(state.money).toBe(0); // but pays nothing
   });
 
-  it("does not pay twice for the same objective on the same day", () => {
-    let s = withCrop();
-    const first = applyActivity(s, activity(), NOW);
-    s = first.state;
-    const second = applyActivity(s, activity(), NOW);
-    expect(second.earnedReward).toBe(false);
-    expect(second.state.money).toBe(first.state.money); // unchanged
+  it("a seeds conversation grants no money", () => {
+    const s0 = initialPlayerState("T", 1);
+    const res = applyActivity(s0, activity({ objectiveId: "seeds-intro", role: "seeds" }), NOW);
+    expect(res.state.money).toBe(0);
   });
 
-  it("pays each objective independently — even two sharing the water role", () => {
-    let s = withCrop();
-    s = applyActivity(
-      s,
-      activity({ objectiveId: "story-telling", role: "water" }),
-      NOW,
-    ).state;
-    const moneyAfterStory = s.money;
-    const retell = applyActivity(
-      s,
-      activity({ objectiveId: "story-retell", role: "water" }),
-      NOW,
-    );
-    expect(retell.earnedReward).toBe(true);
-    expect(retell.state.money).toBeGreaterThan(moneyAfterStory);
-  });
-
-  it("low-quality conversation claims the objective but pays no money", () => {
+  it("even a high-quality conversation pays nothing on its own", () => {
     const s0 = withCrop();
-    const res = applyActivity(s0, activity({ communication: 0.3, accuracy: 0.3 }), NOW);
-    expect(res.reward.money).toBe(0);
+    const res = applyActivity(s0, activity({ communication: 1, accuracy: 1, role: "water" }), NOW);
     expect(res.state.money).toBe(0);
   });
 });
@@ -150,8 +128,8 @@ describe("applyActivity — authoritative side-effects (the persistence fix)", (
     );
     expect(res.sold).toBe(1);
     expect(res.soldValue).toBe(CROP_VALUE);
-    // Money = the conversation's own reward + the sale proceeds.
-    expect(res.state.money).toBe(res.reward.money + CROP_VALUE);
+    // Money comes only from the sale (conversations pay nothing).
+    expect(res.state.money).toBe(CROP_VALUE);
     expect(res.state.field.slots[0]).toBeNull(); // harvested
   });
 
@@ -288,11 +266,14 @@ describe("settleDailyState (daily reset on load)", () => {
         rewardedRoles: ["water", "seeds"],
         rewardedObjectives: ["story-telling"],
         objectiveState: {},
+        streak: 3,
+        lastPlayedDay: NOW.toISOString().slice(0, 10),
       },
     };
     const later = new Date(NOW.getTime() + DAY_COOLDOWN_MS);
     const settled = settleDailyState(s0, later);
     expect(settled.daily.rewardedRoles).toEqual([]); // reset
+    expect(settled.daily.streak).toBe(3); // streak carried forward
     expect(settled.money).toBe(10); // money preserved
   });
 
@@ -304,6 +285,8 @@ describe("settleDailyState (daily reset on load)", () => {
         rewardedRoles: ["water"],
         rewardedObjectives: [],
         objectiveState: {},
+        streak: 1,
+        lastPlayedDay: NOW.toISOString().slice(0, 10),
       },
     };
     const settled = settleDailyState(s0, NOW);

@@ -11,11 +11,10 @@
  *   3. STORE  — the review / "unit test" conversation. Sells harvest-ready crops
  *               for money, which buys a train ticket to the next area.
  *
- * MONEY is earned once per CONVERSATION (objective) per day — so a two-person
- * practice location pays for both people. GROWTH (watering) is gated once per
- * day per ROLE, so the field only advances one step a day no matter how many
- * water conversations you have. Replaying earns nothing but is always allowed
- * (free practice). A new day begins 12 hours after the day started.
+ * MONEY comes only from selling crops at the store. GROWTH (watering) is gated
+ * once per day per ROLE, so the field only advances one step a day no matter how
+ * many water conversations you have. Replaying earns nothing but is always
+ * allowed (free practice). A new day begins 12 hours after the day started.
  *
  * Pure domain: state + rules only, no framework.
  */
@@ -37,6 +36,10 @@ export interface DailyState {
   rewardedObjectives: string[];
   /** Per-objective completion state for this cycle (keyed by objective id). */
   objectiveState: ObjectiveState;
+  /** Consecutive days the player has practiced (the streak). */
+  streak: number;
+  /** UTC day (YYYY-MM-DD) of the most recent activity, or "" if never. */
+  lastPlayedDay: string;
 }
 
 export const INITIAL_DAILY_STATE: DailyState = {
@@ -44,6 +47,8 @@ export const INITIAL_DAILY_STATE: DailyState = {
   rewardedRoles: [],
   rewardedObjectives: [],
   objectiveState: {},
+  streak: 0,
+  lastPlayedDay: "",
 };
 
 /** Whether a new day has started (12h since the last dayStartedAt). */
@@ -52,14 +57,47 @@ export function isNewDay(state: DailyState, now: Date): boolean {
   return now.getTime() - new Date(state.dayStartedAt).getTime() >= DAY_COOLDOWN_MS;
 }
 
-/** Reset the daily state for a new day. Pure. */
-export function startNewDay(now: Date): DailyState {
+/**
+ * Reset the per-day gates for a new day. Pure. Carries the streak forward
+ * (the streak is advanced separately by `recordPlay` when the player acts).
+ */
+export function startNewDay(now: Date, prev?: DailyState): DailyState {
   return {
     dayStartedAt: now.toISOString(),
     rewardedRoles: [],
     rewardedObjectives: [],
     objectiveState: {},
+    streak: prev?.streak ?? 0,
+    lastPlayedDay: prev?.lastPlayedDay ?? "",
   };
+}
+
+/** YYYY-MM-DD for a date (UTC). */
+function dayKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/** The day key immediately before `day` (YYYY-MM-DD). */
+function previousDay(day: string): string {
+  const d = new Date(`${day}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Record that the player did something today, advancing the streak. Pure.
+ *  - first activity ever / after a gap → streak resets to 1
+ *  - consecutive day (yesterday was the last) → streak + 1
+ *  - same day again → unchanged
+ */
+export function recordPlay(state: DailyState, now: Date): DailyState {
+  const today = dayKey(now);
+  if (state.lastPlayedDay === today) return state; // already counted today
+  const streak =
+    state.lastPlayedDay && state.lastPlayedDay === previousDay(today)
+      ? state.streak + 1
+      : 1;
+  return { ...state, streak, lastPlayedDay: today };
 }
 
 /** Whether this role's GROWTH (watering) is still available today. */

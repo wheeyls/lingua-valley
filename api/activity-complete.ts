@@ -63,7 +63,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       communication: activity.communication,
       accuracy: activity.accuracy,
       quality: result.reward.quality,
-      money_awarded: result.earnedReward ? result.reward.money : 0,
+      // Money only comes from selling at the store now (not conversations).
+      money_awarded: result.soldValue,
     });
 
     return res.status(200).json(result);

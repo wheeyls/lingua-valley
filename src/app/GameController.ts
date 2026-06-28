@@ -88,6 +88,12 @@ export class GameController {
         : [],
     );
 
+    // On the hub, show each location's "who's left to talk to" status so the
+    // player doesn't have to enter a house to check.
+    this.worldView.setDoorStatus(
+      this.currentMapId === HUB_MAP_ID ? this.hubDoorStatus(objState) : {},
+    );
+
     const now = new Date();
     const hours = hoursUntilNextDay(state.daily, now);
     const allClaimed = this.objectives
@@ -104,6 +110,33 @@ export class GameController {
   private onDoorTap(door: MapDoor) {
     this.currentMapId = door.targetMapId;
     this.render();
+  }
+
+  /**
+   * Per-location status for the hub doors: how many people inside still have
+   * something to do today. Keyed by door id (`<locationId>-door`).
+   */
+  private hubDoorStatus(objState: ReturnType<PlayerService["getState"]>["daily"]["objectiveState"]) {
+    const status: Record<string, { hint: string; done: boolean }> = {};
+    for (const loc of CURRENT_AREA.locations) {
+      const total = loc.npcIds.length;
+      const done = loc.npcIds.filter((npcId) => {
+        const obj = this.objectives.forNpc(npcId);
+        return obj != null && objState[obj.id] != null;
+      }).length;
+      const remaining = total - done;
+
+      let hint: string;
+      if (done >= total) {
+        hint = total > 1 ? "All done today ✓" : "Done today ✓";
+      } else if (done === 0) {
+        hint = total > 1 ? `${total} people to talk to` : "Tap to talk";
+      } else {
+        hint = `${remaining} of ${total} left`;
+      }
+      status[`${loc.id}-door`] = { hint, done: done >= total };
+    }
+    return status;
   }
 
   private fieldCard() {
@@ -360,12 +393,11 @@ export class GameController {
 
           const corr =
             outcome.grade.corrections.length > 0 ? outcome.grade.corrections.join("; ") : "";
-          const earned =
-            outcome.applied.earnedReward && outcome.applied.reward.money > 0
-              ? `+${outcome.applied.reward.money} 💰`
-              : "";
+          // Money only comes from selling at the store; show sale + growth here.
+          const sold =
+            outcome.applied.soldValue > 0 ? `+${outcome.applied.soldValue} 💰` : "";
           const grew = outcome.applied.grown > 0 ? "💧 Your crop grew!" : "";
-          view.setFeedback(outcome.grade.feedback, corr, [earned, grew].filter(Boolean).join("  "));
+          view.setFeedback(outcome.grade.feedback, corr, [sold, grew].filter(Boolean).join("  "));
 
           await this.npcSay(view, npc, outcome.npcReply);
 

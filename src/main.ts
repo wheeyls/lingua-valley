@@ -8,7 +8,8 @@ import { composeApp } from "./app/composition";
 import { GameController } from "./app/GameController";
 import { HtmlLoginView } from "./ui/html/HtmlLoginView";
 import { HtmlRegisterView } from "./ui/html/HtmlRegisterView";
-import { getSupabase } from "./net/supabaseClient";
+import { HtmlLeaderboardView } from "./ui/html/HtmlLeaderboardView";
+import { getSupabase, getAccessToken } from "./net/supabaseClient";
 import { SupabaseAuthGateway } from "./net/SupabaseAuthGateway";
 
 const REGISTRATION_SECRET = import.meta.env.VITE_REGISTRATION_SECRET ?? "";
@@ -44,6 +45,27 @@ async function main() {
     return;
   }
 
+  // --- Hidden leaderboard route (no UI link; reach it by URL) ---
+  if (path.replace(/\/$/, "") === "/leaderboard") {
+    const app = await composeApp();
+    const auth = app.adapters.auth;
+    if (!auth.current().isGuest) {
+      void showLeaderboard();
+      return;
+    }
+    // Gate behind the login wall like the game.
+    const loginView = new HtmlLoginView(async (email, password) => {
+      try {
+        await auth.signIn(email, password);
+        loginView.destroy();
+        void showLeaderboard();
+      } catch (err) {
+        loginView.showError(err instanceof Error ? err.message : "Sign in failed");
+      }
+    });
+    return;
+  }
+
   // --- Main app: login wall → game ---
   const app = await composeApp();
   const auth = app.adapters.auth;
@@ -64,6 +86,22 @@ async function main() {
       loginView.showError(err instanceof Error ? err.message : "Sign in failed");
     }
   });
+}
+
+/** Fetch + render the leaderboard (assumes a signed-in session). */
+async function showLeaderboard() {
+  const view = new HtmlLeaderboardView();
+  try {
+    const token = await getAccessToken();
+    const res = await fetch("/api/leaderboard", {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error(`Leaderboard unavailable (${res.status})`);
+    const data = (await res.json()) as { rows: Parameters<typeof view.render>[0] };
+    view.render(data.rows);
+  } catch (err) {
+    view.showError(err instanceof Error ? err.message : "Could not load leaderboard");
+  }
 }
 
 function startGame(app: Awaited<ReturnType<typeof composeApp>>) {

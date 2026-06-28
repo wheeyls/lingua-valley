@@ -98,9 +98,9 @@ daily { dayStartedAt, rewardedRoles[], rewardedObjectives[], objectiveState }
 and guest run the identical function). **All farming side-effects live here, not
 in the UI** — so the server persists them and a refresh never loses progress:
 
-- **Money** is granted once per **objective** per day (`earnedReward`), computed
-  from the raw grade — no client number is trusted. So both halves of a
-  two-person practice each pay once.
+- **Money comes ONLY from selling crops at the store.** Conversations are graded
+  (quality drives feedback) but never pay directly — you earn by farming. This
+  keeps the loop honest: practice grows crops, selling crops earns money.
 - **Seeds** plants a crop (once/day per role).
 - **Water** waters the field (+1 growth per crop), once/day per role — the field
   advances at most one step a day.
@@ -108,11 +108,22 @@ in the UI** — so the server persists them and a refresh never loses progress:
 - It also records the objective's completion + outputs (e.g. the story text) in
   `daily.objectiveState`, so dependent objectives (Pablo) unlock and receive
   their inputs after a refresh.
+- It advances the **streak** (`recordPlay`): consecutive days played, carried
+  across the daily reset.
 
 Non-conversation actions (buying a train ticket) go through
 `applyPlayerAction` + `/api/player-action`, and guest→account merges go through
 `/api/claim` — both server-authoritative, so the client never writes
 `player_state` directly (Supabase RLS keeps that table server-owned).
+
+### Hub status + leaderboard
+
+- On the **hub**, each location card shows who's left to talk to inside (e.g.
+  "1 of 2 left" / "All done today ✓") so you don't have to enter to check.
+- A hidden **`/leaderboard`** route (no UI link — reach it by URL, sign-in
+  required) shows every player's money, crop growth, ticket, today's progress,
+  streak, and last-active, ranked by overall progress. Built server-side via
+  `/api/leaderboard` (`src/domain/leaderboard.ts` holds the pure ranking logic).
 
 ## A crop cycle in objectives
 

@@ -27,6 +27,14 @@ export interface ExtraCard {
   onTap: () => void;
 }
 
+/** Per-door status shown on the hub (e.g. how many people are done inside). */
+export interface DoorStatus {
+  /** Short hint under the label, e.g. "1 person to talk to" or "All done ✓". */
+  hint: string;
+  /** True when everything inside is finished today (renders a ✓ badge). */
+  done: boolean;
+}
+
 export class HtmlWorldView {
   private root: HTMLDivElement;
   private barEl: HTMLDivElement;
@@ -34,6 +42,7 @@ export class HtmlWorldView {
   private callbacks: WorldViewCallbacks;
   private currentMap!: GameMap;
   private extraCards: ExtraCard[] = [];
+  private doorStatus: Record<string, DoorStatus> = {};
   private lastObjState: ObjectiveState = {};
   private lastCompleted: Set<string> = new Set();
 
@@ -70,6 +79,14 @@ export class HtmlWorldView {
   /** Set the live, controller-driven cards (field, station) and re-render. */
   setExtraCards(cards: ExtraCard[]) {
     this.extraCards = cards;
+    if (this.currentMap) {
+      this.renderRoom(this.currentMap, this.lastObjState, this.lastCompleted);
+    }
+  }
+
+  /** Set per-door status (keyed by door id) shown on the hub, and re-render. */
+  setDoorStatus(status: Record<string, DoorStatus>) {
+    this.doorStatus = status;
     if (this.currentMap) {
       this.renderRoom(this.currentMap, this.lastObjState, this.lastCompleted);
     }
@@ -183,14 +200,19 @@ export class HtmlWorldView {
       this.bodyEl.appendChild(card);
     }
 
-    // Door cards — house facade SVG
+    // Door cards — house facade SVG, with optional "who's left inside" status.
     for (const door of doorsOn(map)) {
       const unlocked = isDoorUnlocked(door, objState);
+      const status = this.doorStatus[door.id];
       const card = document.createElement("div");
-      card.className = `card card-door ${unlocked ? "unlocked" : "locked"}`;
+      card.className = `card card-door ${unlocked ? "unlocked" : "locked"}${
+        status?.done ? " card-door-done" : ""
+      }`;
       card.innerHTML = `
         <div class="card-door-art">${unlocked ? HOUSE_DOOR_SVG : LOCKED_DOOR_SVG}</div>
+        ${status?.done ? '<div class="card-npc-badge">✓</div>' : ""}
         <div class="card-label">${door.label ?? "Door"}</div>
+        ${status ? `<div class="card-hint">${status.hint}</div>` : ""}
       `;
       if (unlocked) {
         card.addEventListener("pointerdown", (e) => {
