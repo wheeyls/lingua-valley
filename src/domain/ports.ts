@@ -90,6 +90,11 @@ export interface AuthGateway {
   signOut(): Promise<void>;
   /** Subscribe to user changes. Returns unsubscribe. */
   onChange(listener: (user: AuthUser) => void): () => void;
+  /** Send a password-reset email. Resolves when the email has been dispatched. */
+  resetPasswordForEmail(email: string): Promise<void>;
+  /** Set a new password for the currently authenticated session (called after
+   *  the user clicks the reset link and lands on /reset-password). */
+  updatePassword(newPassword: string): Promise<void>;
 }
 
 /** A remote player as the domain understands them (no transport details). */

@@ -38,6 +38,16 @@ export class FakeAuthGateway implements AuthGateway {
     this.emit();
   }
 
+  /** No-op in tests — just resolves immediately. */
+  async resetPasswordForEmail(_email: string): Promise<void> {
+    // In the fake, there is no email system. Silently succeed.
+  }
+
+  /** No-op in tests — just resolves immediately. */
+  async updatePassword(_newPassword: string): Promise<void> {
+    // In the fake, nothing to update. Silently succeed.
+  }
+
   onChange(listener: (u: AuthUser) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);

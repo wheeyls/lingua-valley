@@ -54,6 +54,19 @@ export class SupabaseAuthGateway implements AuthGateway {
     await this.sb.auth.signOut();
   }
 
+  /** Send a password-reset email via Supabase Auth. */
+  async resetPasswordForEmail(email: string): Promise<void> {
+    const redirectTo = `${window.location.origin}/reset-password`;
+    const { error } = await this.sb.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) throw error;
+  }
+
+  /** Update password for the session that was established via the reset link. */
+  async updatePassword(newPassword: string): Promise<void> {
+    const { error } = await this.sb.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+  }
+
   onChange(listener: (u: AuthUser) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
