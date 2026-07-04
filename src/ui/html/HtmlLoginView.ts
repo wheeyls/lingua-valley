@@ -1,6 +1,6 @@
 /**
  * HtmlLoginView — login wall shown before the game starts.
- * Email + password form. No link to registration (invite-only).
+ * Email + password form with a "Forgot password?" link.
  */
 
 import "./auth.css";
@@ -8,7 +8,10 @@ import "./auth.css";
 export class HtmlLoginView {
   private root: HTMLDivElement;
 
-  constructor(private readonly onLogin: (email: string, password: string) => void) {
+  constructor(
+    private readonly onLogin: (email: string, password: string) => void,
+    private readonly onForgotPassword?: () => void,
+  ) {
     this.root = document.createElement("div");
     this.root.className = "auth-screen";
     this.root.innerHTML = `
@@ -19,6 +22,7 @@ export class HtmlLoginView {
         <input type="password" placeholder="Password" autocomplete="current-password" />
         <button class="btn-login" type="button">Sign in</button>
         <div class="error"></div>
+        <button class="btn-forgot" type="button">Forgot password?</button>
       </div>
     `;
 
@@ -26,6 +30,7 @@ export class HtmlLoginView {
     const passwordInput = this.root.querySelector('input[type="password"]') as HTMLInputElement;
     const btn = this.root.querySelector(".btn-login")!;
     const errorEl = this.root.querySelector(".error")!;
+    const forgotBtn = this.root.querySelector(".btn-forgot") as HTMLButtonElement;
 
     const submit = () => {
       const email = emailInput.value.trim();
@@ -42,6 +47,10 @@ export class HtmlLoginView {
 
     btn.addEventListener("pointerdown", (e) => { e.stopPropagation(); submit(); });
     passwordInput.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+    forgotBtn.addEventListener("pointerdown", (e) => { e.stopPropagation(); this.onForgotPassword?.(); });
+
+    // Hide the forgot button if no handler was provided (e.g. Supabase unavailable).
+    if (!this.onForgotPassword) forgotBtn.style.display = "none";
 
     document.body.appendChild(this.root);
     emailInput.focus();
@@ -54,6 +63,9 @@ export class HtmlLoginView {
     btn.textContent = "Sign in";
     btn.disabled = false;
   }
+
+  hide() { this.root.style.display = "none"; }
+  show() { this.root.style.display = ""; }
 
   destroy() {
     this.root.remove();

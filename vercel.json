@@ -10,6 +10,7 @@
   },
   "rewrites": [
     { "source": "/register/:path*", "destination": "/index.html" },
-    { "source": "/leaderboard", "destination": "/index.html" }
+    { "source": "/leaderboard", "destination": "/index.html" },
+    { "source": "/reset-password", "destination": "/index.html" }
   ]
 }

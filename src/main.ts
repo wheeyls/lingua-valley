@@ -9,6 +9,8 @@ import { GameController } from "./app/GameController";
 import { HtmlLoginView } from "./ui/html/HtmlLoginView";
 import { HtmlRegisterView } from "./ui/html/HtmlRegisterView";
 import { HtmlLeaderboardView } from "./ui/html/HtmlLeaderboardView";
+import { HtmlForgotPasswordView } from "./ui/html/HtmlForgotPasswordView";
+import { HtmlResetPasswordView } from "./ui/html/HtmlResetPasswordView";
 import { getSupabase, getAccessToken } from "./net/supabaseClient";
 import { SupabaseAuthGateway } from "./net/SupabaseAuthGateway";
 
@@ -16,6 +18,26 @@ const REGISTRATION_SECRET = import.meta.env.VITE_REGISTRATION_SECRET ?? "";
 
 async function main() {
   const path = window.location.pathname;
+
+  // --- Password reset landing page (user clicked the link in the reset email) ---
+  if (path.replace(/\/$/, "") === "/reset-password") {
+    const sb = getSupabase();
+    if (!sb) {
+      document.body.innerHTML = '<div style="color:#f4ecd8;font-family:sans-serif;padding:40px;text-align:center"><h2>Password reset unavailable</h2></div>';
+      return;
+    }
+    // SupabaseAuthGateway constructor hooks onAuthStateChange, which handles
+    // the token exchange from the URL fragment automatically (detectSessionInUrl).
+    const auth = new SupabaseAuthGateway(sb, "reset");
+    const resetView = new HtmlResetPasswordView(async (newPassword) => {
+      await auth.updatePassword(newPassword);
+      // Brief pause so the user sees the success message, then go to the game.
+      setTimeout(() => { window.location.href = "/"; }, 1500);
+    });
+    // Keep resetView in scope so it isn't GC'd before the user submits.
+    void resetView;
+    return;
+  }
 
   // --- Secret registration route ---
   if (path.startsWith("/register/")) {
@@ -54,15 +76,18 @@ async function main() {
       return;
     }
     // Gate behind the login wall like the game.
-    const loginView = new HtmlLoginView(async (email, password) => {
-      try {
-        await auth.signIn(email, password);
-        loginView.destroy();
-        void showLeaderboard();
-      } catch (err) {
-        loginView.showError(err instanceof Error ? err.message : "Sign in failed");
-      }
-    });
+    const loginView = new HtmlLoginView(
+      async (email, password) => {
+        try {
+          await auth.signIn(email, password);
+          loginView.destroy();
+          void showLeaderboard();
+        } catch (err) {
+          loginView.showError(err instanceof Error ? err.message : "Sign in failed");
+        }
+      },
+      () => showForgotPassword(auth, loginView),
+    );
     return;
   }
 
@@ -77,15 +102,37 @@ async function main() {
   }
 
   // Show login wall.
-  const loginView = new HtmlLoginView(async (email, password) => {
-    try {
-      await auth.signIn(email, password);
-      loginView.destroy();
-      startGame(app);
-    } catch (err) {
-      loginView.showError(err instanceof Error ? err.message : "Sign in failed");
-    }
-  });
+  const loginView = new HtmlLoginView(
+    async (email, password) => {
+      try {
+        await auth.signIn(email, password);
+        loginView.destroy();
+        startGame(app);
+      } catch (err) {
+        loginView.showError(err instanceof Error ? err.message : "Sign in failed");
+      }
+    },
+    () => showForgotPassword(auth, loginView),
+  );
+}
+
+/**
+ * Show the "Forgot password?" flow over the existing login view.
+ * The login view is hidden (not destroyed) while the forgot-password card is up,
+ * and restored if the user presses Back.
+ */
+function showForgotPassword(
+  auth: { resetPasswordForEmail(email: string): Promise<void> },
+  loginView: HtmlLoginView,
+): void {
+  loginView.hide();
+  const forgotView = new HtmlForgotPasswordView(
+    (email) => auth.resetPasswordForEmail(email),
+    () => {
+      forgotView.destroy();
+      loginView.show();
+    },
+  );
 }
 
 /** Fetch + render the leaderboard (assumes a signed-in session). */

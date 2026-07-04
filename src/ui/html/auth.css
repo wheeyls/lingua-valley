@@ -92,3 +92,32 @@
   font-size: 15px;
   margin-top: 10px;
 }
+
+.auth-card .btn-forgot {
+  background: transparent;
+  color: #9bc995;
+  font-size: 14px;
+  font-weight: normal;
+  margin-top: 12px;
+  padding: 8px;
+  text-decoration: underline;
+  cursor: pointer;
+  width: auto;
+}
+.auth-card .btn-forgot:active {
+  opacity: 0.7;
+}
+.auth-card .btn-back {
+  background: transparent;
+  color: #8a8290;
+  font-size: 14px;
+  font-weight: normal;
+  margin-top: 4px;
+  padding: 8px;
+  text-decoration: underline;
+  cursor: pointer;
+  width: auto;
+}
+.auth-card .btn-back:active {
+  opacity: 0.7;
+}
