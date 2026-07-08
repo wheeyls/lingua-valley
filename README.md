@@ -8,12 +8,15 @@ daily rhythm and a goal: earn money, buy a train ticket, move to the next town.
 
 ## The farming loop
 
-1. **Get seeds** from **Don Semilla** (seed farm) — an intro conversation that
-   sets this week's lesson and plants one crop.
-2. **Water daily** with **Aguamarina** (water tower) — each day's practice
-   conversation grows your crop **+1 unit**, gated to once per day.
-3. **Sell the harvest** to **Doña Tienda** (store) after ~5 days — a review
-   conversation that pays out **money**.
+1. **Get seeds** from **Don Semilla** at *La Granja de Semillas* — an intro
+   conversation that sets this week's lesson and plants one crop.
+2. **Water daily** at *La Plaza* — the daily practice conversation. **Marisol**
+   tells you a story, then you retell it to **Pablo**; finishing the practice
+   grows every crop **+1 unit**, gated to once per day. (A location can host a
+   single NPC or a two-person story→retell pair; the current campaign uses the
+   pair.)
+3. **Sell the harvest** to **Doña Tienda** at *La Tienda* after ~5 days — a
+   review conversation that pays out **money**.
 4. **Buy a train ticket** at the station to reach the next town.
 
 You can practice as much as you like, but rewards (money, growth) come **once
@@ -55,6 +58,10 @@ api/                 ← serverless functions (run on Vercel; keys server-side)
   converse.ts            ← GPT-4o NPC reply + grading
   speak.ts               ← OpenAI TTS
   activity-complete.ts   ← authoritative money grant (runs applyActivity)
+  player-action.ts       ← authoritative non-conversation actions (buy ticket…)
+  claim.ts               ← merge guest progress into a signed-in account
+  leaderboard.ts         ← ranked player status board (money/growth/streak)
+  state-load.ts          ← load the authoritative PlayerState for a user
   _lib/                  ← shared OpenAI + Supabase-admin clients
 src/
   domain/            ← pure logic, no framework (unit-tested)
@@ -64,13 +71,13 @@ src/
     dailyLoop.ts     ← 12h day + per-role reward gate
     player.ts        ← PlayerState + applyActivity reducer
     objective.ts     ← code-driven conversations
-    objectives/      ← SeedsIntro / WaterPractice / StoreReview (+ Lesson)
+    objectives/      ← SeedsIntro / StoryTelling / StoryRetell / StoreReview (+ Lesson)
     conversation.ts  ← wire contract + gate thresholds
     gameMap.ts       ← room/card model for the navigator
   content/
     lessons.ts       ← per-area Lesson content
     world.ts         ← areas, NPCs, ticket prices, voices
-    maps.ts          ← the Barrio room (NPC cards)
+    maps.ts          ← village hub + per-location rooms (generated from world)
   app/               ← GameController, PlayerService, ConversationSession
   ui/html/           ← DOM views (world, conversation, dialogue, auth)
   game/              ← voice capture + audio playback + API client
@@ -84,7 +91,7 @@ src/
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173 — world, movement, vocab quizzes
+npm run dev        # http://localhost:5173 — hub, rooms & UI (voice/grading need /api)
 ```
 
 The voiced conversation gate needs the `/api` functions, which Vite doesn't serve.
@@ -149,8 +156,9 @@ framework mocks.
 ## Extending
 
 - **New lesson content:** add a `Lesson` to `src/content/lessons.ts`.
-- **New areas/NPCs:** add the area (+ ticket price + `nextAreaId`) and its three
-  NPCs to `src/content/world.ts`, and the room to `src/content/maps.ts`.
+- **New areas/NPCs:** add the area (+ ticket price + `nextAreaId`), its
+  locations, and their NPCs to `src/content/world.ts` — `src/content/maps.ts`
+  generates the hub and per-location rooms from that content automatically.
 - **Tune growth:** edit `MAX_GROWTH` in `src/domain/field.ts` (covered by tests).
 - **Tune the economy:** edit pure functions in `src/domain/economy.ts`.
 - **Add a real service:** implement the relevant port (`PlayerStateRepository`,
