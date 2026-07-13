@@ -7,7 +7,6 @@
  */
 
 import type { LeaderboardRow } from "../../domain/leaderboard";
-import { MAX_GROWTH } from "../../domain/field";
 
 export class HtmlLeaderboardView {
   private root: HTMLDivElement;
@@ -73,7 +72,7 @@ export class HtmlLeaderboardView {
           </div>
           <div style="font-size:12px;color:#bcae93;display:flex;gap:10px;flex-wrap:wrap;margin-top:2px">
             <span>💰 ${r.money}</span>
-            <span>🌱 ${r.growth}/${MAX_GROWTH} (${pct}%)</span>
+            <span>🌸 ${r.growth} blooms (${pct}%)</span>
             <span>📅 today ${r.doneToday}/${r.totalToday}</span>
             <span>🔥 ${r.streak}d streak</span>
             <span>${lastActiveLabel(r.lastActive)}</span>

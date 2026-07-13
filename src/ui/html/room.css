@@ -206,3 +206,35 @@
   color: #ffe08a;
   font-weight: bold;
 }
+
+/* --- Garden card (the streak field: rows of 7 plants) --- */
+.card-garden {
+  min-width: clamp(184px, 46vw, 288px);
+}
+.card-garden .card-hint {
+  font-size: clamp(11px, 2.2vw, 14px);
+  color: #9bc995;
+  margin-top: 6px;
+}
+.garden-grid {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(3px, 0.8vw, 6px);
+  margin-bottom: 8px;
+}
+.garden-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: clamp(3px, 0.8vw, 6px);
+}
+.garden-cell {
+  width: clamp(22px, 5.5vw, 34px);
+  height: clamp(22px, 5.5vw, 34px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(14px, 3.4vw, 22px);
+  line-height: 1;
+  background: rgba(58, 47, 30, 0.55);
+  border-radius: 8px;
+}

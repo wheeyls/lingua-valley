@@ -6,15 +6,15 @@ import {
   applyActivity,
   applyPlayerAction,
   mergeStates,
-  CROP_VALUE,
   type ActivityResult,
   type PlayerState,
 } from "../player";
-import { plantSeed, MAX_GROWTH } from "../field";
+import { makeGarden, plantRow, waterActiveRow, totalBlooms, type Garden } from "../garden";
 import { add as addItem, ticketId, hasTicketTo } from "../inventory";
 import { DAY_COOLDOWN_MS } from "../dailyLoop";
 
 const NOW = new Date("2025-06-01T12:00:00.000Z");
+const DAY = "2025-06-01";
 
 function activity(over: Partial<ActivityResult> = {}): ActivityResult {
   return {
@@ -27,128 +27,120 @@ function activity(over: Partial<ActivityResult> = {}): ActivityResult {
   };
 }
 
-/** A player with one crop already planted (so watering can grow it). */
-function withCrop(): PlayerState {
+function withRow(): PlayerState {
   const s = initialPlayerState("Tester", 0x123456);
-  return { ...s, field: plantSeed(s.field, "greetings", "2025-06-01") };
+  return { ...s, field: plantRow(s.field, DAY) };
 }
 
-describe("applyActivity — money comes ONLY from selling at the store", () => {
+function bloomGarden(blooms: number): Garden {
+  let g = plantRow(makeGarden(), DAY);
+  for (let i = 0; i < blooms; i++) {
+    const d = new Date(`${DAY}T00:00:00.000Z`);
+    d.setUTCDate(d.getUTCDate() + i);
+    g = waterActiveRow(g, d.toISOString().slice(0, 10)).garden;
+  }
+  return g;
+}
+
+describe("applyActivity — money comes only from the store review", () => {
   it("a water/practice conversation grants no money", () => {
-    const s0 = withCrop();
-    const { state, earnedReward } = applyActivity(s0, activity({ role: "water" }), NOW);
-    expect(earnedReward).toBe(true); // still counts as completed today
-    expect(state.money).toBe(0); // but pays nothing
+    const { state, earnedReward } = applyActivity(withRow(), activity({ role: "water" }), NOW);
+    expect(earnedReward).toBe(true);
+    expect(state.money).toBe(0);
   });
 
   it("a seeds conversation grants no money", () => {
-    const s0 = initialPlayerState("T", 1);
-    const res = applyActivity(s0, activity({ objectiveId: "seeds-intro", role: "seeds" }), NOW);
+    const res = applyActivity(
+      initialPlayerState("T", 1),
+      activity({ objectiveId: "seeds-intro", role: "seeds" }),
+      NOW,
+    );
     expect(res.state.money).toBe(0);
   });
 
-  it("even a high-quality conversation pays nothing on its own", () => {
-    const s0 = withCrop();
-    const res = applyActivity(s0, activity({ communication: 1, accuracy: 1, role: "water" }), NOW);
+  it("the store review pays money from its grade", () => {
+    const res = applyActivity(
+      initialPlayerState("T", 1),
+      activity({ objectiveId: "store-review", role: "store", communication: 1, accuracy: 1 }),
+      NOW,
+    );
+    expect(res.soldValue).toBeGreaterThan(0);
+    expect(res.sold).toBe(1);
+    expect(res.state.money).toBe(res.soldValue);
+  });
+
+  it("a poor store review pays nothing (below the quality threshold)", () => {
+    const res = applyActivity(
+      initialPlayerState("T", 1),
+      activity({ objectiveId: "store-review", role: "store", communication: 0.2, accuracy: 0.2 }),
+      NOW,
+    );
+    expect(res.soldValue).toBe(0);
     expect(res.state.money).toBe(0);
   });
 });
 
-describe("applyActivity — growth", () => {
-  it("the water role grows the field once per day", () => {
-    let s = withCrop();
-    const res = applyActivity(s, activity({ role: "water" }), NOW);
+describe("applyActivity — blooms", () => {
+  it("the water role blooms today's plant once per day", () => {
+    const res = applyActivity(withRow(), activity({ role: "water" }), NOW);
     expect(res.grown).toBe(1);
-    expect(res.state.field.slots[0]!.growth).toBe(1);
+    expect(totalBlooms(res.state.field)).toBe(1);
   });
 
-  it("watering again the same day grows nothing", () => {
-    let s = withCrop();
+  it("watering again the same day blooms nothing", () => {
+    let s = withRow();
     s = applyActivity(s, activity({ role: "water" }), NOW).state;
     const again = applyActivity(s, activity({ role: "water" }), NOW);
     expect(again.grown).toBe(0);
-    expect(again.state.field.slots[0]!.growth).toBe(1);
+    expect(totalBlooms(again.state.field)).toBe(1);
   });
 
-  it("non-water roles never grow the field", () => {
-    const s = withCrop();
-    const res = applyActivity(s, activity({ role: "seeds" }), NOW);
+  it("watering with no active row (needs seed) blooms nothing", () => {
+    const res = applyActivity(initialPlayerState("T", 1), activity({ role: "water" }), NOW);
     expect(res.grown).toBe(0);
-    expect(res.state.field.slots[0]!.growth).toBe(0);
+    expect(totalBlooms(res.state.field)).toBe(0);
   });
 
-  it("two water objectives in a day still only grow the field once", () => {
-    let s = withCrop();
-    const story = applyActivity(
-      s,
-      activity({ objectiveId: "story-telling", role: "water" }),
-      NOW,
-    );
+  it("two water objectives in a day still only bloom once", () => {
+    let s = withRow();
+    const story = applyActivity(s, activity({ objectiveId: "story-telling", role: "water" }), NOW);
     expect(story.grown).toBe(1);
     s = story.state;
-    const retell = applyActivity(
-      s,
-      activity({ objectiveId: "story-retell", role: "water" }),
-      NOW,
-    );
-    expect(retell.grown).toBe(0); // growth gated once/day per role
-    expect(retell.state.field.slots[0]!.growth).toBe(1);
+    const retell = applyActivity(s, activity({ objectiveId: "story-retell", role: "water" }), NOW);
+    expect(retell.grown).toBe(0);
+    expect(totalBlooms(retell.state.field)).toBe(1);
   });
 });
 
-describe("applyActivity — authoritative side-effects (the persistence fix)", () => {
-  it("plants a crop when a seeds conversation completes", () => {
-    const s0 = initialPlayerState("T", 1); // empty field
+describe("applyActivity — authoritative side-effects", () => {
+  it("starts a garden row when a seeds conversation completes", () => {
     const res = applyActivity(
-      s0,
-      activity({ objectiveId: "seeds-intro", role: "seeds", theme: "past-tense" }),
+      initialPlayerState("T", 1),
+      activity({ objectiveId: "seeds-intro", role: "seeds" }),
       NOW,
     );
     expect(res.planted).toBe(true);
-    expect(res.state.field.slots[0]).not.toBeNull();
-    expect(res.state.field.slots[0]!.theme).toBe("past-tense");
+    expect(res.state.field.rows).toHaveLength(1);
+    expect(res.state.field.rows[0].seedDay).toBe(DAY);
   });
 
-  it("only plants once per day even if the seeds chat has many turns", () => {
+  it("only starts one row per day even if the seeds chat has many turns", () => {
     let s = initialPlayerState("T", 1);
     s = applyActivity(s, activity({ objectiveId: "seeds-intro", role: "seeds" }), NOW).state;
     const again = applyActivity(s, activity({ objectiveId: "seeds-intro", role: "seeds" }), NOW);
     expect(again.planted).toBe(false);
-    expect(again.state.field.slots.filter((c) => c !== null)).toHaveLength(1);
+    expect(again.state.field.rows).toHaveLength(1);
   });
 
-  it("sells a ready crop and pays out at the store", () => {
-    let s = initialPlayerState("T", 1);
-    s = { ...s, field: plantSeed(s.field, "past-tense", "2025-06-01") };
-    s.field.slots[0]!.growth = MAX_GROWTH; // ready to harvest
-    const res = applyActivity(
-      s,
-      activity({ objectiveId: "store-review", role: "store" }),
-      NOW,
-    );
-    expect(res.sold).toBe(1);
-    expect(res.soldValue).toBe(CROP_VALUE);
-    // Money comes only from the sale (conversations pay nothing).
-    expect(res.state.money).toBe(CROP_VALUE);
-    expect(res.state.field.slots[0]).toBeNull(); // harvested
-  });
-
-  it("does not sell an unripe crop", () => {
-    let s = initialPlayerState("T", 1);
-    s = { ...s, field: plantSeed(s.field, "past-tense", "2025-06-01") };
-    const res = applyActivity(
-      s,
-      activity({ objectiveId: "store-review", role: "store" }),
-      NOW,
-    );
-    expect(res.sold).toBe(0);
-    expect(res.state.field.slots[0]).not.toBeNull();
+  it("does not start a new row while the current one is still growing", () => {
+    const res = applyActivity(withRow(), activity({ objectiveId: "seeds-intro", role: "seeds" }), NOW);
+    expect(res.planted).toBe(false);
+    expect(res.state.field.rows).toHaveLength(1);
   });
 
   it("records objective completion + outputs in daily state (survives refresh)", () => {
-    const s0 = initialPlayerState("T", 1);
     const res = applyActivity(
-      s0,
+      initialPlayerState("T", 1),
       activity({
         objectiveId: "story-telling",
         role: "water",
@@ -208,28 +200,25 @@ describe("applyPlayerAction — buy ticket (authoritative)", () => {
     const res = applyPlayerAction(s0, { type: "buy-ticket", areaId: "mercado", price: 60 });
     expect(res.ok).toBe(false);
     expect(res.reason).toBe("already-owned");
-    expect(res.state.money).toBe(100); // unchanged
+    expect(res.state.money).toBe(100);
   });
 });
 
 describe("mergeStates (guest claim)", () => {
-  it("sums money, keeps the more-grown field, unions inventory", () => {
+  it("sums money, keeps the garden with more blooms, unions inventory", () => {
     const account: PlayerState = {
       ...initialPlayerState("Acct", 1),
       money: 50,
       inventory: addItem({}, ticketId("mercado")),
     };
-    let guestField = initialPlayerState().field;
-    guestField = plantSeed(guestField, "g", "2025-06-01");
-    guestField.slots[0]!.growth = 3;
     const guest: PlayerState = {
       ...initialPlayerState("Guest", 2),
       money: 30,
-      field: guestField,
+      field: bloomGarden(3),
     };
     const merged = mergeStates(account, guest);
     expect(merged.money).toBe(80);
-    expect(merged.field.slots[0]!.growth).toBe(3); // guest more grown
+    expect(totalBlooms(merged.field)).toBe(3);
     expect(hasTicketTo(merged.inventory, "mercado")).toBe(true);
   });
 });
@@ -245,14 +234,24 @@ describe("normalizePlayerState (forward-compatible loads)", () => {
     };
     const s = normalizePlayerState(oldSave);
     expect(s.money).toBe(42);
-    expect(s.field.slots).toHaveLength(1);
+    expect(s.field.rows).toEqual([]);
     expect(s.inventory).toEqual({});
     expect(s.daily.rewardedRoles).toEqual([]);
   });
 
+  it("migrates an OLD crop field (slots) to a fresh garden", () => {
+    const s = normalizePlayerState({ field: { slots: [{ theme: "x", growth: 3 }] } });
+    expect(s.field.rows).toEqual([]);
+  });
+
+  it("loads a saved garden", () => {
+    const s = normalizePlayerState({ field: bloomGarden(2) });
+    expect(totalBlooms(s.field)).toBe(2);
+  });
+
   it("returns a fresh state for garbage/null input", () => {
     expect(normalizePlayerState(null).money).toBe(0);
-    expect(normalizePlayerState("nonsense").field.slots).toHaveLength(1);
+    expect(normalizePlayerState("nonsense").field.rows).toEqual([]);
   });
 });
 
@@ -272,9 +271,9 @@ describe("settleDailyState (daily reset on load)", () => {
     };
     const later = new Date(NOW.getTime() + DAY_COOLDOWN_MS);
     const settled = settleDailyState(s0, later);
-    expect(settled.daily.rewardedRoles).toEqual([]); // reset
-    expect(settled.daily.streak).toBe(3); // streak carried forward
-    expect(settled.money).toBe(10); // money preserved
+    expect(settled.daily.rewardedRoles).toEqual([]);
+    expect(settled.daily.streak).toBe(3);
+    expect(settled.money).toBe(10);
   });
 
   it("is a no-op within the same day", () => {
@@ -290,6 +289,6 @@ describe("settleDailyState (daily reset on load)", () => {
       },
     };
     const settled = settleDailyState(s0, NOW);
-    expect(settled).toBe(s0); // unchanged reference
+    expect(settled).toBe(s0);
   });
 });
