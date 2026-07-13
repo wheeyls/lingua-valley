@@ -3,8 +3,8 @@
  *
  * This is the DOMAIN shape, stripped to the farming loop:
  *   - identity (name + avatar colour)
- *   - money (earned by selling crops at the store)
- *   - a field of crop slots (the thing you grow)
+ *   - money (earned from the store review conversation)
+ *   - a garden of streak rows (the field you grow by practicing daily)
  *   - an inventory (train tickets you hold)
  *   - the daily-loop gate state (which rewards you've claimed today)
  *
@@ -27,15 +27,14 @@ import {
   type DailyRole,
 } from "./dailyLoop.js";
 import {
-  makeField,
-  waterField,
-  plantSeed,
-  hasEmptySlot,
-  harvest,
-  readySlots,
-  type Field,
-  type Slot,
-} from "./field.js";
+  makeGarden,
+  plantRow,
+  waterActiveRow,
+  needsSeed,
+  totalBlooms,
+  type Garden,
+  type GardenRow,
+} from "./garden.js";
 import {
   emptyInventory,
   add as addItem,
@@ -43,9 +42,6 @@ import {
   ticketId,
   type Inventory,
 } from "./inventory.js";
-
-/** Money paid per harvested crop sold at the store. */
-export const CROP_VALUE = 25;
 
 export interface PlayerState {
   /** Display identity (also used for the multiplayer avatar). */
@@ -55,8 +51,8 @@ export interface PlayerState {
   /** Currency. Server-authoritative when signed in. */
   money: number;
 
-  /** The field you grow crops in. */
-  field: Field;
+  /** The garden of streak rows the player grows by practicing daily. */
+  field: Garden;
 
   /** Items the player holds (train tickets, etc.). */
   inventory: Inventory;
@@ -64,9 +60,6 @@ export interface PlayerState {
   /** Daily loop progress (which roles' rewards were claimed today + growth gate). */
   daily: DailyState;
 }
-
-/** How many planting slots the player's field starts with (A1 = 1). */
-export const STARTING_SLOTS = 1;
 
 export function initialPlayerState(
   displayName = "Aprendiz",
@@ -76,7 +69,7 @@ export function initialPlayerState(
     displayName,
     avatarColor,
     money: 0,
-    field: makeField(STARTING_SLOTS),
+    field: makeGarden(),
     inventory: emptyInventory(),
     daily: INITIAL_DAILY_STATE,
   };
@@ -104,7 +97,7 @@ export function normalizePlayerState(value: unknown): PlayerState {
         : typeof v.pesos === "number"
           ? v.pesos
           : 0,
-    field: normalizeField(v.field),
+    field: normalizeGarden(v.field),
     inventory: isObject(v.inventory)
       ? (v.inventory as Inventory)
       : emptyInventory(),
@@ -112,15 +105,21 @@ export function normalizePlayerState(value: unknown): PlayerState {
   };
 }
 
-function normalizeField(v: unknown): Field {
-  if (!isObject(v) || !Array.isArray((v as { slots?: unknown }).slots)) {
-    return makeField(STARTING_SLOTS);
+function normalizeGarden(v: unknown): Garden {
+  if (!isObject(v) || !Array.isArray((v as { rows?: unknown }).rows)) {
+    return makeGarden();
   }
-  const rawSlots = (v as { slots: unknown[] }).slots;
-  const slots: Slot[] = rawSlots.map((c) =>
-    isObject(c) ? (c as unknown as Slot) : null,
-  );
-  return { slots: slots.length ? slots : makeField(STARTING_SLOTS).slots };
+  const rawRows = (v as { rows: unknown[] }).rows;
+  const rows: GardenRow[] = rawRows.filter(isObject).flatMap((r) => {
+    const seedDay = (r as Partial<GardenRow>).seedDay;
+    if (typeof seedDay !== "string" || seedDay === "") return [];
+    const watered = (r as Partial<GardenRow>).wateredDays;
+    const wateredDays = Array.isArray(watered)
+      ? watered.filter((d): d is string => typeof d === "string")
+      : [];
+    return [{ seedDay, wateredDays }];
+  });
+  return { rows };
 }
 
 function normalizeDaily(v: unknown): DailyState {
@@ -185,13 +184,13 @@ export interface ApplyResult {
   reward: ActivityReward;
   /** Whether this was the first money-bearing completion of the OBJECTIVE today. */
   earnedReward: boolean;
-  /** Crops that gained a growth unit (water role, once/day). */
+  /** 1 if today's plant bloomed this turn (water role, once/day). */
   grown: number;
-  /** True if this completion planted a crop (seeds role, first of the day). */
+  /** True if this completion started a new garden row (seeds role, first of the day). */
   planted: boolean;
-  /** Number of crops sold at the store (store role, first of the day). */
+  /** 1 if the store review paid out this turn (store role, first of the day). */
   sold: number;
-  /** Money received from selling. */
+  /** Money the store review paid this turn. */
   soldValue: number;
 }
 
@@ -203,12 +202,11 @@ export interface ApplyResult {
  * guaranteeing identical rules everywhere.
  *
  * Rules (all gated to the first qualifying completion per day):
- *  - MONEY comes ONLY from selling crops at the store. Conversations are graded
- *    (quality feeds feedback) but never pay directly — you earn by farming.
- *  - SEEDS plants a crop (once per day per role).
- *  - WATER grows the field +1 unit (once per day per role, so the field only
- *    advances one step a day regardless of how many water chats).
- *  - STORE harvests ready crops and pays out CROP_VALUE each (once per day).
+ *  - SEEDS starts a new garden row, but only once the previous row's 7-day
+ *    period has ended (the garden needs seed).
+ *  - WATER blooms today's plant in the active row (once per day, so the row
+ *    advances one plant a day regardless of how many water chats).
+ *  - STORE is a graded review that pays MONEY from its grade (once per day).
  *
  * Doing the field side-effects HERE (not in the UI) keeps them authoritative:
  * the server persists them, and the guest path runs the identical logic.
@@ -220,13 +218,9 @@ export function applyActivity(
 ): ApplyResult {
   const day = utcDay(now);
   const reward = computeReward(activity.communication, activity.accuracy, activity.level);
-  // First completion of this objective today (gates the field side-effects and
-  // badges). Note: this no longer grants money — only the store sale does.
   const earnedReward = objectiveEarnsReward(prev.daily, activity.objectiveId);
 
-  // Money only ever increases from selling at the store (added below).
   let money = prev.money;
-
   let field = prev.field;
   let daily = prev.daily;
   let grown = 0;
@@ -234,36 +228,33 @@ export function applyActivity(
   let sold = 0;
   let soldValue = 0;
 
-  // SEEDS: plant a crop the first time the seeds role completes today.
+  // SEEDS: start a new row, but only once the previous period has ended.
   if (
     activity.role === "seeds" &&
     roleEarnsReward(prev.daily, "seeds") &&
-    hasEmptySlot(field)
+    needsSeed(field, day)
   ) {
-    field = plantSeed(field, activity.theme ?? "crop", day);
+    field = plantRow(field, day);
     planted = true;
     daily = claimRole(daily, "seeds", now);
   }
 
-  // WATER: grow the whole field once per day.
+  // WATER: bloom today's plant in the active row, once per day.
   if (activity.role === "water" && roleEarnsReward(prev.daily, "water")) {
-    const watered = waterField(field, day);
-    field = watered.field;
-    grown = watered.grown;
-    if (grown > 0) daily = claimRole(daily, "water", now);
+    const watered = waterActiveRow(field, day);
+    field = watered.garden;
+    grown = watered.bloomed ? 1 : 0;
+    if (watered.bloomed) daily = claimRole(daily, "water", now);
   }
 
-  // STORE: harvest ready crops and pay out, once per day.
+  // STORE: the review conversation pays money from its grade, once per day.
   if (activity.role === "store" && roleEarnsReward(prev.daily, "store")) {
-    const ready = readySlots(field);
-    if (ready.length > 0) {
-      const result = harvest(field);
-      field = result.field;
-      sold = result.harvested.length;
-      soldValue = sold * CROP_VALUE;
-      money += soldValue;
-      daily = claimRole(daily, "store", now);
+    if (reward.money > 0) {
+      money += reward.money;
+      soldValue = reward.money;
+      sold = 1;
     }
+    daily = claimRole(daily, "store", now);
   }
 
   // Claim the objective's money for today (gates future replays).
@@ -353,13 +344,13 @@ export function applyPlayerAction(
 
 /**
  * Merge a guest's state into an account's state on claim. Most-progressed wins:
- * sum money, keep the more-grown field, union the inventory. Pure.
+ * sum money, keep the garden with more blooms, union the inventory. Pure.
  */
 export function mergeStates(account: PlayerState, guest: PlayerState): PlayerState {
-  // Field: keep whichever side has more total growth (simple "most progressed").
-  const accGrowth = totalGrowth(account.field);
-  const guestGrowth = totalGrowth(guest.field);
-  const field = guestGrowth > accGrowth ? guest.field : account.field;
+  const field =
+    totalBlooms(guest.field) > totalBlooms(account.field)
+      ? guest.field
+      : account.field;
 
   // Inventory: union, summing quantities.
   let inventory: Inventory = { ...account.inventory };
@@ -382,10 +373,6 @@ export function mergeStates(account: PlayerState, guest: PlayerState): PlayerSta
           : account.daily.lastPlayedDay,
     },
   };
-}
-
-function totalGrowth(field: Field): number {
-  return field.slots.reduce((sum, c) => sum + (c?.growth ?? 0), 0);
 }
 
 /**

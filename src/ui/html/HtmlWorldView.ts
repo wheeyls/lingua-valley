@@ -18,12 +18,13 @@ export interface WorldViewCallbacks {
   onItemTap: (item: MapItem) => void;
 }
 
-/** A live, state-driven card injected by the controller (field, station, …). */
+/** A live, state-driven card injected by the controller (the garden). */
 export interface ExtraCard {
   id: string;
   icon: string;
   label: string;
   hint: string;
+  grid?: string[][];
   onTap: () => void;
 }
 
@@ -239,12 +240,21 @@ export class HtmlWorldView {
       this.bodyEl.appendChild(card);
     }
 
-    // Live, controller-driven cards (field, station).
     for (const extra of this.extraCards) {
       const card = document.createElement("div");
-      card.className = "card card-item";
+      card.className = extra.grid ? "card card-item card-garden" : "card card-item";
+      const visual = extra.grid
+        ? `<div class="garden-grid">${extra.grid
+            .map(
+              (row) =>
+                `<div class="garden-row">${row
+                  .map((cell) => `<span class="garden-cell">${cell}</span>`)
+                  .join("")}</div>`,
+            )
+            .join("")}</div>`
+        : `<div class="card-icon-text">${extra.icon}</div>`;
       card.innerHTML = `
-        <div class="card-icon-text">${extra.icon}</div>
+        ${visual}
         <div class="card-label">${extra.label}</div>
         <div class="card-hint">${extra.hint}</div>
       `;
