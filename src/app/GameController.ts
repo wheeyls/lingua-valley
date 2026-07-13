@@ -6,15 +6,15 @@
  * stays pure; this is wiring + presentation.
  *
  * The loop:
- *   - Seedsman conversation → plant a crop in your field.
- *   - Waterkeeper conversation (daily) → water the field, crops grow +1.
- *   - At full growth, the Shopkeeper conversation → sell the crop for money.
- *   - The Station → spend money on a train ticket to the next area.
+ *   - Don Semilla (seeds) → plant a new 7-day garden row.
+ *   - La Plaza (water, daily) → bloom today's plant; a skipped day withers it.
+ *   - Doña Tienda (store) → a graded review that pays money.
  */
 
 import { HtmlWorldView } from "../ui/html/HtmlWorldView";
 import { HtmlDialogueView, type DialogueViewData } from "../ui/html/HtmlDialogueView";
 import { HtmlConversationView } from "../ui/html/HtmlConversationView";
+import { HtmlDevPanel } from "../ui/html/HtmlDevPanel";
 import { blockCanvas, unblockCanvas } from "../ui/html/canvasBlock";
 import { getMap, HUB_MAP_ID } from "../content/maps";
 import { findNpc, CURRENT_AREA, type Npc } from "../content/world";
@@ -22,10 +22,9 @@ import { CURRENT_LESSON } from "../content/lessons";
 import type { MapNpc, MapDoor } from "../domain/gameMap";
 import { buildDailyGraph } from "../domain/objectives/daily";
 import type { ObjectiveGraph } from "../domain/objective";
-import { hasHarvest, MAX_GROWTH } from "../domain/field";
-import { hasTicketTo } from "../domain/inventory";
-import { hoursUntilNextDay } from "../domain/dailyLoop";
-import type { ApplyResult } from "../domain/player";
+import { grid, needsSeed, bloomsThisRow, ROW_LENGTH, type CellState } from "../domain/garden";
+import { hoursUntilNextDay, type DailyRole } from "../domain/dailyLoop";
+import { utcDay, settleDailyState, type ApplyResult } from "../domain/player";
 import { ConversationSession } from "./ConversationSession";
 import { MicRecorder, playAudioBytes, unlockAudio } from "../game/voice";
 import { transcribe, cleanTranscription, speak } from "../game/api";
@@ -38,6 +37,7 @@ export class GameController {
   private recorder = new MicRecorder();
   /** Which map is on screen: the hub, or a location room. */
   private currentMapId = HUB_MAP_ID;
+  private devPanel?: HtmlDevPanel;
 
   constructor(
     private readonly player: PlayerService,
@@ -57,6 +57,8 @@ export class GameController {
     this.worldView.setUser(user.displayName, () => {
       void this.adapters.auth.signOut().then(() => window.location.reload());
     });
+
+    if (this.adapters.fakes) this.setupDevPanel();
 
     this.render();
     // Keep the reset countdown fresh.
@@ -81,11 +83,8 @@ export class GameController {
     this.worldView.loadMap(map, objState, completedNpcIds);
     this.worldView.updateHud(state.money);
 
-    // The live field + station cards only live on the hub.
     this.worldView.setExtraCards(
-      this.currentMapId === HUB_MAP_ID
-        ? [this.fieldCard(), this.stationCard()]
-        : [],
+      this.currentMapId === HUB_MAP_ID ? [this.gardenCard()] : [],
     );
 
     // On the hub, show each location's "who's left to talk to" status so the
@@ -139,111 +138,82 @@ export class GameController {
     return status;
   }
 
-  private fieldCard() {
+  private gardenCard() {
     const field = this.player.getState().field;
-    const crop = field.slots[0];
-    let icon = "🟫";
-    let label = "Your field";
-    let hint = "Empty — get seeds from the farm";
-
-    if (crop) {
-      const bars = "🌱".repeat(Math.max(1, crop.growth)) || "🌱";
-      if (crop.growth >= MAX_GROWTH) {
-        icon = "🌻";
-        label = "Ready to harvest!";
-        hint = "Tap to harvest, then sell at the store";
-      } else {
-        icon = crop.growth >= 3 ? "🌿" : "🌱";
-        label = `Growing (${crop.growth}/${MAX_GROWTH})`;
-        hint = `${bars} — water daily to grow`;
-      }
-    }
+    const today = utcDay(this.adapters.clock.now());
+    const cells = grid(field, today).map((row) => row.map(cellEmoji));
+    const hint = needsSeed(field, today)
+      ? field.rows.length === 0
+        ? "Get seed from Don Semilla to plant your first row"
+        : "Row done! Get seed from Don Semilla for the next row"
+      : `${bloomsThisRow(field, today)}/${ROW_LENGTH} bloomed — water daily at La Plaza`;
 
     return {
       id: "field",
-      icon,
-      label,
+      icon: "🌱",
+      label: "Your garden",
       hint,
-      onTap: () => this.onFieldTap(),
+      grid: cells,
+      onTap: () => this.onGardenTap(),
     };
   }
 
-  private stationCard() {
-    const state = this.player.getState();
-    const area = CURRENT_AREA;
-    const owned = area.nextAreaId ? hasTicketTo(state.inventory, area.nextAreaId) : false;
-    const canAfford = state.money >= area.ticketPrice;
+  // --- Garden interactions --------------------------------------------------
 
-    let hint: string;
-    if (!area.nextAreaId) hint = "End of the line";
-    else if (owned) hint = "Ticket bought! ✓";
-    else if (canAfford) hint = `Tap to buy a ticket (${area.ticketPrice} 💰)`;
-    else hint = `Need ${area.ticketPrice} 💰 for a ticket`;
-
-    return {
-      id: "station",
-      icon: "🚂",
-      label: "Train station",
-      hint,
-      onTap: () => this.onStationTap(),
-    };
-  }
-
-  // --- Field interactions ---------------------------------------------------
-
-  private onFieldTap() {
+  private onGardenTap() {
     const field = this.player.getState().field;
-    const crop = field.slots[0];
-
-    if (crop && crop.growth >= MAX_GROWTH) {
-      this.toast("🌻 Ready! Take it to Doña Tienda's store to sell it.");
-      return;
-    }
-    if (!crop) {
-      this.toast("Visit the seed farm to get seeds to plant.");
+    const today = utcDay(this.adapters.clock.now());
+    if (needsSeed(field, today)) {
+      this.toast(
+        field.rows.length === 0
+          ? "🌱 Visit Don Semilla at the seed farm to plant your first row."
+          : "🌱 This week's row is complete — get seed from Don Semilla for the next one.",
+      );
       return;
     }
     this.toast(
-      `Your crop is growing (${crop.growth}/${MAX_GROWTH}). Do your daily practice at La Plaza to water it.`,
+      `💧 ${bloomsThisRow(field, today)}/${ROW_LENGTH} plants bloomed this week. Water daily at La Plaza to keep your streak alive.`,
     );
   }
 
-  // --- Station --------------------------------------------------------------
+  // --- Dev harness (fakes only) ---------------------------------------------
 
-  private onStationTap() {
-    const area = CURRENT_AREA;
-    if (!area.nextAreaId) {
-      this.toast("This is the last town for now — more on the way!");
-      return;
-    }
-    const state = this.player.getState();
-    if (hasTicketTo(state.inventory, area.nextAreaId)) {
-      this.toast("You already have your ticket. ¡Buen viaje!");
-      return;
-    }
-    if (state.money < area.ticketPrice) {
-      this.toast(`A ticket costs ${area.ticketPrice} 💰. Sell more crops to afford it!`);
-      return;
-    }
-    void this.buyTicket(area.nextAreaId, area.ticketPrice);
+  private setupDevPanel() {
+    this.devPanel = new HtmlDevPanel({
+      onSeeds: () => void this.devComplete("seeds-intro", "seeds"),
+      onWater: () => void this.devComplete("story-telling", "water"),
+      onStore: () => void this.devComplete("store-review", "store"),
+      onAdvanceDay: (n) => void this.devAdvanceDay(n),
+    });
+    this.updateDevStatus();
   }
 
-  private async buyTicket(areaId: string, price: number) {
-    const result = await this.player.performAction({
-      type: "buy-ticket",
-      areaId,
-      price,
+  private async devComplete(objectiveId: string, role: DailyRole) {
+    await this.player.completeActivity({
+      objectiveId,
+      role,
+      level: CURRENT_LESSON.level,
+      communication: 1,
+      accuracy: 1,
     });
-    if (result.ok) {
-      this.toast("🚂 Ticket bought! The next town awaits.");
-    } else if (result.reason === "insufficient-funds") {
-      this.toast(`A ticket costs ${price} 💰. Sell more crops to afford it!`);
-    } else if (result.reason === "already-owned") {
-      this.toast("You already have your ticket. ¡Buen viaje!");
-    } else {
-      this.toast("Couldn't buy the ticket — try again.");
-    }
     this.render();
+    this.updateDevStatus();
+  }
+
+  private async devAdvanceDay(days: number) {
+    this.adapters.fakes!.clock.advanceDays(days);
+    await this.player.update((s) => settleDailyState(s, this.adapters.clock.now()));
+    this.render();
+    this.updateDevStatus();
+  }
+
+  private updateDevStatus() {
+    const state = this.player.getState();
+    const today = utcDay(this.adapters.clock.now());
+    const where = needsSeed(state.field, today)
+      ? "needs seed"
+      : `${bloomsThisRow(state.field, today)}/${ROW_LENGTH} bloomed this row`;
+    this.devPanel?.setStatus(`${today} · ${where} · 💰 ${state.money}`);
   }
 
   // --- NPC dialogue + conversation ------------------------------------------
@@ -393,10 +363,9 @@ export class GameController {
 
           const corr =
             outcome.grade.corrections.length > 0 ? outcome.grade.corrections.join("; ") : "";
-          // Money only comes from selling at the store; show sale + growth here.
           const sold =
             outcome.applied.soldValue > 0 ? `+${outcome.applied.soldValue} 💰` : "";
-          const grew = outcome.applied.grown > 0 ? "💧 Your crop grew!" : "";
+          const grew = outcome.applied.grown > 0 ? "🌸 Your plant bloomed!" : "";
           view.setFeedback(outcome.grade.feedback, corr, [sold, grew].filter(Boolean).join("  "));
 
           await this.npcSay(view, npc, outcome.npcReply);
@@ -445,19 +414,14 @@ export class GameController {
    * here we only surface what changed and re-render.
    */
   private afterConversation(role: string, applied: ApplyResult | null) {
-    const s = this.player.getState();
     if (!applied) return;
 
     if (applied.planted) {
-      this.toast("🌱 Seeds planted! Do your daily practice at La Plaza to grow them.");
+      this.toast("🌱 New row planted! Water it daily at La Plaza this week.");
     } else if (applied.sold > 0) {
-      this.toast(`🛒 Sold for ${applied.soldValue} 💰! Save up for a train ticket.`);
+      this.toast(`🛒 Nice review! +${applied.soldValue} 💰`);
     } else if (role === "water" && applied.grown > 0) {
-      this.toast(
-        hasHarvest(s.field)
-          ? "🌻 Your crop is fully grown — sell it at the store!"
-          : "💧 Nice retelling! Your crop grew a step.",
-      );
+      this.toast("🌸 Your plant bloomed! Come back tomorrow to keep the streak.");
     }
   }
 
@@ -475,5 +439,18 @@ export class GameController {
     el.textContent = message;
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 3500);
+  }
+}
+
+function cellEmoji(c: CellState): string {
+  switch (c) {
+    case "bloomed":
+      return "🌸";
+    case "withered":
+      return "🥀";
+    case "today":
+      return "🌱";
+    case "empty":
+      return "·";
   }
 }

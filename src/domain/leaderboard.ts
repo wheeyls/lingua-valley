@@ -10,7 +10,7 @@
  */
 
 import type { PlayerState } from "./player.js";
-import { MAX_GROWTH } from "./field.js";
+import { totalBlooms, VISIBLE_ROWS, ROW_LENGTH } from "./garden.js";
 import { hasTicketTo } from "./inventory.js";
 
 /** One row of the leaderboard, ready to render. */
@@ -35,9 +35,9 @@ export interface LeaderboardRow {
   score: number;
 }
 
-/** Total growth units across all crops in the field. */
+/** Total plants bloomed across the whole garden. */
 export function totalGrowth(state: PlayerState): number {
-  return state.field.slots.reduce((sum, c) => sum + (c?.growth ?? 0), 0);
+  return totalBlooms(state.field);
 }
 
 /**
@@ -51,8 +51,7 @@ export function toLeaderboardRow(
   opts: { totalToday: number; nextAreaId?: string; lastActive?: string },
 ): LeaderboardRow {
   const growth = totalGrowth(state);
-  const slots = Math.max(1, state.field.slots.length);
-  const growthPct = Math.min(1, growth / (slots * MAX_GROWTH));
+  const growthPct = Math.min(1, growth / (VISIBLE_ROWS * ROW_LENGTH));
   const ticket = opts.nextAreaId ? hasTicketTo(state.inventory, opts.nextAreaId) : false;
   const doneToday = Object.keys(state.daily.objectiveState).length;
 

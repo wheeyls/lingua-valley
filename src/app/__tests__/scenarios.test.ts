@@ -9,7 +9,8 @@ import { makeAdapters, type Adapters } from "../adapters";
 import { PlayerService } from "../PlayerService";
 import { ConversationSession } from "../ConversationSession";
 import { CURRENT_LESSON } from "../../content/lessons";
-import { plantSeed, MAX_GROWTH } from "../../domain/field";
+import { plantRow, totalBlooms, ROW_LENGTH } from "../../domain/garden";
+import { utcDay } from "../../domain/player";
 import { hasTicketTo } from "../../domain/inventory";
 import type { DailyRole } from "../../domain/dailyLoop";
 import type { RemotePlayer } from "../../domain/ports";
@@ -65,11 +66,11 @@ describe("a single graded conversation turn", () => {
     s.begin("¡Hola!");
     const outcome = await s.submit("Hola, buenos días.");
 
-    expect(outcome.applied.earnedReward).toBe(true); // counts as done today
-    expect(player.getState().money).toBe(0); // money only comes from selling
+    expect(outcome.applied.earnedReward).toBe(true);
+    expect(player.getState().money).toBe(0);
   });
 
-  it("conversations never pay, regardless of grade", async () => {
+  it("a practice conversation never pays, regardless of grade", async () => {
     adapters.fakes!.grader.enqueue({ communication: 0.3, accuracy: 0.3 });
     const s = sessionFor(adapters, player, "water");
     s.begin("¡Hola!");
@@ -78,21 +79,17 @@ describe("a single graded conversation turn", () => {
   });
 });
 
-describe("the crop grows over a week of watering", () => {
-  it("plants, grows one unit per day, and is harvest-ready after MAX_GROWTH days", async () => {
+describe("the garden fills over a week of watering", () => {
+  it("blooms one plant per day, filling a row over 7 days", async () => {
     const adapters = makeAdapters("test");
     const player = new PlayerService(adapters.repo, adapters.rewardGrader, adapters.clock);
     await player.init();
     adapters.fakes!.grader.setDefault({ communication: 0.85, accuracy: 0.85 });
 
-    // Plant a crop (as the seeds conversation would).
-    await player.update((s) => ({
-      ...s,
-      field: plantSeed(s.field, CURRENT_LESSON.id, "2025-06-01"),
-    }));
+    const today = utcDay(adapters.fakes!.clock.now());
+    await player.update((s) => ({ ...s, field: plantRow(s.field, today) }));
 
-    // Water once per day for MAX_GROWTH days; the clock drives the daily gate.
-    for (let day = 0; day < MAX_GROWTH; day++) {
+    for (let day = 0; day < ROW_LENGTH; day++) {
       const s = sessionFor(adapters, player, "water");
       s.begin("¡Hola!");
       const outcome = await s.submit("Hola, ¿cómo estás?");
@@ -100,19 +97,17 @@ describe("the crop grows over a week of watering", () => {
       adapters.fakes!.clock.advanceDays(1);
     }
 
-    const crop = player.getState().field.slots[0]!;
-    expect(crop.growth).toBe(MAX_GROWTH);
+    expect(totalBlooms(player.getState().field)).toBe(ROW_LENGTH);
   });
 
-  it("watering twice in one day only grows once", async () => {
+  it("watering twice in one day only blooms once", async () => {
     const adapters = makeAdapters("test");
     const player = new PlayerService(adapters.repo, adapters.rewardGrader, adapters.clock);
     await player.init();
     adapters.fakes!.grader.setDefault({ communication: 0.85, accuracy: 0.85 });
-    await player.update((s) => ({
-      ...s,
-      field: plantSeed(s.field, CURRENT_LESSON.id, "2025-06-01"),
-    }));
+
+    const today = utcDay(adapters.fakes!.clock.now());
+    await player.update((s) => ({ ...s, field: plantRow(s.field, today) }));
 
     const s1 = sessionFor(adapters, player, "water");
     s1.begin("¡Hola!");
@@ -122,43 +117,33 @@ describe("the crop grows over a week of watering", () => {
     s2.begin("¡Hola!");
     const again = await s2.submit("Hola de nuevo.");
     expect(again.applied.grown).toBe(0);
-    expect(player.getState().field.slots[0]!.growth).toBe(1);
+    expect(totalBlooms(player.getState().field)).toBe(1);
   });
 });
 
-describe("farming side-effects persist across a refresh (the bug)", () => {
-  it("completing the seeds chat plants a crop that survives a reload", async () => {
+describe("farming side-effects persist across a refresh", () => {
+  it("completing the seeds chat starts a row that survives a reload", async () => {
     const adapters = makeAdapters("test");
     const player = newPlayer(adapters);
     await player.init();
     adapters.fakes!.grader.setDefault({ communication: 0.9, accuracy: 0.9 });
 
-    // Complete the seeds conversation (as Don Semilla).
     const seeds = sessionFor(adapters, player, "seeds", "seeds-intro");
     seeds.begin("¡Buenas!");
     const outcome = await seeds.submit("Hola, quiero semillas.");
     expect(outcome.applied.planted).toBe(true);
-    expect(player.getState().field.slots[0]).not.toBeNull();
+    expect(player.getState().field.rows).toHaveLength(1);
 
-    // Simulate a browser refresh: a NEW PlayerService loading from the SAME repo.
     const reloaded = newPlayer(adapters);
     await reloaded.init();
-    expect(reloaded.getState().field.slots[0]).not.toBeNull();
-    expect(reloaded.getState().field.slots[0]!.theme).toBe(CURRENT_LESSON.id);
+    expect(reloaded.getState().field.rows).toHaveLength(1);
   });
 
-  it("selling at the store persists money + cleared field across a reload", async () => {
+  it("the store review pays money that persists across a reload", async () => {
     const adapters = makeAdapters("test");
     const player = newPlayer(adapters);
     await player.init();
     adapters.fakes!.grader.setDefault({ communication: 0.9, accuracy: 0.9 });
-
-    // Seed a ready-to-harvest crop directly via the repo, then reload.
-    await player.update((s) => {
-      const field = plantSeed(s.field, CURRENT_LESSON.id, "2025-06-01");
-      field.slots[0]!.growth = MAX_GROWTH;
-      return { ...s, field };
-    });
 
     const store = sessionFor(adapters, player, "store", "store-review");
     store.begin("¡Hola!");
@@ -169,7 +154,6 @@ describe("farming side-effects persist across a refresh (the bug)", () => {
     const reloaded = newPlayer(adapters);
     await reloaded.init();
     expect(reloaded.getState().money).toBeGreaterThan(0);
-    expect(reloaded.getState().field.slots[0]).toBeNull();
   });
 
   it("buying a ticket persists across a reload", async () => {
@@ -204,12 +188,10 @@ describe("the daily gate resets after the cooldown", () => {
     const first = await day1.submit("Hola.");
     expect(first.applied.earnedReward).toBe(true);
 
-    // Same day: the gate is closed (replay earns nothing).
     const replay = sessionFor(adapters, player, "water");
     replay.begin("¡Hola!");
     expect((await replay.submit("otra vez")).applied.earnedReward).toBe(false);
 
-    // Advance past the 12h cooldown and re-init so settleDailyState runs.
     adapters.fakes!.clock.advanceDays(1);
     const player2 = newPlayer(adapters);
     await player2.init();
@@ -217,7 +199,7 @@ describe("the daily gate resets after the cooldown", () => {
     const day2 = sessionFor(adapters, player2, "water");
     day2.begin("¡Hola!");
     const outcome = await day2.submit("Hola otra vez.");
-    expect(outcome.applied.earnedReward).toBe(true); // gate re-opened
+    expect(outcome.applied.earnedReward).toBe(true);
   });
 });
 
@@ -270,14 +252,13 @@ describe("free-form conversation (LLM-driven)", () => {
     const opening = session.begin("¡Buenas! ¿Qué onda?");
     expect(opening).toEqual(["¡Buenas! ¿Qué onda?"]);
 
-    // Even if the LLM tries to end early, the min-turn floor prevents it.
     adapters.fakes!.grader.enqueue({
       communication: 0.9,
       accuracy: 0.9,
       conversationComplete: true,
     });
     const first = await session.submit("¡Ey! ¿Cómo andas?");
-    expect(first.complete).toBe(false); // below MIN_PLAYER_TURNS
+    expect(first.complete).toBe(false);
 
     let complete = false;
     let turns = 1;
@@ -318,9 +299,7 @@ describe("reward grant resilience", () => {
       accuracy: 1,
     });
 
-    // Did not throw; applied locally. (Money would come from a sale; here the
-    // field is empty so soldValue is 0 — the point is gameplay didn't break.)
     expect(result.earnedReward).toBe(true);
-    expect(result.sold).toBe(0);
+    expect(result.soldValue).toBeGreaterThan(0);
   });
 });

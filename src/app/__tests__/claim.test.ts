@@ -2,8 +2,28 @@ import { describe, it, expect } from "vitest";
 import { ClaimService, type GuestSource } from "../ClaimService";
 import { InMemoryPlayerRepository } from "../../net/fakes/InMemoryPlayerRepository";
 import { initialPlayerState, type PlayerState } from "../../domain/player";
-import { plantSeed } from "../../domain/field";
+import {
+  makeGarden,
+  plantRow,
+  waterActiveRow,
+  totalBlooms,
+  type Garden,
+} from "../../domain/garden";
 import { add as addItem, ticketId, hasTicketTo } from "../../domain/inventory";
+
+const addDays = (day: string, n: number): string => {
+  const d = new Date(`${day}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+function bloomGarden(blooms: number): Garden {
+  let g: Garden = plantRow(makeGarden(), "2025-06-01");
+  for (let i = 0; i < blooms; i++) {
+    g = waterActiveRow(g, addDays("2025-06-01", i)).garden;
+  }
+  return g;
+}
 
 function guestWith(state: PlayerState | null): GuestSource & { cleared: boolean } {
   return {
@@ -19,7 +39,7 @@ function guestWith(state: PlayerState | null): GuestSource & { cleared: boolean 
 
 describe("ClaimService", () => {
   it("merges guest progress into a fresh account and clears the guest save", async () => {
-    const account = new InMemoryPlayerRepository(); // brand-new account
+    const account = new InMemoryPlayerRepository();
     const svc = new ClaimService(account);
 
     const guestState: PlayerState = {
@@ -37,29 +57,23 @@ describe("ClaimService", () => {
     expect((await account.load())!.money).toBe(120);
   });
 
-  it("sums money and keeps the more-grown field when the account has progress", async () => {
-    let accountField = initialPlayerState().field;
-    accountField = plantSeed(accountField, "g", "2025-06-01");
-    accountField.slots[0]!.growth = 1;
+  it("sums money and keeps the garden with more blooms when the account has progress", async () => {
     const account = new InMemoryPlayerRepository({
       ...initialPlayerState("Acct", 1),
       money: 50,
-      field: accountField,
+      field: bloomGarden(1),
     });
     const svc = new ClaimService(account);
 
-    let guestField = initialPlayerState().field;
-    guestField = plantSeed(guestField, "g", "2025-06-01");
-    guestField.slots[0]!.growth = 4;
     const guest = guestWith({
       ...initialPlayerState("Guest", 2),
       money: 30,
-      field: guestField,
+      field: bloomGarden(4),
     });
 
     const merged = await svc.claim(guest);
     expect(merged.money).toBe(80);
-    expect(merged.field.slots[0]!.growth).toBe(4); // guest more grown
+    expect(totalBlooms(merged.field)).toBe(4);
   });
 
   it("no-ops gracefully when there is no guest progress", async () => {
@@ -76,14 +90,12 @@ describe("ClaimService", () => {
   });
 
   it("uses the ClaimGateway (server) to merge when one is provided", async () => {
-    // The account repo would be RLS-blocked on cloud, so the gateway owns the
-    // merge+persist. We assert the gateway is used and its result is returned.
     const account = new InMemoryPlayerRepository();
     let gatewayCalled = false;
     const gateway = {
       async claim(guest: PlayerState): Promise<PlayerState> {
         gatewayCalled = true;
-        return { ...guest, money: guest.money + 1000 }; // server-merged result
+        return { ...guest, money: guest.money + 1000 };
       },
     };
     const svc = new ClaimService(account, gateway);

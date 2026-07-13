@@ -1,28 +1,53 @@
 import { describe, it, expect } from "vitest";
 import { toLeaderboardRow, rankLeaderboard, totalGrowth } from "../leaderboard";
 import { initialPlayerState, type PlayerState } from "../player";
-import { plantSeed, MAX_GROWTH } from "../field";
+import {
+  makeGarden,
+  plantRow,
+  waterActiveRow,
+  VISIBLE_ROWS,
+  ROW_LENGTH,
+  type Garden,
+} from "../garden";
 import { add as addItem, ticketId } from "../inventory";
+
+const addDays = (day: string, n: number): string => {
+  const d = new Date(`${day}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+function bloomGarden(blooms: number): Garden {
+  let g: Garden = makeGarden();
+  let seed = "2025-06-01";
+  let placed = 0;
+  while (placed < blooms) {
+    g = plantRow(g, seed);
+    for (let d = 0; d < ROW_LENGTH && placed < blooms; d++) {
+      g = waterActiveRow(g, addDays(seed, d)).garden;
+      placed++;
+    }
+    seed = addDays(seed, ROW_LENGTH);
+  }
+  return g;
+}
 
 function player(over: Partial<PlayerState> = {}): PlayerState {
   return { ...initialPlayerState("P", 1), ...over };
 }
 
 describe("leaderboard helpers", () => {
-  it("sums total growth across the field", () => {
-    let s = player();
-    s = { ...s, field: plantSeed(s.field, "t", "2025-06-01") };
-    s.field.slots[0]!.growth = 3;
+  it("sums total blooms across the garden", () => {
+    const s = player({ field: bloomGarden(3) });
     expect(totalGrowth(s)).toBe(3);
   });
 
-  it("builds a row with money, growth, ticket, today and streak", () => {
-    let s = player({
+  it("builds a row with money, blooms, ticket, today and streak", () => {
+    const s = player({
       money: 40,
       inventory: addItem({}, ticketId("mercado")),
+      field: bloomGarden(VISIBLE_ROWS * ROW_LENGTH),
     });
-    s = { ...s, field: plantSeed(s.field, "t", "2025-06-01") };
-    s.field.slots[0]!.growth = MAX_GROWTH;
     s.daily.streak = 5;
     s.daily.objectiveState = {
       "story-telling": { completedAt: "x", outputs: {} },
@@ -36,7 +61,7 @@ describe("leaderboard helpers", () => {
     });
 
     expect(row.money).toBe(40);
-    expect(row.growth).toBe(MAX_GROWTH);
+    expect(row.growth).toBe(VISIBLE_ROWS * ROW_LENGTH);
     expect(row.growthPct).toBe(1);
     expect(row.ticket).toBe(true);
     expect(row.doneToday).toBe(2);
@@ -52,7 +77,7 @@ describe("leaderboard helpers", () => {
       { totalToday: 4, nextAreaId: "mercado" },
     );
     const ranked = rankLeaderboard([noTicket, withTicket]);
-    expect(ranked[0].ticket).toBe(true); // milestone outranks raw money
+    expect(ranked[0].ticket).toBe(true);
   });
 
   it("caps doneToday at totalToday", () => {

@@ -9,7 +9,7 @@
 
 import type { PlayerState } from "../domain/player.js";
 import { initialPlayerState, normalizePlayerState } from "../domain/player.js";
-import type { Field } from "../domain/field.js";
+import type { Garden } from "../domain/garden.js";
 import type { Inventory } from "../domain/inventory.js";
 import type { DailyState } from "../domain/dailyLoop.js";
 
@@ -22,7 +22,7 @@ export interface ProfileRow {
 export interface PlayerStateRow {
   user_id: string;
   money: number;
-  field: Field | null;
+  field: Garden | null;
   inventory: Inventory | null;
   daily: DailyState | null;
 }
