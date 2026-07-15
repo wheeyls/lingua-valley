@@ -24,7 +24,8 @@ import { buildDailyGraph } from "../domain/objectives/daily";
 import type { ObjectiveGraph } from "../domain/objective";
 import { grid, needsSeed, bloomsThisRow, ROW_LENGTH, type CellState } from "../domain/garden";
 import { hoursUntilNextDay, type DailyRole } from "../domain/dailyLoop";
-import { utcDay, settleDailyState, type ApplyResult } from "../domain/player";
+import { settleDailyState, type ApplyResult } from "../domain/player";
+import { appDay } from "../domain/time";
 import { ConversationSession } from "./ConversationSession";
 import { MicRecorder, playAudioBytes, unlockAudio } from "../game/voice";
 import { transcribe, cleanTranscription, speak } from "../game/api";
@@ -140,7 +141,7 @@ export class GameController {
 
   private gardenCard() {
     const field = this.player.getState().field;
-    const today = utcDay(this.adapters.clock.now());
+    const today = appDay(this.adapters.clock.now());
     const cells = grid(field, today).map((row) => row.map(cellEmoji));
     const hint = needsSeed(field, today)
       ? field.rows.length === 0
@@ -162,7 +163,7 @@ export class GameController {
 
   private onGardenTap() {
     const field = this.player.getState().field;
-    const today = utcDay(this.adapters.clock.now());
+    const today = appDay(this.adapters.clock.now());
     if (needsSeed(field, today)) {
       this.toast(
         field.rows.length === 0
@@ -209,7 +210,7 @@ export class GameController {
 
   private updateDevStatus() {
     const state = this.player.getState();
-    const today = utcDay(this.adapters.clock.now());
+    const today = appDay(this.adapters.clock.now());
     const where = needsSeed(state.field, today)
       ? "needs seed"
       : `${bloomsThisRow(state.field, today)}/${ROW_LENGTH} bloomed this row`;
