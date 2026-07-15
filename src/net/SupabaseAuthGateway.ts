@@ -44,9 +44,15 @@ export class SupabaseAuthGateway implements AuthGateway {
     return this.user;
   }
 
-  /** Register a new account (invite-only, called from the secret registration page). */
-  async register(email: string, password: string): Promise<void> {
-    const { error } = await this.sb.auth.signUp({ email, password });
+  /** Register a new account into a group (called from /organizations/:id/register).
+   *  The group id rides along as signup metadata; the handle_new_user() DB trigger
+   *  reads it to place the new user in that group. */
+  async register(email: string, password: string, groupId: string): Promise<void> {
+    const { error } = await this.sb.auth.signUp({
+      email,
+      password,
+      options: { data: { group_id: groupId } },
+    });
     if (error) throw error;
   }
 

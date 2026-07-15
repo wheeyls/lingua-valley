@@ -1,7 +1,7 @@
 /**
  * Entry point — routes between:
- *  - /register/<secret>  → invite-only registration page
- *  - /                   → login wall → game
+ *  - /organizations/:id/register  → group-scoped registration page
+ *  - /                            → login wall → game
  */
 
 import { composeApp } from "./app/composition";
@@ -13,8 +13,6 @@ import { HtmlForgotPasswordView } from "./ui/html/HtmlForgotPasswordView";
 import { HtmlResetPasswordView } from "./ui/html/HtmlResetPasswordView";
 import { getSupabase, getAccessToken } from "./net/supabaseClient";
 import { SupabaseAuthGateway } from "./net/SupabaseAuthGateway";
-
-const REGISTRATION_SECRET = import.meta.env.VITE_REGISTRATION_SECRET ?? "";
 
 async function main() {
   const path = window.location.pathname;
@@ -39,25 +37,27 @@ async function main() {
     return;
   }
 
-  // --- Secret registration route ---
-  if (path.startsWith("/register/")) {
-    const secret = path.split("/register/")[1]?.replace(/\/$/, "");
-    if (!REGISTRATION_SECRET || secret !== REGISTRATION_SECRET) {
-      document.body.innerHTML = '<div style="color:#f4ecd8;font-family:sans-serif;padding:40px;text-align:center"><h2>Not found</h2></div>';
-      return;
-    }
+  // --- Group-scoped registration route: /organizations/:id/register ---
+  const orgMatch = path.match(/^\/organizations\/([^/]+)\/register\/?$/);
+  if (orgMatch) {
+    const groupId = decodeURIComponent(orgMatch[1]);
     const sb = getSupabase();
     if (!sb) {
       document.body.innerHTML = '<div style="color:#f4ecd8;font-family:sans-serif;padding:40px;text-align:center"><h2>Registration unavailable</h2></div>';
       return;
     }
+    const { data } = await sb.from("groups").select("id,name").eq("id", groupId).maybeSingle();
+    const group = data as { id: string; name: string } | null;
+    if (!group) {
+      document.body.innerHTML = '<div style="color:#f4ecd8;font-family:sans-serif;padding:40px;text-align:center"><h2>Not found</h2></div>';
+      return;
+    }
     const auth = new SupabaseAuthGateway(sb, "reg");
-    new HtmlRegisterView(async (email, password) => {
+    new HtmlRegisterView(group.name, async (email, password) => {
       try {
-        await auth.register(email, password);
+        await auth.register(email, password, group.id);
         window.location.href = "/";
       } catch (err) {
-        // view reference captured by the constructor's callback
         const errEl = document.querySelector(".error");
         if (errEl) errEl.textContent = err instanceof Error ? err.message : "Registration failed";
         const btn = document.querySelector(".btn-register") as HTMLButtonElement | null;
