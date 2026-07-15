@@ -9,10 +9,12 @@ import { GameController } from "./app/GameController";
 import { HtmlLoginView } from "./ui/html/HtmlLoginView";
 import { HtmlRegisterView } from "./ui/html/HtmlRegisterView";
 import { HtmlLeaderboardView } from "./ui/html/HtmlLeaderboardView";
+import { HtmlCheckpointView } from "./ui/html/HtmlCheckpointView";
 import { HtmlForgotPasswordView } from "./ui/html/HtmlForgotPasswordView";
 import { HtmlResetPasswordView } from "./ui/html/HtmlResetPasswordView";
 import { getSupabase, getAccessToken } from "./net/supabaseClient";
 import { SupabaseAuthGateway } from "./net/SupabaseAuthGateway";
+import { isCheckpointSunday } from "./domain/checkpoint";
 
 async function main() {
   const path = window.location.pathname;
@@ -64,6 +66,38 @@ async function main() {
         if (btn) { btn.textContent = "Create account"; btn.disabled = false; }
       }
     });
+    return;
+  }
+
+  // --- Group weekly checkpoint: /organizations/:id/checkpoints/:date ---
+  const checkpointMatch = path.match(/^\/organizations\/([^/]+)\/checkpoints\/([^/]+)\/?$/);
+  if (checkpointMatch) {
+    const groupId = decodeURIComponent(checkpointMatch[1]);
+    const date = decodeURIComponent(checkpointMatch[2]);
+    if (!isCheckpointSunday(date)) {
+      document.body.innerHTML = '<div style="color:#f4ecd8;font-family:sans-serif;padding:40px;text-align:center"><h2>Not found</h2></div>';
+      return;
+    }
+    const app = await composeApp();
+    const auth = app.adapters.auth;
+    const open = () => showCheckpoint(groupId, date);
+    if (!auth.current().isGuest) {
+      void open();
+      return;
+    }
+    // Gate behind the login wall like the leaderboard.
+    const loginView = new HtmlLoginView(
+      async (email, password) => {
+        try {
+          await auth.signIn(email, password);
+          loginView.destroy();
+          void open();
+        } catch (err) {
+          loginView.showError(err instanceof Error ? err.message : "Sign in failed");
+        }
+      },
+      () => showForgotPassword(auth, loginView),
+    );
     return;
   }
 
@@ -148,6 +182,39 @@ async function showLeaderboard() {
     view.render(data.rows);
   } catch (err) {
     view.showError(err instanceof Error ? err.message : "Could not load leaderboard");
+  }
+}
+
+/** Fetch + render a group's weekly checkpoint (assumes a signed-in session). */
+async function showCheckpoint(groupId: string, date: string) {
+  const view = new HtmlCheckpointView();
+  try {
+    const token = await getAccessToken();
+    const res = await fetch(
+      `/api/checkpoint?group=${encodeURIComponent(groupId)}&date=${encodeURIComponent(date)}`,
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+    );
+    if (res.status === 404) {
+      view.showError("No checkpoint here.");
+      return;
+    }
+    if (!res.ok) throw new Error(`Checkpoint unavailable (${res.status})`);
+    const raw = (await res.json()) as {
+      group: { id: string; name: string };
+      start: string;
+      end: string;
+      totalBlooms: number;
+      rows: { displayName: string; avatarColor: number; blooms: number }[];
+    };
+    view.render({
+      groupName: raw.group.name,
+      start: raw.start,
+      end: raw.end,
+      totalBlooms: raw.totalBlooms,
+      rows: raw.rows,
+    });
+  } catch (err) {
+    view.showError(err instanceof Error ? err.message : "Could not load checkpoint");
   }
 }
 

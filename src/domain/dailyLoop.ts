@@ -20,6 +20,7 @@
  */
 
 import type { ObjectiveState } from "./objective.js";
+import { appDay } from "./time.js";
 
 export type DailyRole = "seeds" | "water" | "store";
 
@@ -38,7 +39,7 @@ export interface DailyState {
   objectiveState: ObjectiveState;
   /** Consecutive days the player has practiced (the streak). */
   streak: number;
-  /** UTC day (YYYY-MM-DD) of the most recent activity, or "" if never. */
+  /** App-timezone (Pacific) day (YYYY-MM-DD) of the most recent activity, or "" if never. */
   lastPlayedDay: string;
 }
 
@@ -72,11 +73,6 @@ export function startNewDay(now: Date, prev?: DailyState): DailyState {
   };
 }
 
-/** YYYY-MM-DD for a date (UTC). */
-function dayKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
 /** The day key immediately before `day` (YYYY-MM-DD). */
 function previousDay(day: string): string {
   const d = new Date(`${day}T00:00:00.000Z`);
@@ -91,7 +87,7 @@ function previousDay(day: string): string {
  *  - same day again → unchanged
  */
 export function recordPlay(state: DailyState, now: Date): DailyState {
-  const today = dayKey(now);
+  const today = appDay(now);
   if (state.lastPlayedDay === today) return state; // already counted today
   const streak =
     state.lastPlayedDay && state.lastPlayedDay === previousDay(today)

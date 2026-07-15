@@ -13,6 +13,7 @@
  */
 
 import type { CefrLevel } from "./cefr.js";
+import { appDay } from "./time.js";
 import { computeReward, type ActivityReward } from "./economy.js";
 import {
   INITIAL_DAILY_STATE,
@@ -147,11 +148,6 @@ function isObject(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === "object" && !Array.isArray(v);
 }
 
-/** UTC day string (YYYY-MM-DD). Pure — date is passed in, never read from a clock here. */
-export function utcDay(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
 /**
  * The result of a single graded conversation, as understood by the domain.
  * Adapters translate an LLM grade into this; the domain reduces it into state.
@@ -216,7 +212,7 @@ export function applyActivity(
   activity: ActivityResult,
   now: Date,
 ): ApplyResult {
-  const day = utcDay(now);
+  const day = appDay(now);
   const reward = computeReward(activity.communication, activity.accuracy, activity.level);
   const earnedReward = objectiveEarnsReward(prev.daily, activity.objectiveId);
 

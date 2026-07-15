@@ -10,7 +10,7 @@ import { PlayerService } from "../PlayerService";
 import { ConversationSession } from "../ConversationSession";
 import { CURRENT_LESSON } from "../../content/lessons";
 import { plantRow, totalBlooms, ROW_LENGTH } from "../../domain/garden";
-import { utcDay } from "../../domain/player";
+import { appDay } from "../../domain/time";
 import { hasTicketTo } from "../../domain/inventory";
 import type { DailyRole } from "../../domain/dailyLoop";
 import type { RemotePlayer } from "../../domain/ports";
@@ -86,7 +86,7 @@ describe("the garden fills over a week of watering", () => {
     await player.init();
     adapters.fakes!.grader.setDefault({ communication: 0.85, accuracy: 0.85 });
 
-    const today = utcDay(adapters.fakes!.clock.now());
+    const today = appDay(adapters.fakes!.clock.now());
     await player.update((s) => ({ ...s, field: plantRow(s.field, today) }));
 
     for (let day = 0; day < ROW_LENGTH; day++) {
@@ -106,7 +106,7 @@ describe("the garden fills over a week of watering", () => {
     await player.init();
     adapters.fakes!.grader.setDefault({ communication: 0.85, accuracy: 0.85 });
 
-    const today = utcDay(adapters.fakes!.clock.now());
+    const today = appDay(adapters.fakes!.clock.now());
     await player.update((s) => ({ ...s, field: plantRow(s.field, today) }));
 
     const s1 = sessionFor(adapters, player, "water");
