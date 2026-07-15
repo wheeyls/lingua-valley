@@ -1,6 +1,7 @@
 /**
- * HtmlRegisterView — secret invite-only registration page.
- * Shown at /register/<UUID>. Creates a new account with email + password.
+ * HtmlRegisterView — group-scoped invite registration page.
+ * Shown at /organizations/:id/register. Creates a new account with email +
+ * password and joins the group named in the invite link.
  */
 
 import "./auth.css";
@@ -8,13 +9,16 @@ import "./auth.css";
 export class HtmlRegisterView {
   private root: HTMLDivElement;
 
-  constructor(private readonly onRegister: (email: string, password: string) => void) {
+  constructor(
+    groupName: string,
+    private readonly onRegister: (email: string, password: string) => void,
+  ) {
     this.root = document.createElement("div");
     this.root.className = "auth-screen";
     this.root.innerHTML = `
       <div class="auth-card">
         <h1>Create Account</h1>
-        <div class="subtitle">Invite-only registration</div>
+        <div class="subtitle"></div>
         <input type="email" placeholder="Email" autocomplete="email" />
         <input type="password" placeholder="Password (min 6 characters)" autocomplete="new-password" />
         <button class="btn-register" type="button">Create account</button>
@@ -22,6 +26,8 @@ export class HtmlRegisterView {
         <div class="success"></div>
       </div>
     `;
+
+    (this.root.querySelector(".subtitle") as HTMLElement).textContent = `Join ${groupName}`;
 
     const emailInput = this.root.querySelector('input[type="email"]') as HTMLInputElement;
     const passwordInput = this.root.querySelector('input[type="password"]') as HTMLInputElement;
