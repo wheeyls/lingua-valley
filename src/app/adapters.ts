@@ -37,6 +37,9 @@ import { SupabasePresenceGateway } from "../net/SupabasePresenceGateway";
 import { HttpRewardClient } from "../net/HttpRewardClient";
 import { HttpPlayerActionClient } from "../net/HttpPlayerActionClient";
 import { HttpClaimClient } from "../net/HttpClaimClient";
+import type { ConversationChannel } from "../game/ConversationChannel";
+import { VoiceConversationChannel } from "../game/VoiceConversationChannel";
+import { ManualConversationChannel } from "../game/ManualConversationChannel";
 
 export type AdapterProfile = "test" | "local-fakes" | "guest" | "cloud";
 
@@ -49,6 +52,8 @@ export interface Adapters {
   /** Present on the cloud profile when signed in — server-authoritative claim. */
   claim?: ClaimGateway;
   conversationGrader: ConversationGrader;
+  /** How a conversation turn is entered + heard: real voice, or manual text in fakes. */
+  conversationChannel: ConversationChannel;
   presence: PresenceGateway;
   auth: AuthGateway;
   /** Exposed for the dev harness when present (fakes only). */
@@ -80,6 +85,7 @@ export function makeAdapters(profile: AdapterProfile): Adapters {
         rewardGrader,
         playerActions: new LocalPlayerActionGateway(repo),
         conversationGrader: grader,
+        conversationChannel: new ManualConversationChannel(),
         presence,
         auth,
         fakes: { clock, grader, presence, bus, auth },
@@ -98,6 +104,7 @@ export function makeAdapters(profile: AdapterProfile): Adapters {
         rewardGrader,
         playerActions: new LocalPlayerActionGateway(repo),
         conversationGrader: new HttpConversationGrader(),
+        conversationChannel: new VoiceConversationChannel(),
         presence: new NoopPresenceGateway(),
         auth: new FakeAuthGateway(getOrCreateGuestIdSafe()),
       };
@@ -117,6 +124,7 @@ export function makeAdapters(profile: AdapterProfile): Adapters {
         rewardGrader,
         playerActions: new LocalPlayerActionGateway(repo),
         conversationGrader: new HttpConversationGrader(),
+        conversationChannel: new VoiceConversationChannel(),
         presence: new NoopPresenceGateway(),
         auth: new FakeAuthGateway(getOrCreateGuestIdSafe()),
       };
@@ -146,6 +154,7 @@ export async function resolveCloudAdapters(): Promise<Adapters> {
   const userId = data.session?.user?.id ?? null;
   const auth = new SupabaseAuthGateway(sb, guestId);
   const conversationGrader = new HttpConversationGrader();
+  const conversationChannel = new VoiceConversationChannel();
 
   if (userId) {
     const repo = new SupabasePlayerRepository(sb, userId);
@@ -157,6 +166,7 @@ export async function resolveCloudAdapters(): Promise<Adapters> {
       playerActions: new HttpPlayerActionClient(),
       claim: new HttpClaimClient(),
       conversationGrader,
+      conversationChannel,
       presence: new SupabasePresenceGateway(sb),
       auth,
     };
@@ -171,6 +181,7 @@ export async function resolveCloudAdapters(): Promise<Adapters> {
     rewardGrader: new LocalRewardGrader(repo, clock),
     playerActions: new LocalPlayerActionGateway(repo),
     conversationGrader,
+    conversationChannel,
     presence: new NoopPresenceGateway(),
     auth,
   };

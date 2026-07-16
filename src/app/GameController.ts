@@ -27,15 +27,12 @@ import { hoursUntilNextDay, type DailyRole } from "../domain/dailyLoop";
 import { settleDailyState, type ApplyResult } from "../domain/player";
 import { appDay } from "../domain/time";
 import { ConversationSession } from "./ConversationSession";
-import { MicRecorder, playAudioBytes, unlockAudio } from "../game/voice";
-import { transcribe, cleanTranscription, speak } from "../game/api";
 import type { PlayerService } from "./PlayerService";
 import type { Adapters } from "./adapters";
 
 export class GameController {
   private worldView!: HtmlWorldView;
   private objectives: ObjectiveGraph;
-  private recorder = new MicRecorder();
   /** Which map is on screen: the hub, or a location room. */
   private currentMapId = HUB_MAP_ID;
   private devPanel?: HtmlDevPanel;
@@ -288,21 +285,22 @@ export class GameController {
       this.player,
     );
 
+    const channel = this.adapters.conversationChannel;
+    let lastApplied: ApplyResult | null = null;
+
     blockCanvas();
-    unlockAudio();
-    void this.recorder.acquire().catch(() => {});
+    channel.prepare();
 
     const view = new HtmlConversationView({
-      onMicTap: () => unlockAudio(),
       onLeave: () => {
         // Left early — no completion, no progress.
-        this.recorder.release();
+        channel.dispose();
         view.destroy();
         unblockCanvas();
         this.render();
       },
       onContinue: () => {
-        this.recorder.release();
+        channel.dispose();
         view.destroy();
         unblockCanvas();
         this.afterConversation(objective.role, lastApplied);
@@ -310,103 +308,46 @@ export class GameController {
       },
     });
 
-    // The most recent authoritative result, used for end-of-chat toasts.
-    let lastApplied: ApplyResult | null = null;
-
     view.setHeader(npc.name, "", lesson.canDo);
 
     const opener = npc.conversation.opener;
     session.begin(opener);
-    void this.npcSay(view, npc, opener).then(() => {
-      view.setStatus("Your turn — tap the mic and reply in Spanish.");
-    });
+    view.setNpcSpeech(opener);
+    void channel
+      .speak(opener, npc.voice)
+      .then(() => view.setStatus("Your turn — reply in Spanish."));
 
-    let phase: "awaitInput" | "recording" | "thinking" | "done" = "awaitInput";
+    const handleTurn = async (utterance: string) => {
+      channel.setBusy(true);
+      view.setFeedback("", "", "");
+      view.setStatus(`${npc.name} is thinking…`);
+      try {
+        const outcome = await session.submit(utterance);
+        lastApplied = outcome.applied;
 
-    const onMicTap = async () => {
-      if (phase === "awaitInput") {
-        phase = "recording";
-        view.setMicRecording(true);
-        view.setStatus("🔴 Recording… tap to send.", "#b56576");
-        view.setFeedback("", "", "");
-        view.setTranscript("");
-        try {
-          await this.recorder.start();
-        } catch {
-          view.setStatus("Microphone permission denied.");
-          view.setMicRecording(false);
-          phase = "awaitInput";
+        const corr =
+          outcome.grade.corrections.length > 0 ? outcome.grade.corrections.join("; ") : "";
+        const sold = outcome.applied.soldValue > 0 ? `+${outcome.applied.soldValue} 💰` : "";
+        const grew = outcome.applied.grown > 0 ? "🌸 Your plant bloomed!" : "";
+        view.setFeedback(outcome.grade.feedback, corr, [sold, grew].filter(Boolean).join("  "));
+
+        view.setNpcSpeech(outcome.npcReply);
+        await channel.speak(outcome.npcReply, npc.voice);
+
+        if (outcome.complete) {
+          view.showEndState("Great conversation! 🎉", "#9bc995");
+        } else {
+          channel.setBusy(false);
+          view.setStatus("Your turn — reply in Spanish.");
         }
-      } else if (phase === "recording") {
-        phase = "thinking";
-        view.setMicRecording(false);
-        view.setStatus("Transcribing…");
-        try {
-          const { audioBase64, mimeType } = await this.recorder.stop();
-          const utterance = await transcribe(audioBase64, mimeType);
-          if (!utterance.trim()) {
-            view.setStatus("I didn't catch that — tap the mic to try again.");
-            phase = "awaitInput";
-            return;
-          }
-          view.setStatus("Processing…");
-          const lastNpc = session.history.filter((t) => t.role === "npc").pop()?.text ?? "";
-          const { cleaned, corrected } = await cleanTranscription(utterance, lastNpc, lesson.level);
-          if (corrected && cleaned !== utterance) {
-            view.setTranscript(`Heard: "${utterance}" → You meant: "${cleaned}"`);
-          } else {
-            view.setTranscript(`You: "${cleaned}"`);
-          }
-          view.setStatus(`${npc.name} is thinking…`);
-
-          const outcome = await session.submit(cleaned);
-          lastApplied = outcome.applied;
-
-          const corr =
-            outcome.grade.corrections.length > 0 ? outcome.grade.corrections.join("; ") : "";
-          const sold =
-            outcome.applied.soldValue > 0 ? `+${outcome.applied.soldValue} 💰` : "";
-          const grew = outcome.applied.grown > 0 ? "🌸 Your plant bloomed!" : "";
-          view.setFeedback(outcome.grade.feedback, corr, [sold, grew].filter(Boolean).join("  "));
-
-          await this.npcSay(view, npc, outcome.npcReply);
-
-          if (outcome.complete) {
-            phase = "done";
-            view.showEndState("Great conversation! 🎉", "#9bc995");
-          } else {
-            phase = "awaitInput";
-            view.setStatus("Your turn — tap the mic and reply in Spanish.");
-          }
-        } catch (err) {
-          console.error(err);
-          view.setStatus("Could not reach the language service.");
-          phase = "awaitInput";
-        }
+      } catch (err) {
+        console.error(err);
+        view.setStatus("Something went wrong.");
+        channel.setBusy(false);
       }
     };
 
-    view.setMicVisible(MicRecorder.isSupported());
-    const micBtn = document.querySelector(".mic-btn");
-    micBtn?.addEventListener("pointerdown", (e) => {
-      e.stopPropagation();
-      unlockAudio();
-      void onMicTap();
-    });
-  }
-
-  private async npcSay(view: HtmlConversationView, npc: Npc, text: string) {
-    view.setNpcSpeech(text);
-    view.setStatus(`🔊 ${npc.name} is speaking…`);
-    try {
-      this.recorder.mute();
-      const bytes = await speak(text, npc.voice);
-      await playAudioBytes(bytes);
-    } catch {
-      // Voice is a bonus.
-    } finally {
-      this.recorder.unmute();
-    }
+    channel.mountInput(view.inputArea(), view, (utterance) => void handleTurn(utterance));
   }
 
   /**
