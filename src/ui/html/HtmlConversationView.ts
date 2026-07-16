@@ -1,8 +1,11 @@
 /**
  * HtmlConversationView — renders the conversation UI as HTML overlaid on the
  * canvas. Uses real DOM text for readability (system fonts, subpixel AA,
- * accessibility, CSS line-height). Driven by the same data the old canvas
- * old canvas renderer used; the just calls update methods instead of setText.
+ * accessibility, CSS line-height).
+ *
+ * The player's input control is NOT owned here: a ConversationChannel mounts it
+ * into `inputArea()` (a mic button in voice mode, a text box in manual mode), so
+ * this view stays a pure presenter.
  *
  * High-contrast, large text, solid backgrounds — optimized for older eyes.
  */
@@ -11,7 +14,6 @@ import "./overlay.css";
 import { blockCanvas, unblockCanvas } from "./canvasBlock";
 
 export interface ConvoViewCallbacks {
-  onMicTap: () => void;
   onLeave: () => void;
   /** Tapped the "Continue" button shown when the conversation has ended. */
   onContinue: () => void;
@@ -26,8 +28,6 @@ export class HtmlConversationView {
   private transcriptEl: HTMLElement;
   private feedbackEl: HTMLElement;
   private statusEl: HTMLElement;
-  private micBtn: HTMLButtonElement;
-  private micHint: HTMLElement;
   private callbacks: ConvoViewCallbacks;
 
   constructor(callbacks: ConvoViewCallbacks) {
@@ -48,10 +48,7 @@ export class HtmlConversationView {
         <div class="convo-feedback"></div>
       </div>
       <div class="convo-status"></div>
-      <div class="convo-mic-area">
-        <button class="mic-btn" type="button">🎤</button>
-        <div class="mic-hint">Tap to speak · tap again to send</div>
-      </div>
+      <div class="convo-input-area"></div>
       <div class="convo-actions"></div>
     `;
 
@@ -62,8 +59,6 @@ export class HtmlConversationView {
     this.transcriptEl = this.root.querySelector(".convo-transcript")!;
     this.feedbackEl = this.root.querySelector(".convo-feedback")!;
     this.statusEl = this.root.querySelector(".convo-status")!;
-    this.micBtn = this.root.querySelector(".mic-btn")!;
-    this.micHint = this.root.querySelector(".mic-hint")!;
 
     this.callbacks = callbacks;
     const leaveBtn = this.root.querySelector(".convo-leave-btn")!;
@@ -71,24 +66,20 @@ export class HtmlConversationView {
       e.stopPropagation();
       callbacks.onLeave();
     });
-    this.micBtn.addEventListener("pointerdown", (e) => {
-      e.stopPropagation();
-      callbacks.onMicTap();
-    });
 
     document.body.appendChild(this.root);
     blockCanvas(); // prevent the Phaser canvas from receiving taps while open
   }
 
   /**
-   * The conversation has ended: hide the mic, show the wrap-up message in the
+   * The conversation has ended: hide the input, show the wrap-up message in the
    * body, and replace the action row with a clear "Continue ▶" button so
    * closing is obvious and intentional (no surprise close).
    */
   showEndState(message: string, color: string): void {
-    // Hide the mic and the Leave button (no bailing out after completing).
-    const micArea = this.root.querySelector(".convo-mic-area") as HTMLElement;
-    micArea.style.display = "none";
+    // Hide the input control + Leave button (no bailing out after completing).
+    const inputArea = this.root.querySelector(".convo-input-area") as HTMLElement;
+    inputArea.style.display = "none";
     const leaveBtn = this.root.querySelector(".convo-leave-btn") as HTMLElement | null;
     if (leaveBtn) leaveBtn.style.display = "none";
 
@@ -140,16 +131,8 @@ export class HtmlConversationView {
     this.statusEl.style.color = color ?? "#d9b08c";
   }
 
-  setMicRecording(recording: boolean): void {
-    this.micBtn.classList.toggle("recording", recording);
-    this.micHint.textContent = recording
-      ? "Recording… tap to send"
-      : "Tap to speak · tap again to send";
-  }
-
-  setMicVisible(visible: boolean): void {
-    const area = this.root.querySelector(".convo-mic-area") as HTMLElement;
-    area.style.display = visible ? "flex" : "none";
+  inputArea(): HTMLElement {
+    return this.root.querySelector(".convo-input-area")!;
   }
 
   destroy(): void {
