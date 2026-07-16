@@ -17,7 +17,7 @@ import { HtmlConversationView } from "../ui/html/HtmlConversationView";
 import { HtmlDevPanel } from "../ui/html/HtmlDevPanel";
 import { blockCanvas, unblockCanvas } from "../ui/html/canvasBlock";
 import { getMap, HUB_MAP_ID } from "../content/maps";
-import { findNpc, CURRENT_AREA, type Npc } from "../content/world";
+import { findNpc, visibleLocations, type Npc } from "../content/world";
 import { CURRENT_LESSON } from "../content/lessons";
 import type { MapNpc, MapDoor } from "../domain/gameMap";
 import { buildDailyGraph } from "../domain/objectives/daily";
@@ -69,12 +69,14 @@ export class GameController {
     const state = this.player.getState();
     const objState = state.daily.objectiveState;
 
+    const visibleNpcIds = new Set(visibleLocations().flatMap((loc) => loc.npcIds));
+    const activeObjectives = this.objectives
+      .all()
+      .filter((obj) => visibleNpcIds.has(obj.npcId));
+
     // Which NPCs have been talked to (reward claimed) today?
     const completedNpcIds = new Set(
-      this.objectives
-        .all()
-        .filter((obj) => objState[obj.id] != null)
-        .map((obj) => obj.npcId),
+      activeObjectives.filter((obj) => objState[obj.id] != null).map((obj) => obj.npcId),
     );
 
     const map = getMap(this.currentMapId) ?? getMap(HUB_MAP_ID)!;
@@ -93,9 +95,7 @@ export class GameController {
 
     const now = new Date();
     const hours = hoursUntilNextDay(state.daily, now);
-    const allClaimed = this.objectives
-      .all()
-      .every((obj) => objState[obj.id] != null);
+    const allClaimed = activeObjectives.every((obj) => objState[obj.id] != null);
     this.worldView.updateDailyStatus({
       allDone: allClaimed,
       hoursUntilReset: hours,
@@ -115,7 +115,7 @@ export class GameController {
    */
   private hubDoorStatus(objState: ReturnType<PlayerService["getState"]>["daily"]["objectiveState"]) {
     const status: Record<string, { hint: string; done: boolean }> = {};
-    for (const loc of CURRENT_AREA.locations) {
+    for (const loc of visibleLocations()) {
       const total = loc.npcIds.length;
       const done = loc.npcIds.filter((npcId) => {
         const obj = this.objectives.forNpc(npcId);
