@@ -45,6 +45,9 @@ export interface Location {
   blurb: string;
   /** NPC ids hosted here, in the order you talk to them. */
   npcIds: string[];
+  /** Hidden locations are dropped from the UI (no hub door, no room) but kept in
+   *  content, so re-enabling one is just a matter of removing this flag. */
+  hidden?: boolean;
 }
 
 export interface Area {
@@ -97,6 +100,7 @@ export const AREAS: Area[] = [
         icon: "🛒",
         blurb: "Tell Doña Tienda about your day and sell your harvest.",
         npcIds: ["shopkeeper"],
+        hidden: true,
       },
     ],
     npcs: [
@@ -183,6 +187,11 @@ export function areaOfNpc(npcId: string): Area | undefined {
 
 /** The campaign the player is currently in (single-area slice for now). */
 export const CURRENT_AREA: Area = AREAS[0];
+
+/** Locations currently surfaced in the UI — hidden ones are dropped for now. */
+export function visibleLocations(area: Area = CURRENT_AREA): Location[] {
+  return area.locations.filter((l) => !l.hidden);
+}
 
 export function findLocation(areaId: string, locationId: string): Location | undefined {
   return AREAS.find((a) => a.id === areaId)?.locations.find((l) => l.id === locationId);

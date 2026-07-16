@@ -6,14 +6,16 @@ import {
   doorsOn,
 } from "../gameMap";
 import { HUB, getMap } from "../../content/maps";
+import { visibleLocations } from "../../content/world";
 import type { ObjectiveState } from "../objective";
 
 describe("gameMap — hub + location rooms", () => {
-  it("the hub has a door for each location and no NPCs", () => {
+  it("the hub has a door for each visible location (store hidden) and no NPCs", () => {
     expect(npcsOn(HUB)).toHaveLength(0);
     const doorLabels = doorsOn(HUB).map((d) => d.label);
-    expect(doorsOn(HUB).length).toBeGreaterThanOrEqual(3);
+    expect(doorsOn(HUB)).toHaveLength(visibleLocations().length);
     expect(doorLabels.some((l) => l?.includes("Plaza"))).toBe(true);
+    expect(doorLabels.some((l) => l?.includes("Tienda"))).toBe(false);
   });
 
   it("the practice room (La Plaza) hosts Marisol then Pablo", () => {

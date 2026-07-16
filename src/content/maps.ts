@@ -12,7 +12,7 @@
 
 import type { GameMap, MapNpc, MapDoor } from "../domain/gameMap.js";
 import { STREET_BG, HOME_BG, PRACTICE_BG } from "./art.js";
-import { CURRENT_AREA, findNpc, type Location } from "./world.js";
+import { CURRENT_AREA, visibleLocations, findNpc, type Location } from "./world.js";
 
 export const HUB_MAP_ID = "hub";
 
@@ -84,7 +84,7 @@ export const HUB: GameMap = {
   groundColor: 0x4a7c59,
   spawnX: 100,
   backgroundSvg: STREET_BG,
-  entities: CURRENT_AREA.locations.map((loc, i) => ({
+  entities: visibleLocations().map((loc, i) => ({
     id: `${loc.id}-door`,
     kind: "door" as const,
     x: 100 + i * 160,
@@ -97,7 +97,7 @@ export const HUB: GameMap = {
 
 export const ALL_MAPS: Record<string, GameMap> = {
   [HUB.id]: HUB,
-  ...Object.fromEntries(CURRENT_AREA.locations.map((loc) => [loc.id, locationRoom(loc)])),
+  ...Object.fromEntries(visibleLocations().map((loc) => [loc.id, locationRoom(loc)])),
 };
 
 export function getMap(id: string): GameMap | undefined {
