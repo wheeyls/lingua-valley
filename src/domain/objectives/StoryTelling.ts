@@ -1,12 +1,11 @@
 /**
- * Story-telling objective — the FIRST half of the two-person water practice.
+ * Story-telling objective — Marisol's seed conversation (at the seed farm).
  *
- * The story-teller (Marisol) recounts a couple of things she did today in the
- * past tense. The player just has to understand. Her story is captured as
- * `storyText` output so the retell objective can quiz against it.
+ * Marisol recounts a couple of things she did today in the past tense and hands
+ * over this week's seed. The player just has to understand; her story is captured
+ * as `storyText` output so the retell objective can quiz against it.
  *
- * Role: "water" (shared with the retell objective; completing both waters the
- * field once for the day).
+ * Role: "seeds" — completing it plants this week's garden row.
  */
 
 import type { Objective, ObjectiveContext } from "../objective.js";
@@ -15,7 +14,7 @@ import type { Lesson } from "./lesson.js";
 export class StoryTelling implements Objective {
   readonly id = "story-telling";
   readonly npcId = "marisol";
-  readonly role = "water" as const;
+  readonly role = "seeds" as const;
   readonly dependsOn: string[] = [];
 
   constructor(private readonly lesson: Lesson) {}

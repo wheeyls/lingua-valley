@@ -1,16 +1,13 @@
 /**
- * Build the daily objective graph for a lesson — the farming-loop conversations
- * (seeds → water → store). Pure factory, no framework.
+ * Build the daily objective graph for a lesson.
  *
- * The WATER practice is either a single conversation OR a two-person flow:
- *   - if the lesson defines a story/retell pair, register both (story → retell,
- *     where retell depends on story). Completing both waters the field.
- *   - otherwise register a single WaterPractice conversation.
+ * Marisol tells a story + hands over the seed (role "seeds", plants the row);
+ * Pablo retells it (role "water", waters the field) and DEPENDS on Marisol's
+ * story. Store review stays registered but is hidden in the UI. Pure factory.
  */
 
 import { ObjectiveGraph } from "../objective.js";
 import type { Lesson } from "./lesson.js";
-import { SeedsIntro } from "./SeedsIntro.js";
 import { StoryTelling } from "./StoryTelling.js";
 import { StoryRetell } from "./StoryRetell.js";
 import { StoreReview } from "./StoreReview.js";
@@ -21,10 +18,8 @@ export function isPairedPractice(lesson: Lesson): boolean {
 }
 
 export function buildDailyGraph(lesson: Lesson): ObjectiveGraph {
-  const graph = new ObjectiveGraph().register(new SeedsIntro(lesson));
-
-  // Water practice: a two-person story/retell pair.
-  graph.register(new StoryTelling(lesson)).register(new StoryRetell(lesson));
-
-  return graph.register(new StoreReview(lesson));
+  return new ObjectiveGraph()
+    .register(new StoryTelling(lesson))
+    .register(new StoryRetell(lesson))
+    .register(new StoreReview(lesson));
 }

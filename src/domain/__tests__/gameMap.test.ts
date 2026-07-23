@@ -1,13 +1,7 @@
 import { describe, it, expect } from "vitest";
-import {
-  isDoorUnlocked,
-  isNpcAvailable,
-  npcsOn,
-  doorsOn,
-} from "../gameMap";
+import { isDoorUnlocked, npcsOn, doorsOn } from "../gameMap";
 import { HUB, getMap } from "../../content/maps";
 import { visibleLocations } from "../../content/world";
-import type { ObjectiveState } from "../objective";
 
 describe("gameMap — hub + location rooms", () => {
   it("the hub has a door for each visible location (store hidden) and no NPCs", () => {
@@ -18,26 +12,9 @@ describe("gameMap — hub + location rooms", () => {
     expect(doorLabels.some((l) => l?.includes("Tienda"))).toBe(false);
   });
 
-  it("the practice room (La Plaza) hosts Marisol then Pablo", () => {
-    const plaza = getMap("plaza")!;
-    expect(npcsOn(plaza).map((n) => n.npcId)).toEqual(["marisol", "pablo"]);
-  });
-
-  it("Pablo (the 2nd NPC) is locked until the story is told", () => {
-    const plaza = getMap("plaza")!;
-    const pablo = npcsOn(plaza).find((n) => n.npcId === "pablo")!;
-    expect(isNpcAvailable(pablo, {})).toBe(false);
-
-    const afterStory: ObjectiveState = {
-      "story-telling": { completedAt: "", outputs: { storyText: "..." } },
-    };
-    expect(isNpcAvailable(pablo, afterStory)).toBe(true);
-  });
-
-  it("Marisol (the 1st NPC) is always available", () => {
-    const plaza = getMap("plaza")!;
-    const marisol = npcsOn(plaza).find((n) => n.npcId === "marisol")!;
-    expect(isNpcAvailable(marisol, {})).toBe(true);
+  it("Marisol hosts the seed farm; Pablo hosts La Plaza", () => {
+    expect(npcsOn(getMap("seed-farm")!).map((n) => n.npcId)).toEqual(["marisol"]);
+    expect(npcsOn(getMap("plaza")!).map((n) => n.npcId)).toEqual(["pablo"]);
   });
 
   it("each location room has a Back door to the hub", () => {

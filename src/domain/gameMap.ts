@@ -27,15 +27,8 @@ export interface MapNpc extends MapEntity {
   npcId: string; // links to NPC data in world.ts
   name: string;
   color: number;
-  /** Objective ids that must ALL be complete before this NPC is tappable. */
-  availableAfter?: string[];
   /** Optional path to a PNG/SVG asset. Falls back to the SVG circle avatar. */
   art?: string;
-}
-
-export function isNpcAvailable(npc: MapNpc, state: ObjectiveState): boolean {
-  if (!npc.availableAfter || npc.availableAfter.length === 0) return true;
-  return npc.availableAfter.every((id) => state[id] != null);
 }
 
 export interface MapDoor extends MapEntity {

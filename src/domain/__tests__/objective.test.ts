@@ -18,16 +18,14 @@ const LESSON: Lesson = {
 };
 
 describe("ObjectiveGraph (farming loop, paired practice)", () => {
-  it("registers seeds, the story/retell pair, and store by id/npc/role", () => {
+  it("registers the story/retell pair and store by id/npc/role", () => {
     const g = buildDailyGraph(LESSON);
-    expect(g.get("seeds-intro")?.npcId).toBe("seedsman");
-    expect(g.get("seeds-intro")?.role).toBe("seeds");
     expect(g.forNpc("marisol")?.id).toBe("story-telling");
-    expect(g.forNpc("marisol")?.role).toBe("water");
+    expect(g.forNpc("marisol")?.role).toBe("seeds");
     expect(g.forNpc("pablo")?.id).toBe("story-retell");
     expect(g.forNpc("pablo")?.role).toBe("water");
     expect(g.forNpc("shopkeeper")?.id).toBe("store-review");
-    expect(g.all()).toHaveLength(4);
+    expect(g.all()).toHaveLength(3);
   });
 
   it("the retell objective depends on the story being told first", () => {
@@ -51,17 +49,8 @@ describe("ObjectiveGraph (farming loop, paired practice)", () => {
     expect(theme).toContain("Compré pan");
   });
 
-  it("seeds objective outputs the lesson theme", () => {
+  it("buildTheme weaves the lesson title into the store review", () => {
     const g = buildDailyGraph(LESSON);
-    const s = g.complete("seeds-intro", {}, [], NOW);
-    expect(s["seeds-intro"].outputs.theme).toBe("past-tense");
-  });
-
-  it("buildTheme weaves in the lesson title for seeds and store", () => {
-    const g = buildDailyGraph(LESSON);
-    expect(g.get("seeds-intro")!.buildTheme({ inputs: {}, state: {} })).toContain(
-      "Talking about the past",
-    );
     expect(g.get("store-review")!.buildTheme({ inputs: {}, state: {} })).toContain(
       "Talking about the past",
     );
