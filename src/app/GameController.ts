@@ -178,8 +178,8 @@ export class GameController {
 
   private setupDevPanel() {
     this.devPanel = new HtmlDevPanel({
-      onSeeds: () => void this.devComplete("seeds-intro", "seeds"),
-      onWater: () => void this.devComplete("story-telling", "water"),
+      onSeeds: () => void this.devComplete("story-telling", "seeds"),
+      onWater: () => void this.devComplete("story-retell", "water"),
       onStore: () => void this.devComplete("store-review", "store"),
       onAdvanceDay: (n) => void this.devAdvanceDay(n),
     });
@@ -219,6 +219,12 @@ export class GameController {
   private onNpcTap(mapNpc: MapNpc) {
     const npc = findNpc(mapNpc.npcId);
     if (!npc) return;
+    const objective = this.objectives.forNpc(mapNpc.npcId);
+    const objState = this.player.getState().daily.objectiveState;
+    if (objective && !this.objectives.isAvailable(objective.id, objState)) {
+      this.toast(`${npc.name} isn't ready yet — talk to the others first.`);
+      return;
+    }
     this.openDialogue(npc);
   }
 
