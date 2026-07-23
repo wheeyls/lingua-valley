@@ -34,8 +34,6 @@ function locationRoom(loc: Location): GameMap {
       npcId,
       name: npc.name,
       color: npc.color,
-      // Sequential NPCs: the 2nd unlocks only after the 1st's objective is done.
-      availableAfter: i > 0 ? [npcObjectiveId(loc.npcIds[i - 1])] : undefined,
     };
   });
 
@@ -58,22 +56,6 @@ function locationRoom(loc: Location): GameMap {
     backgroundSvg: roleBackground(loc.role),
     entities: [...npcs, back],
   };
-}
-
-/**
- * The objective id an NPC fulfills. By convention each NPC has exactly one
- * objective whose `npcId` matches; the ObjectiveGraph is the source of truth at
- * runtime, but for the map's static `availableAfter` we mirror the known ids.
- */
-function npcObjectiveId(npcId: string): string {
-  switch (npcId) {
-    case "marisol":
-      return "story-telling";
-    case "pablo":
-      return "story-retell";
-    default:
-      return `${npcId}-objective`;
-  }
 }
 
 /** The hub: a door card per location (the Field + Station are extra cards). */
