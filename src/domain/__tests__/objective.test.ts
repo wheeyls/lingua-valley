@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildDailyGraph, isPairedPractice } from "../objectives/daily";
+import { buildDailyGraph } from "../objectives/daily";
 import type { Lesson } from "../objectives/lesson";
 import type { ObjectiveState } from "../objective";
 
@@ -11,7 +11,6 @@ const LESSON: Lesson = {
   title: "Talking about the past",
   canDo: "understand and retell a simple past-tense story",
   vocab: [{ es: "fui", en: "I went" }],
-  introTheme: "Introduce the past tense.",
   storyTheme: "Tell the player two things you did today.",
   retellTheme: "Ask the player to retell Marisol's story.",
   reviewTheme: "Ask the player about their day.",
@@ -54,12 +53,5 @@ describe("ObjectiveGraph (farming loop, paired practice)", () => {
     expect(g.get("store-review")!.buildTheme({ inputs: {}, state: {} })).toContain(
       "Talking about the past",
     );
-  });
-
-  it("recognises a paired-practice lesson", () => {
-    expect(isPairedPractice(LESSON)).toBe(true);
-    expect(
-      isPairedPractice({ ...LESSON, storyTheme: undefined, retellTheme: undefined }),
-    ).toBe(false);
   });
 });

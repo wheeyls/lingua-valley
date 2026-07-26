@@ -12,11 +12,6 @@ import { StoryTelling } from "./StoryTelling.js";
 import { StoryRetell } from "./StoryRetell.js";
 import { StoreReview } from "./StoreReview.js";
 
-/** Whether a lesson's water practice is the two-person story/retell flow. */
-export function isPairedPractice(lesson: Lesson): boolean {
-  return !!(lesson.storyTheme && lesson.retellTheme);
-}
-
 export function buildDailyGraph(lesson: Lesson): ObjectiveGraph {
   return new ObjectiveGraph()
     .register(new StoryTelling(lesson))

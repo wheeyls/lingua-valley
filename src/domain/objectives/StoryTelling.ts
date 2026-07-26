@@ -21,7 +21,7 @@ export class StoryTelling implements Objective {
 
   buildTheme(_ctx: ObjectiveContext): string {
     return (
-      `${this.lesson.storyTheme ?? this.lesson.practiceTheme ?? ""} ` +
+      `${this.lesson.storyTheme ?? ""} ` +
       `Keep it at the ${this.lesson.level} level.`
     );
   }

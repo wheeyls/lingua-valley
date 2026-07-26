@@ -47,15 +47,6 @@ export const A2_PAST_TENSE: Lesson = {
     { es: "en conclusión", en: "in conclusion" },
     { es: "resulta que", en: "it turns out that" },
   ],
-  introTheme:
-    "Explain that this week is about TELLING STORIES in the past — not just " +
-    "listing what happened, but shaping it: ground events in time (esa mañana, " +
-    "poco después, justo antes de), link them with connectors (y, además, pero, " +
-    "entonces, porque), add drama (de repente, de la nada, para mi sorpresa), " +
-    "and close neatly (al final, finalmente, en conclusión). They'll build on " +
-    "simple past-tense verbs (fui, comí, compré, vi) and sequence words " +
-    "(primero, luego, después).",
-
   // Two-person practice: Marisol tells a story, Pablo asks the player to retell.
   storyTheme:
     "You are telling the player a little STORY about your day, in simple past " +

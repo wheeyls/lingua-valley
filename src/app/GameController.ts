@@ -48,7 +48,6 @@ export class GameController {
     this.worldView = new HtmlWorldView({
       onNpcTap: (npc) => this.onNpcTap(npc),
       onDoorTap: (door) => this.onDoorTap(door),
-      onItemTap: () => {},
     });
 
     const user = this.adapters.auth.current();

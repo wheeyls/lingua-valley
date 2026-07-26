@@ -29,17 +29,11 @@ export interface Lesson {
   canDo: string;
   /** Vocab/phrases in scope, anchoring the LLM grading. */
   vocab: LessonVocab[];
-  /** What the seeds NPC says they'll teach (sets expectations for the week). */
-  introTheme: string;
 
   /**
-   * The daily practice at the water location. A practice can be a single
-   * conversation (`practiceTheme`) OR a two-person flow where one NPC tells a
-   * story (`storyTheme`) and another asks the player to retell it
-   * (`retellTheme`). When the pair is present, completing BOTH counts as the
-   * day's watering.
+   * The daily practice: one NPC tells a story (`storyTheme`) and another asks
+   * the player to retell it (`retellTheme`).
    */
-  practiceTheme?: string;
   storyTheme?: string;
   retellTheme?: string;
 

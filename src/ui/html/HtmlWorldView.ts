@@ -7,15 +7,14 @@
  */
 
 import "./room.css";
-import type { GameMap, MapNpc, MapDoor, MapItem } from "../../domain/gameMap";
-import { npcsOn, doorsOn, itemsOn, isDoorUnlocked, isItemVisible } from "../../domain/gameMap";
+import type { GameMap, MapNpc, MapDoor } from "../../domain/gameMap";
+import { npcsOn, doorsOn, isDoorUnlocked } from "../../domain/gameMap";
 import type { ObjectiveState } from "../../domain/objective";
 import { npcAvatarSvg, HOUSE_DOOR_SVG, LOCKED_DOOR_SVG } from "../../content/art";
 
 export interface WorldViewCallbacks {
   onNpcTap: (npc: MapNpc) => void;
   onDoorTap: (door: MapDoor) => void;
-  onItemTap: (item: MapItem) => void;
 }
 
 /** A live, state-driven card injected by the controller (the garden). */
@@ -141,7 +140,6 @@ export class HtmlWorldView {
     statusEl.innerHTML = `✅ Done! Back in ${timeStr}`;
   }
 
-  getPlayerX(): number { return 0; }
   destroy() { this.root.remove(); }
 
   private renderRoom(map: GameMap, objState: ObjectiveState, completedNpcIds: Set<string> = new Set()) {
@@ -217,22 +215,6 @@ export class HtmlWorldView {
           this.callbacks.onDoorTap(door);
         });
       }
-      this.bodyEl.appendChild(card);
-    }
-
-    // Item cards
-    for (const item of itemsOn(map)) {
-      if (!isItemVisible(item, objState)) continue;
-      const card = document.createElement("div");
-      card.className = "card card-item";
-      card.innerHTML = `
-        <div class="card-icon-text">🌱</div>
-        <div class="card-label">${item.name}</div>
-      `;
-      card.addEventListener("pointerdown", (e) => {
-        e.stopPropagation();
-        this.callbacks.onItemTap(item);
-      });
       this.bodyEl.appendChild(card);
     }
 
