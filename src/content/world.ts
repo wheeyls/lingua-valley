@@ -82,16 +82,16 @@ export const AREAS: Area[] = [
         name: "La Granja de Semillas",
         role: "seeds",
         icon: "🌱",
-        blurb: "Get this week's seeds from Don Semilla.",
-        npcIds: ["seedsman"],
+        blurb: "Hear Marisol's story and take home this week's seed.",
+        npcIds: ["marisol"],
       },
       {
         id: "plaza",
         name: "La Plaza",
         role: "water",
         icon: "💧",
-        blurb: "Hear Marisol's story, then retell it to Pablo. Waters your field.",
-        npcIds: ["marisol", "pablo"],
+        blurb: "Retell Marisol's story to Pablo. Waters your field.",
+        npcIds: ["pablo"],
       },
       {
         id: "store",
@@ -104,23 +104,6 @@ export const AREAS: Area[] = [
       },
     ],
     npcs: [
-      {
-        id: "seedsman",
-        name: "Don Semilla",
-        color: 0x8a5a44,
-        voice: "onyx",
-        conversation: {
-          opener:
-            "¡Buenas! ¿Vienes por semillas? Te cuento qué practicamos esta semana.",
-        },
-        lines: [
-          {
-            level: "A2",
-            es: "🌱 Consigue semillas de Don Semilla",
-            en: "Learn this week's lesson and get a batch of seeds to plant. Tap 'Talk' to begin.",
-          },
-        ],
-      },
       {
         id: "marisol",
         name: "Marisol",

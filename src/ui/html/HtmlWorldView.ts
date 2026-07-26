@@ -7,15 +7,14 @@
  */
 
 import "./room.css";
-import type { GameMap, MapNpc, MapDoor, MapItem } from "../../domain/gameMap";
-import { npcsOn, doorsOn, itemsOn, isDoorUnlocked, isItemVisible, isNpcAvailable } from "../../domain/gameMap";
+import type { GameMap, MapNpc, MapDoor } from "../../domain/gameMap";
+import { npcsOn, doorsOn, isDoorUnlocked } from "../../domain/gameMap";
 import type { ObjectiveState } from "../../domain/objective";
 import { npcAvatarSvg, HOUSE_DOOR_SVG, LOCKED_DOOR_SVG } from "../../content/art";
 
 export interface WorldViewCallbacks {
   onNpcTap: (npc: MapNpc) => void;
   onDoorTap: (door: MapDoor) => void;
-  onItemTap: (item: MapItem) => void;
 }
 
 /** A live, state-driven card injected by the controller (the garden). */
@@ -141,7 +140,6 @@ export class HtmlWorldView {
     statusEl.innerHTML = `✅ Done! Back in ${timeStr}`;
   }
 
-  getPlayerX(): number { return 0; }
   destroy() { this.root.remove(); }
 
   private renderRoom(map: GameMap, objState: ObjectiveState, completedNpcIds: Set<string> = new Set()) {
@@ -172,13 +170,11 @@ export class HtmlWorldView {
 
     // NPC cards — SVG avatar as the icon
     for (const npc of npcsOn(map)) {
-      const available = isNpcAvailable(npc, objState);
       const done = completedNpcIds.has(npc.npcId);
       const color = `#${npc.color.toString(16).padStart(6, "0")}`;
       const initial = npc.name[0].toUpperCase();
       const card = document.createElement("div");
       card.className = `card card-npc${done ? " card-npc-done" : ""}`;
-      if (!available) card.style.opacity = "0.45";
       card.innerHTML = `
         <div class="card-avatar-wrap">
           <div class="card-avatar">
@@ -190,14 +186,12 @@ export class HtmlWorldView {
           ${done ? '<div class="card-npc-badge">✓</div>' : ""}
         </div>
         <div class="card-label">${npc.name}</div>
-        <div class="card-hint">${!available ? "🔒 Talk to others first" : done ? "Done today ✓" : "Tap to talk"}</div>
+        <div class="card-hint">${done ? "Done today ✓" : "Tap to talk"}</div>
       `;
-      if (available) {
-        card.addEventListener("pointerdown", (e) => {
-          e.stopPropagation();
-          this.callbacks.onNpcTap(npc);
-        });
-      }
+      card.addEventListener("pointerdown", (e) => {
+        e.stopPropagation();
+        this.callbacks.onNpcTap(npc);
+      });
       this.bodyEl.appendChild(card);
     }
 
@@ -221,22 +215,6 @@ export class HtmlWorldView {
           this.callbacks.onDoorTap(door);
         });
       }
-      this.bodyEl.appendChild(card);
-    }
-
-    // Item cards
-    for (const item of itemsOn(map)) {
-      if (!isItemVisible(item, objState)) continue;
-      const card = document.createElement("div");
-      card.className = "card card-item";
-      card.innerHTML = `
-        <div class="card-icon-text">🌱</div>
-        <div class="card-label">${item.name}</div>
-      `;
-      card.addEventListener("pointerdown", (e) => {
-        e.stopPropagation();
-        this.callbacks.onItemTap(item);
-      });
       this.bodyEl.appendChild(card);
     }
 
