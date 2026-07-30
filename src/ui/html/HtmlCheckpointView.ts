@@ -12,7 +12,8 @@ export interface CheckpointData {
   start: string;
   end: string;
   totalBlooms: number;
-  rows: { displayName: string; avatarColor: number; blooms: number }[];
+  totalFoliage: number;
+  rows: { displayName: string; avatarColor: number; blooms: number; foliage: number }[];
 }
 
 export class HtmlCheckpointView {
@@ -51,21 +52,33 @@ export class HtmlCheckpointView {
     this.root.innerHTML = `
       <div style="max-width:760px;margin:0 auto">
         <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px">
-          <h1 style="color:#ffe08a;font-size:clamp(22px,5vw,30px)">🌸 ${escapeHtml(data.groupName)} checkpoint</h1>
+          <h1 style="color:#ffe08a;font-size:clamp(22px,5vw,30px)">💐 ${escapeHtml(data.groupName)} checkpoint</h1>
           <a href="/" style="color:#9bc995;font-size:14px">← Back to the game</a>
         </div>
         <div style="color:#bcae93;font-size:13px;margin-bottom:16px">Week of ${escapeHtml(data.start)} → ${escapeHtml(data.end)}</div>
-        <div style="background:rgba(155,201,149,0.12);border:2px solid #9bc995;border-radius:12px;
-                    padding:16px;margin-bottom:16px;text-align:center">
-          <div style="font-size:clamp(28px,8vw,44px);font-weight:bold;color:#9bc995">${data.totalBlooms}</div>
-          <div style="color:#bcae93;font-size:13px">blooms as a group this week</div>
+        <div style="display:flex;gap:12px;margin-bottom:16px">
+          <div style="flex:1;background:rgba(155,201,149,0.12);border:2px solid #9bc995;border-radius:12px;
+                      padding:16px;text-align:center">
+            <div style="font-size:clamp(28px,8vw,44px);font-weight:bold;color:#9bc995">${data.totalBlooms}</div>
+            <div style="color:#bcae93;font-size:13px">🌸 blooms as a group this week</div>
+          </div>
+          <div style="flex:1;background:rgba(107,143,71,0.12);border:2px solid #6b8f47;border-radius:12px;
+                      padding:16px;text-align:center">
+            <div style="font-size:clamp(28px,8vw,44px);font-weight:bold;color:#9bc995">${data.totalFoliage}</div>
+            <div style="color:#bcae93;font-size:13px">🍃 foliage gathered this week</div>
+          </div>
         </div>
         ${data.rows.length === 0 ? '<p style="color:#9bc995">No members in this group yet.</p>' : ""}
         <div style="display:flex;flex-direction:column;gap:8px">${body}</div>
       </div>`;
   }
 
-  private rowHtml(r: { displayName: string; avatarColor: number; blooms: number }): string {
+  private rowHtml(r: {
+    displayName: string;
+    avatarColor: number;
+    blooms: number;
+    foliage: number;
+  }): string {
     const color = `#${(r.avatarColor >>> 0).toString(16).padStart(6, "0").slice(-6)}`;
     const initial = (r.displayName[0] ?? "?").toUpperCase();
     return `
@@ -77,6 +90,7 @@ export class HtmlCheckpointView {
         <div style="flex:1;min-width:0;font-weight:bold;font-size:16px;overflow:hidden;
                     text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.displayName)}</div>
         <div style="color:#9bc995;font-weight:bold;font-size:15px;flex-shrink:0">🌸 ${r.blooms}</div>
+        <div style="color:#9bc995;font-weight:bold;font-size:15px;flex-shrink:0">🍃 ${r.foliage}</div>
       </div>`;
   }
 

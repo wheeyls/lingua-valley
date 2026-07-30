@@ -11,10 +11,13 @@ import type { Lesson } from "./lesson.js";
 import { StoryTelling } from "./StoryTelling.js";
 import { StoryRetell } from "./StoryRetell.js";
 import { StoreReview } from "./StoreReview.js";
+import { FoliageGathering } from "./FoliageGathering.js";
 
 export function buildDailyGraph(lesson: Lesson): ObjectiveGraph {
   return new ObjectiveGraph()
     .register(new StoryTelling(lesson))
     .register(new StoryRetell(lesson))
+    // Foliage: Jorge's independent, bonus daily practice (near-future plans).
+    .register(new FoliageGathering())
     .register(new StoreReview(lesson));
 }

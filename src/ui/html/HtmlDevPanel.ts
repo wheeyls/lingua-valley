@@ -10,6 +10,7 @@ export interface DevPanelCallbacks {
   onSeeds: () => void;
   onWater: () => void;
   onStore: () => void;
+  onFoliage: () => void;
   onAdvanceDay: (days: number) => void;
 }
 
@@ -39,6 +40,7 @@ export class HtmlDevPanel {
       this.button("🌱 Seeds", cb.onSeeds),
       this.button("💧 Water", cb.onWater),
       this.button("🛒 Store", cb.onStore),
+      this.button("🍃 Foliage", cb.onFoliage),
     );
     this.root.appendChild(actions);
 

@@ -8,7 +8,9 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { makeAdapters, type Adapters } from "../adapters";
 import { PlayerService } from "../PlayerService";
 import { ConversationSession } from "../ConversationSession";
-import { CURRENT_LESSON } from "../../content/lessons";
+import { DEFAULT_CAMPAIGN } from "../../content/campaigns";
+
+const CURRENT_LESSON = DEFAULT_CAMPAIGN.lesson;
 import { plantRow, totalBlooms, ROW_LENGTH } from "../../domain/garden";
 import { appDay } from "../../domain/time";
 import { hasTicketTo } from "../../domain/inventory";
@@ -121,6 +123,64 @@ describe("the garden fills over a week of watering", () => {
   });
 });
 
+describe("Jorge's foliage — independent, bonus daily practice", () => {
+  it("grows the foliage garden without needing seeds/water first, and doesn't gate them", async () => {
+    const adapters = makeAdapters("test");
+    const player = newPlayer(adapters);
+    await player.init();
+    adapters.fakes!.grader.setDefault({ communication: 0.9, accuracy: 0.9 });
+
+    // Visit Jorge before Marisol/Pablo — nothing else has happened yet.
+    const jorge = sessionFor(adapters, player, "foliage", "foliage-gathering");
+    jorge.begin("¡Hola!");
+    const outcome = await jorge.submit("Voy a estudiar esta tarde.");
+
+    expect(outcome.applied.grownFoliage).toBe(1);
+    expect(totalBlooms(player.getState().foliage)).toBe(1);
+    // The flower field is untouched — Jorge doesn't gate or feed it.
+    expect(player.getState().field.rows).toHaveLength(0);
+  });
+
+  it("interleaves with the water role on the same day without interfering", async () => {
+    const adapters = makeAdapters("test");
+    const player = newPlayer(adapters);
+    await player.init();
+    adapters.fakes!.grader.setDefault({ communication: 0.9, accuracy: 0.9 });
+
+    const today = appDay(adapters.fakes!.clock.now());
+    await player.update((s) => ({ ...s, field: plantRow(s.field, today) }));
+
+    const water = sessionFor(adapters, player, "water");
+    water.begin("¡Hola!");
+    await water.submit("Hola, ¿cómo estás?");
+
+    const jorge = sessionFor(adapters, player, "foliage", "foliage-gathering");
+    jorge.begin("¡Hola!");
+    await jorge.submit("Vamos a salir el fin de semana.");
+
+    expect(totalBlooms(player.getState().field)).toBe(1);
+    expect(totalBlooms(player.getState().foliage)).toBe(1);
+  });
+
+  it("blooms foliage once per day even across replays, same as the flower field", async () => {
+    const adapters = makeAdapters("test");
+    const player = newPlayer(adapters);
+    await player.init();
+    adapters.fakes!.grader.setDefault({ communication: 0.9, accuracy: 0.9 });
+
+    const first = sessionFor(adapters, player, "foliage", "foliage-gathering");
+    first.begin("¡Hola!");
+    await first.submit("Voy a leer un libro.");
+
+    const again = sessionFor(adapters, player, "foliage", "foliage-gathering");
+    again.begin("¡Hola!");
+    const replay = await again.submit("Voy a descansar.");
+
+    expect(replay.applied.grownFoliage).toBe(0);
+    expect(totalBlooms(player.getState().foliage)).toBe(1);
+  });
+});
+
 describe("farming side-effects persist across a refresh", () => {
   it("completing the seeds chat starts a row that survives a reload", async () => {
     const adapters = makeAdapters("test");
@@ -128,7 +188,7 @@ describe("farming side-effects persist across a refresh", () => {
     await player.init();
     adapters.fakes!.grader.setDefault({ communication: 0.9, accuracy: 0.9 });
 
-    const seeds = sessionFor(adapters, player, "seeds", "seeds-intro");
+    const seeds = sessionFor(adapters, player, "seeds", "story-telling");
     seeds.begin("¡Buenas!");
     const outcome = await seeds.submit("Hola, quiero semillas.");
     expect(outcome.applied.planted).toBe(true);

@@ -6,6 +6,7 @@
 
 import { composeApp } from "./app/composition";
 import { GameController } from "./app/GameController";
+import { DEFAULT_CAMPAIGN } from "./content/campaigns";
 import { HtmlLoginView } from "./ui/html/HtmlLoginView";
 import { HtmlRegisterView } from "./ui/html/HtmlRegisterView";
 import { HtmlLeaderboardView } from "./ui/html/HtmlLeaderboardView";
@@ -204,13 +205,15 @@ async function showCheckpoint(groupId: string, date: string) {
       start: string;
       end: string;
       totalBlooms: number;
-      rows: { displayName: string; avatarColor: number; blooms: number }[];
+      totalFoliage: number;
+      rows: { displayName: string; avatarColor: number; blooms: number; foliage: number }[];
     };
     view.render({
       groupName: raw.group.name,
       start: raw.start,
       end: raw.end,
       totalBlooms: raw.totalBlooms,
+      totalFoliage: raw.totalFoliage,
       rows: raw.rows,
     });
   } catch (err) {
@@ -219,7 +222,7 @@ async function showCheckpoint(groupId: string, date: string) {
 }
 
 function startGame(app: Awaited<ReturnType<typeof composeApp>>) {
-  const controller = new GameController(app.player, app.adapters);
+  const controller = new GameController(app.player, app.adapters, DEFAULT_CAMPAIGN);
   controller.start();
 }
 

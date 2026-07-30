@@ -70,6 +70,7 @@ describe("bloomsInWeek", () => {
 
 describe("buildCheckpoint", () => {
   const week = checkpointWeek("2026-07-12");
+  const emptyGarden: Garden = { rows: [] };
 
   it("sums each member's blooms + the group total, ordered by contribution", () => {
     const members = [
@@ -77,6 +78,7 @@ describe("buildCheckpoint", () => {
         displayName: "Bea",
         avatarColor: 1,
         garden: { rows: [{ seedDay: "2026-07-05", wateredDays: ["2026-07-05"] }] },
+        foliage: emptyGarden,
       },
       {
         displayName: "Ana",
@@ -86,6 +88,7 @@ describe("buildCheckpoint", () => {
             { seedDay: "2026-07-05", wateredDays: ["2026-07-05", "2026-07-06", "2026-07-07"] },
           ],
         },
+        foliage: emptyGarden,
       },
     ];
     const cp = buildCheckpoint(members, week);
@@ -96,10 +99,31 @@ describe("buildCheckpoint", () => {
 
   it("handles a group with no blooms this week", () => {
     const cp = buildCheckpoint(
-      [{ displayName: "Ana", avatarColor: 1, garden: { rows: [] } }],
+      [{ displayName: "Ana", avatarColor: 1, garden: emptyGarden, foliage: emptyGarden }],
       week,
     );
     expect(cp.totalBlooms).toBe(0);
     expect(cp.rows[0].blooms).toBe(0);
+  });
+
+  it("sums foliage alongside blooms — the shared bouquet's greenery", () => {
+    const members = [
+      {
+        displayName: "Ana",
+        avatarColor: 1,
+        garden: emptyGarden,
+        foliage: { rows: [{ seedDay: "2026-07-05", wateredDays: ["2026-07-05", "2026-07-06"] }] },
+      },
+      {
+        displayName: "Bea",
+        avatarColor: 2,
+        garden: emptyGarden,
+        foliage: { rows: [{ seedDay: "2026-07-05", wateredDays: ["2026-07-07"] }] },
+      },
+    ];
+    const cp = buildCheckpoint(members, week);
+    expect(cp.totalFoliage).toBe(3);
+    expect(cp.rows.find((r) => r.displayName === "Ana")?.foliage).toBe(2);
+    expect(cp.rows.find((r) => r.displayName === "Bea")?.foliage).toBe(1);
   });
 });

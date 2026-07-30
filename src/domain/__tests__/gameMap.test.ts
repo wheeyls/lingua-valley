@@ -1,13 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { isDoorUnlocked, npcsOn, doorsOn } from "../gameMap";
-import { HUB, getMap } from "../../content/maps";
+import { buildMaps } from "../../content/maps";
 import { visibleLocations } from "../../content/world";
+import { DEFAULT_CAMPAIGN } from "../../content/campaigns";
+
+const { hub: HUB, getMap } = buildMaps(DEFAULT_CAMPAIGN.area);
 
 describe("gameMap — hub + location rooms", () => {
   it("the hub has a door for each visible location (store hidden) and no NPCs", () => {
     expect(npcsOn(HUB)).toHaveLength(0);
     const doorLabels = doorsOn(HUB).map((d) => d.label);
-    expect(doorsOn(HUB)).toHaveLength(visibleLocations().length);
+    expect(doorsOn(HUB)).toHaveLength(visibleLocations(DEFAULT_CAMPAIGN.area).length);
     expect(doorLabels.some((l) => l?.includes("Plaza"))).toBe(true);
     expect(doorLabels.some((l) => l?.includes("Tienda"))).toBe(false);
   });

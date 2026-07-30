@@ -23,6 +23,7 @@ export interface PlayerStateRow {
   user_id: string;
   money: number;
   field: Garden | null;
+  foliage: Garden | null;
   inventory: Inventory | null;
   daily: DailyState | null;
 }
@@ -43,6 +44,7 @@ export function rowsToPlayerState(
     avatarColor: base.avatarColor,
     money: state.money,
     field: state.field,
+    foliage: state.foliage,
     inventory: state.inventory,
     daily: state.daily,
   });
@@ -53,6 +55,7 @@ export function playerStateToRow(userId: string, s: PlayerState): PlayerStateRow
     user_id: userId,
     money: s.money,
     field: s.field,
+    foliage: s.foliage,
     inventory: s.inventory,
     daily: s.daily,
   };

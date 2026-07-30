@@ -41,7 +41,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const memberIds = profiles.map((p) => p.id);
 
     const statesRes = memberIds.length
-      ? await admin.from("player_state").select("user_id,money,field,inventory,daily").in("user_id", memberIds)
+      ? await admin
+          .from("player_state")
+          .select("user_id,money,field,foliage,inventory,daily")
+          .in("user_id", memberIds)
       : { data: [] as PlayerStateRow[] };
     const stateByUser = new Map<string, PlayerStateRow>();
     for (const s of (statesRes.data ?? []) as PlayerStateRow[]) stateByUser.set(s.user_id, s);
@@ -49,7 +52,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const week = checkpointWeek(date);
     const members = profiles.map((profile) => {
       const state = rowsToPlayerState(profile, stateByUser.get(profile.id) ?? null);
-      return { displayName: state.displayName, avatarColor: state.avatarColor, garden: state.field };
+      return {
+        displayName: state.displayName,
+        avatarColor: state.avatarColor,
+        garden: state.field,
+        foliage: state.foliage,
+      };
     });
     const checkpoint = buildCheckpoint(members, week);
 
@@ -59,6 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       start: week.start,
       end: week.end,
       totalBlooms: checkpoint.totalBlooms,
+      totalFoliage: checkpoint.totalFoliage,
       rows: checkpoint.rows,
     });
   } catch (err) {

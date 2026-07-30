@@ -84,9 +84,6 @@ export const ALL_LESSONS: Record<string, Lesson> = {
   [A2_PAST_TENSE.id]: A2_PAST_TENSE,
 };
 
-/** The lesson for the current campaign. */
-export const CURRENT_LESSON: Lesson = A2_PAST_TENSE;
-
 export function lessonById(id: string): Lesson | undefined {
   return ALL_LESSONS[id];
 }

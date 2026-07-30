@@ -52,7 +52,7 @@ describe("applyActivity — money comes only from the store review", () => {
   it("a seeds conversation grants no money", () => {
     const res = applyActivity(
       initialPlayerState("T", 1),
-      activity({ objectiveId: "seeds-intro", role: "seeds" }),
+      activity({ objectiveId: "story-telling", role: "seeds" }),
       NOW,
     );
     expect(res.state.money).toBe(0);
@@ -116,7 +116,7 @@ describe("applyActivity — authoritative side-effects", () => {
   it("starts a garden row when a seeds conversation completes", () => {
     const res = applyActivity(
       initialPlayerState("T", 1),
-      activity({ objectiveId: "seeds-intro", role: "seeds" }),
+      activity({ objectiveId: "story-telling", role: "seeds" }),
       NOW,
     );
     expect(res.planted).toBe(true);
@@ -126,14 +126,14 @@ describe("applyActivity — authoritative side-effects", () => {
 
   it("only starts one row per day even if the seeds chat has many turns", () => {
     let s = initialPlayerState("T", 1);
-    s = applyActivity(s, activity({ objectiveId: "seeds-intro", role: "seeds" }), NOW).state;
-    const again = applyActivity(s, activity({ objectiveId: "seeds-intro", role: "seeds" }), NOW);
+    s = applyActivity(s, activity({ objectiveId: "story-telling", role: "seeds" }), NOW).state;
+    const again = applyActivity(s, activity({ objectiveId: "story-telling", role: "seeds" }), NOW);
     expect(again.planted).toBe(false);
     expect(again.state.field.rows).toHaveLength(1);
   });
 
   it("does not start a new row while the current one is still growing", () => {
-    const res = applyActivity(withRow(), activity({ objectiveId: "seeds-intro", role: "seeds" }), NOW);
+    const res = applyActivity(withRow(), activity({ objectiveId: "story-telling", role: "seeds" }), NOW);
     expect(res.planted).toBe(false);
     expect(res.state.field.rows).toHaveLength(1);
   });
@@ -171,6 +171,40 @@ describe("applyActivity — authoritative side-effects", () => {
     );
     expect(t2.state.daily.objectiveState["story-telling"].outputs.storyText).toBe("A. B.");
     expect(t2.state.daily.objectiveState["story-telling"].completedAt).toBe(firstTs);
+  });
+});
+
+describe("applyActivity — foliage (Jorge's bonus, independent practice)", () => {
+  it("auto-plants and blooms the foliage row in one action (no separate seed step)", () => {
+    const res = applyActivity(initialPlayerState("T", 1), activity({ role: "foliage" }), NOW);
+    expect(res.grownFoliage).toBe(1);
+    expect(res.state.foliage.rows).toHaveLength(1);
+    expect(totalBlooms(res.state.foliage)).toBe(1);
+  });
+
+  it("blooms foliage once per day — replays are idempotent", () => {
+    let s = applyActivity(initialPlayerState("T", 1), activity({ role: "foliage" }), NOW).state;
+    const again = applyActivity(s, activity({ role: "foliage" }), NOW);
+    expect(again.grownFoliage).toBe(0);
+    expect(totalBlooms(again.state.foliage)).toBe(1);
+  });
+
+  it("does not touch the flower field or gate day completion", () => {
+    const res = applyActivity(initialPlayerState("T", 1), activity({ role: "foliage" }), NOW);
+    expect(res.state.field.rows).toHaveLength(0);
+    expect(res.grown).toBe(0);
+    expect(res.planted).toBe(false);
+  });
+
+  it("grows independently of the flower field's seed/water state", () => {
+    // No seed planted for the flower field, but foliage still grows.
+    const res = applyActivity(
+      initialPlayerState("T", 1),
+      activity({ objectiveId: "foliage-gathering", role: "foliage" }),
+      NOW,
+    );
+    expect(res.state.field.rows).toHaveLength(0);
+    expect(totalBlooms(res.state.foliage)).toBe(1);
   });
 });
 
@@ -221,6 +255,13 @@ describe("mergeStates (guest claim)", () => {
     expect(totalBlooms(merged.field)).toBe(3);
     expect(hasTicketTo(merged.inventory, "mercado")).toBe(true);
   });
+
+  it("keeps the foliage garden with more blooms, independent of the flower field", () => {
+    const account: PlayerState = { ...initialPlayerState("Acct", 1), foliage: bloomGarden(1) };
+    const guest: PlayerState = { ...initialPlayerState("Guest", 2), foliage: bloomGarden(4) };
+    const merged = mergeStates(account, guest);
+    expect(totalBlooms(merged.foliage)).toBe(4);
+  });
 });
 
 describe("normalizePlayerState (forward-compatible loads)", () => {
@@ -247,6 +288,14 @@ describe("normalizePlayerState (forward-compatible loads)", () => {
   it("loads a saved garden", () => {
     const s = normalizePlayerState({ field: bloomGarden(2) });
     expect(totalBlooms(s.field)).toBe(2);
+  });
+
+  it("loads a saved foliage garden, and defaults it when absent (old saves)", () => {
+    const withFoliage = normalizePlayerState({ foliage: bloomGarden(2) });
+    expect(totalBlooms(withFoliage.foliage)).toBe(2);
+
+    const oldSave = normalizePlayerState({ field: bloomGarden(1) });
+    expect(oldSave.foliage.rows).toEqual([]);
   });
 
   it("returns a fresh state for garbage/null input", () => {

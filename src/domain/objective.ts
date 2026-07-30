@@ -16,6 +16,7 @@
  */
 
 import type { DailyRole } from "./dailyLoop.js";
+import type { LessonVocab } from "./objectives/lesson.js";
 
 /** The completion record for one objective in one daily cycle. */
 export interface ObjectiveCompletion {
@@ -40,7 +41,7 @@ export interface ObjectiveContext {
  * interface for each type of interaction (greeting, story, retelling, etc.).
  */
 export interface Objective {
-  /** Unique id (e.g. "seeds-intro", "water-practice", "store-review"). */
+  /** Unique id (e.g. "story-telling", "story-retell", "store-review"). */
   readonly id: string;
   /** The NPC this objective is tied to. */
   readonly npcId: string;
@@ -48,6 +49,15 @@ export interface Objective {
   readonly role: DailyRole;
   /** Ids of objectives that must complete before this one activates. */
   readonly dependsOn: string[];
+  /**
+   * When true, this objective is bonus practice: it doesn't count toward
+   * "all done today" even though completing it still earns growth/reward.
+   */
+  readonly bonus?: boolean;
+  /** Override the lesson's can-do statement for this objective's conversation. */
+  readonly canDo?: string;
+  /** Override the lesson's vocab for this objective's conversation. */
+  readonly vocab?: LessonVocab[];
 
   /**
    * Build the LLM conversation theme/instructions for this objective.

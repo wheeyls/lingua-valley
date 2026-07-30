@@ -24,7 +24,21 @@ describe("ObjectiveGraph (farming loop, paired practice)", () => {
     expect(g.forNpc("pablo")?.id).toBe("story-retell");
     expect(g.forNpc("pablo")?.role).toBe("water");
     expect(g.forNpc("shopkeeper")?.id).toBe("store-review");
-    expect(g.all()).toHaveLength(3);
+    expect(g.all()).toHaveLength(4);
+  });
+
+  it("registers Jorge's foliage objective as independent and bonus", () => {
+    const g = buildDailyGraph(LESSON);
+    const jorge = g.forNpc("jorge");
+    expect(jorge?.id).toBe("foliage-gathering");
+    expect(jorge?.role).toBe("foliage");
+    expect(jorge?.dependsOn).toEqual([]);
+    expect(jorge?.bonus).toBe(true);
+    // Available from the start, with no dependency on the story/retell chain.
+    expect(g.isAvailable("foliage-gathering", {})).toBe(true);
+    // Has its own can-do/vocab, distinct from the lesson's past-tense content.
+    expect(jorge?.canDo).toMatch(/ir a|plans/i);
+    expect(jorge?.vocab?.length ?? 0).toBeGreaterThan(0);
   });
 
   it("the retell objective depends on the story being told first", () => {
