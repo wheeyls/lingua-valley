@@ -1,7 +1,7 @@
 /**
  * Story-retell objective — the SECOND half of the two-person water practice.
  *
- * Pablo asks the player to retell what the story-teller just said. Depends on
+ * Jorgito asks the player to retell what the story-teller just said. Depends on
  * `story-telling` (won't activate until the story's been heard) and consumes its
  * `storyText` so the LLM can prompt and check the retelling.
  *
@@ -14,7 +14,7 @@ import type { Lesson } from "./lesson.js";
 
 export class StoryRetell implements Objective {
   readonly id = "story-retell";
-  readonly npcId = "pablo";
+  readonly npcId = "jorgito";
   readonly role = "water" as const;
   readonly dependsOn = ["story-telling"];
 
@@ -25,7 +25,7 @@ export class StoryRetell implements Objective {
     return (
       `${this.lesson.retellTheme ?? ""} ` +
       (story
-        ? `For reference, Marisol's story was: "${story}". `
+        ? `For reference, Jackie's story was: "${story}". `
         : "") +
       `Keep it at the ${this.lesson.level} level.`
     );

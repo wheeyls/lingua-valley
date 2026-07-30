@@ -55,6 +55,12 @@ export interface PlayerState {
   /** The garden of streak rows the player grows by practicing daily. */
   field: Garden;
 
+  /**
+   * The foliage garden — greenery gathered from Arlene's bonus daily
+   * conversation, grown in parallel with `field` (same 7-day row mechanic).
+   */
+  foliage: Garden;
+
   /** Items the player holds (train tickets, etc.). */
   inventory: Inventory;
 
@@ -71,6 +77,7 @@ export function initialPlayerState(
     avatarColor,
     money: 0,
     field: makeGarden(),
+    foliage: makeGarden(),
     inventory: emptyInventory(),
     daily: INITIAL_DAILY_STATE,
   };
@@ -99,6 +106,7 @@ export function normalizePlayerState(value: unknown): PlayerState {
           ? v.pesos
           : 0,
     field: normalizeGarden(v.field),
+    foliage: normalizeGarden(v.foliage),
     inventory: isObject(v.inventory)
       ? (v.inventory as Inventory)
       : emptyInventory(),
@@ -130,7 +138,7 @@ function normalizeDaily(v: unknown): DailyState {
     dayStartedAt: typeof d.dayStartedAt === "string" ? d.dayStartedAt : "",
     rewardedRoles: Array.isArray(d.rewardedRoles)
       ? (d.rewardedRoles.filter(
-          (r) => r === "seeds" || r === "water" || r === "store",
+          (r) => r === "seeds" || r === "water" || r === "store" || r === "foliage",
         ) as DailyRole[])
       : [],
     rewardedObjectives: Array.isArray(d.rewardedObjectives)
@@ -182,6 +190,8 @@ export interface ApplyResult {
   earnedReward: boolean;
   /** 1 if today's plant bloomed this turn (water role, once/day). */
   grown: number;
+  /** 1 if today's foliage bloomed this turn (foliage role, once/day). */
+  grownFoliage: number;
   /** True if this completion started a new garden row (seeds role, first of the day). */
   planted: boolean;
   /** 1 if the store review paid out this turn (store role, first of the day). */
@@ -218,8 +228,10 @@ export function applyActivity(
 
   let money = prev.money;
   let field = prev.field;
+  let foliage = prev.foliage;
   let daily = prev.daily;
   let grown = 0;
+  let grownFoliage = 0;
   let planted = false;
   let sold = 0;
   let soldValue = 0;
@@ -241,6 +253,16 @@ export function applyActivity(
     field = watered.garden;
     grown = watered.bloomed ? 1 : 0;
     if (watered.bloomed) daily = claimRole(daily, "water", now);
+  }
+
+  // FOLIAGE: Arlene's bonus practice — plants (if needed) and blooms today's
+  // foliage in one action, once per day. Independent of seeds/water.
+  if (activity.role === "foliage" && roleEarnsReward(prev.daily, "foliage")) {
+    if (needsSeed(foliage, day)) foliage = plantRow(foliage, day);
+    const wateredFoliage = waterActiveRow(foliage, day);
+    foliage = wateredFoliage.garden;
+    grownFoliage = wateredFoliage.bloomed ? 1 : 0;
+    if (wateredFoliage.bloomed) daily = claimRole(daily, "foliage", now);
   }
 
   // STORE: the review conversation pays money from its grade, once per day.
@@ -279,10 +301,11 @@ export function applyActivity(
   daily = recordPlay(daily, now);
 
   return {
-    state: { ...prev, money, field, daily },
+    state: { ...prev, money, field, foliage, daily },
     reward,
     earnedReward,
     grown,
+    grownFoliage,
     planted,
     sold,
     soldValue,
@@ -347,6 +370,10 @@ export function mergeStates(account: PlayerState, guest: PlayerState): PlayerSta
     totalBlooms(guest.field) > totalBlooms(account.field)
       ? guest.field
       : account.field;
+  const foliage =
+    totalBlooms(guest.foliage) > totalBlooms(account.foliage)
+      ? guest.foliage
+      : account.foliage;
 
   // Inventory: union, summing quantities.
   let inventory: Inventory = { ...account.inventory };
@@ -358,6 +385,7 @@ export function mergeStates(account: PlayerState, guest: PlayerState): PlayerSta
     ...account,
     money: account.money + guest.money,
     field,
+    foliage,
     inventory,
     // Keep the better streak across the two saves.
     daily: {

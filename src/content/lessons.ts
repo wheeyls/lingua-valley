@@ -47,7 +47,7 @@ export const A2_PAST_TENSE: Lesson = {
     { es: "en conclusión", en: "in conclusion" },
     { es: "resulta que", en: "it turns out that" },
   ],
-  // Two-person practice: Marisol tells a story, Pablo asks the player to retell.
+  // Two-person practice: Jackie tells a story, Jorgito asks the player to retell.
   storyTheme:
     "You are telling the player a little STORY about your day, in simple past " +
     "tense. Shape it like a mini-narrative: OPEN by grounding it in time " +
@@ -61,8 +61,8 @@ export const A2_PAST_TENSE: Lesson = {
     "English (e.g. 'sin embargo (however)'). After your story ask '¿Entendiste?' " +
     "— the player only needs to confirm. Vary the story each time.",
   retellTheme:
-    "You are Pablo. Marisol just told the player a little story about her day. " +
-    "Ask '¿Qué hizo Marisol hoy?' and have the player RETELL it in past tense, " +
+    "You are Jorgito. Jackie just told the player a little story about her day. " +
+    "Ask '¿Qué hizo Jackie hoy?' and have the player RETELL it in past tense, " +
     "IN ORDER. Nudge them to use time markers and connectors as they go — prompt " +
     "with '¿Y luego?', '¿Y entonces?', '¿Qué pasó de repente?'. If they're " +
     "stuck, give the first word or a small hint. Praise correct past-tense verbs " +
@@ -83,9 +83,6 @@ export const A2_PAST_TENSE: Lesson = {
 export const ALL_LESSONS: Record<string, Lesson> = {
   [A2_PAST_TENSE.id]: A2_PAST_TENSE,
 };
-
-/** The lesson for the current campaign. */
-export const CURRENT_LESSON: Lesson = A2_PAST_TENSE;
 
 export function lessonById(id: string): Lesson | undefined {
   return ALL_LESSONS[id];

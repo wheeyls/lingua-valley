@@ -2,7 +2,7 @@
  * Objective system — code-driven, composable, dependency-aware.
  *
  * An Objective is a unit of daily practice (e.g. "greet Rosa", "listen to
- * Marisol's story", "retell the story to Pablo"). Each objective:
+ * Jackie's story", "retell the story to Jorgito"). Each objective:
  *   - is tied to an NPC
  *   - has a theme/instructions for the LLM conversation
  *   - can DEPEND on other objectives (won't activate until deps are complete)
@@ -16,6 +16,7 @@
  */
 
 import type { DailyRole } from "./dailyLoop.js";
+import type { LessonVocab } from "./objectives/lesson.js";
 
 /** The completion record for one objective in one daily cycle. */
 export interface ObjectiveCompletion {
@@ -40,7 +41,7 @@ export interface ObjectiveContext {
  * interface for each type of interaction (greeting, story, retelling, etc.).
  */
 export interface Objective {
-  /** Unique id (e.g. "seeds-intro", "water-practice", "store-review"). */
+  /** Unique id (e.g. "story-telling", "story-retell", "store-review"). */
   readonly id: string;
   /** The NPC this objective is tied to. */
   readonly npcId: string;
@@ -48,6 +49,15 @@ export interface Objective {
   readonly role: DailyRole;
   /** Ids of objectives that must complete before this one activates. */
   readonly dependsOn: string[];
+  /**
+   * When true, this objective is bonus practice: it doesn't count toward
+   * "all done today" even though completing it still earns growth/reward.
+   */
+  readonly bonus?: boolean;
+  /** Override the lesson's can-do statement for this objective's conversation. */
+  readonly canDo?: string;
+  /** Override the lesson's vocab for this objective's conversation. */
+  readonly vocab?: LessonVocab[];
 
   /**
    * Build the LLM conversation theme/instructions for this objective.
@@ -57,7 +67,7 @@ export interface Objective {
   buildTheme(ctx: ObjectiveContext): string;
 
   /**
-   * Extract outputs from a completed conversation (e.g. the story Marisol told).
+   * Extract outputs from a completed conversation (e.g. the story Jackie told).
    * `npcLines` is every line the NPC spoke during the conversation.
    * Returns key-value outputs that downstream objectives can consume.
    */

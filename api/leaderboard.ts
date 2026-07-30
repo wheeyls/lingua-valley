@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getAdminClient, userIdFromAuthHeader } from "./_lib/supabaseAdmin.js";
 import { rowsToPlayerState, type ProfileRow, type PlayerStateRow } from "../src/net/supabaseMappers.js";
 import { toLeaderboardRow, rankLeaderboard } from "../src/domain/leaderboard.js";
-import { CURRENT_AREA } from "../src/content/world.js";
+import { DEFAULT_CAMPAIGN } from "../src/content/campaigns.js";
 
 export const config = { api: { bodyParser: { sizeLimit: "1mb" } } };
 
@@ -28,7 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const [profiles, states, activity] = await Promise.all([
       admin.from("profiles").select("id,display_name,avatar_color"),
-      admin.from("player_state").select("user_id,money,field,inventory,daily"),
+      admin.from("player_state").select("user_id,money,field,foliage,inventory,daily"),
       admin.from("activity_log").select("user_id,created_at"),
     ]);
 
@@ -46,13 +46,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // How many conversations a full day offers in the current campaign.
-    const totalToday = CURRENT_AREA.locations.reduce((n, loc) => n + loc.npcIds.length, 0);
+    const totalToday = DEFAULT_CAMPAIGN.area.locations.reduce((n, loc) => n + loc.npcIds.length, 0);
 
     const rows = [...profileById.values()].map((profile) => {
       const state = rowsToPlayerState(profile, stateByUser.get(profile.id) ?? null);
       return toLeaderboardRow(state, {
         totalToday,
-        nextAreaId: CURRENT_AREA.nextAreaId,
+        nextAreaId: DEFAULT_CAMPAIGN.area.nextAreaId,
         lastActive: lastActive.get(profile.id) ?? "",
       });
     });

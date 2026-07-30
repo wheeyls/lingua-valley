@@ -5,9 +5,9 @@
  * handful of LOCATIONS you click into:
  *
  *   - Field        — your crops (rendered live from player state, not an NPC).
- *   - Seed farm    — intro conversation; plants this week's crop.
- *   - Practice     — the daily drill. May have TWO people (story-teller + the
- *                    one who quizzes you on it). Waters the field.
+ *   - Seed farm    — Jackie tells her story and hands over this week's seed;
+ *                    plants this week's crop.
+ *   - Practice     — retell Jackie's story to Jorgito. Waters the field.
  *   - Store        — review conversation; sells the harvest for money.
  *   - Station      — buy a train ticket to the next campaign (live card).
  *
@@ -66,95 +66,120 @@ export interface Area {
   npcs: Npc[];
 }
 
-export const AREAS: Area[] = [
-  {
-    id: "pueblo-del-ayer",
-    name: "Pueblo del Ayer",
-    level: "A2",
-    blurb:
-      "A sleepy village where everyone loves to recount their day. This week: " +
-      "talking about the past — understand a story, retell it, share your own.",
-    nextAreaId: "ciudad-manana",
-    ticketPrice: 60,
-    locations: [
-      {
-        id: "seed-farm",
-        name: "La Granja de Semillas",
-        role: "seeds",
-        icon: "🌱",
-        blurb: "Hear Marisol's story and take home this week's seed.",
-        npcIds: ["marisol"],
+export const PUEBLO_DEL_AYER: Area = {
+  id: "pueblo-del-ayer",
+  name: "Pueblo del Ayer",
+  level: "A2",
+  blurb:
+    "A sleepy village where everyone loves to recount their day. This week: " +
+    "talking about the past — understand a story, retell it, share your own.",
+  nextAreaId: "ciudad-manana",
+  ticketPrice: 60,
+  locations: [
+    {
+      id: "seed-farm",
+      name: "La Granja de Semillas",
+      role: "seeds",
+      icon: "🌱",
+      blurb: "Hear Jackie's story and take home this week's seed.",
+      npcIds: ["jackie"],
+    },
+    {
+      id: "plaza",
+      name: "La Plaza",
+      role: "water",
+      icon: "💧",
+      blurb: "Retell Jackie's story to Jorgito. Waters your field.",
+      npcIds: ["jorgito"],
+    },
+    {
+      id: "store",
+      name: "La Tienda",
+      role: "store",
+      icon: "🛒",
+      blurb: "Tell Doña Tienda about your day and sell your harvest.",
+      npcIds: ["shopkeeper"],
+      hidden: true,
+    },
+    {
+      id: "the-woods",
+      name: "El Bosque",
+      role: "foliage",
+      icon: "🍃",
+      blurb: "Gather greenery with Arlene for this week's bouquet.",
+      npcIds: ["arlene"],
+    },
+  ],
+  npcs: [
+    {
+      id: "jackie",
+      name: "Jackie",
+      color: 0x2a9d8f,
+      voice: "nova",
+      conversation: {
+        opener: "¡Hola! ¿Te cuento lo que hice hoy? Escucha bien…",
       },
-      {
-        id: "plaza",
-        name: "La Plaza",
-        role: "water",
-        icon: "💧",
-        blurb: "Retell Marisol's story to Pablo. Waters your field.",
-        npcIds: ["pablo"],
-      },
-      {
-        id: "store",
-        name: "La Tienda",
-        role: "store",
-        icon: "🛒",
-        blurb: "Tell Doña Tienda about your day and sell your harvest.",
-        npcIds: ["shopkeeper"],
-        hidden: true,
-      },
-    ],
-    npcs: [
-      {
-        id: "marisol",
-        name: "Marisol",
-        color: 0x2a9d8f,
-        voice: "nova",
-        conversation: {
-          opener: "¡Hola! ¿Te cuento lo que hice hoy? Escucha bien…",
+      lines: [
+        {
+          level: "A2",
+          es: "👂 Escucha la historia de Jackie",
+          en: "Jackie will tell you what she did today. Listen and understand her story. Tap 'Talk' to begin.",
         },
-        lines: [
-          {
-            level: "A2",
-            es: "👂 Escucha la historia de Marisol",
-            en: "Marisol will tell you what she did today. Listen and understand her story. Tap 'Talk' to begin.",
-          },
-        ],
+      ],
+    },
+    {
+      id: "jorgito",
+      name: "Jorgito",
+      color: 0x3d5a80,
+      voice: "echo",
+      conversation: {
+        opener: "Oye, ¿qué hizo Jackie hoy? Cuéntame.",
       },
-      {
-        id: "pablo",
-        name: "Pablo",
-        color: 0x3d5a80,
-        voice: "echo",
-        conversation: {
-          opener: "Oye, ¿qué hizo Marisol hoy? Cuéntame.",
+      lines: [
+        {
+          level: "A2",
+          es: "🗣️ Cuéntale a Jorgito la historia",
+          en: "Retell what Jackie did, in the past tense. Finishing this waters your field. Tap 'Talk' to begin.",
         },
-        lines: [
-          {
-            level: "A2",
-            es: "🗣️ Cuéntale a Pablo la historia",
-            en: "Retell what Marisol did, in the past tense. Finishing this waters your field. Tap 'Talk' to begin.",
-          },
-        ],
+      ],
+    },
+    {
+      id: "shopkeeper",
+      name: "Doña Tienda",
+      color: 0xb5793a,
+      voice: "shimmer",
+      conversation: {
+        opener: "¡Bienvenido! ¿Qué me traes hoy? Cuéntame, ¿qué hiciste?",
       },
-      {
-        id: "shopkeeper",
-        name: "Doña Tienda",
-        color: 0xb5793a,
-        voice: "shimmer",
-        conversation: {
-          opener: "¡Bienvenido! ¿Qué me traes hoy? Cuéntame, ¿qué hiciste?",
+      lines: [
+        {
+          level: "A2",
+          es: "🛒 Vende tu cosecha en la tienda",
+          en: "Bring a grown crop, tell Doña Tienda about your day, and sell it for money toward a train ticket. Tap 'Talk' to begin.",
         },
-        lines: [
-          {
-            level: "A2",
-            es: "🛒 Vende tu cosecha en la tienda",
-            en: "Bring a grown crop, tell Doña Tienda about your day, and sell it for money toward a train ticket. Tap 'Talk' to begin.",
-          },
-        ],
+      ],
+    },
+    {
+      id: "arlene",
+      name: "Arlene",
+      color: 0x6b8f47,
+      voice: "alloy",
+      conversation: {
+        opener: "¡Hola! ¿Buscas verdor para el ramo? Cuéntame, ¿qué vas a hacer hoy?",
       },
-    ],
-  },
-];
+      lines: [
+        {
+          level: "A2",
+          es: "🍃 Reúne follaje con Arlene",
+          en: "Chat with Arlene about your plans — today, this week, or the weekend. Gathers greenery for this week's bouquet. Tap 'Talk' to begin.",
+        },
+      ],
+    },
+  ],
+};
+
+/** All areas in the game (currently just the one). */
+export const AREAS: Area[] = [PUEBLO_DEL_AYER];
 
 export function findNpc(id: string): Npc | undefined {
   for (const a of AREAS) {
@@ -168,11 +193,8 @@ export function areaOfNpc(npcId: string): Area | undefined {
   return AREAS.find((a) => a.npcs.some((n) => n.id === npcId));
 }
 
-/** The campaign the player is currently in (single-area slice for now). */
-export const CURRENT_AREA: Area = AREAS[0];
-
 /** Locations currently surfaced in the UI — hidden ones are dropped for now. */
-export function visibleLocations(area: Area = CURRENT_AREA): Location[] {
+export function visibleLocations(area: Area): Location[] {
   return area.locations.filter((l) => !l.hidden);
 }
 

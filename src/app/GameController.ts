@@ -6,8 +6,8 @@
  * stays pure; this is wiring + presentation.
  *
  * The loop:
- *   - Don Semilla (seeds) → plant a new 7-day garden row.
- *   - La Plaza (water, daily) → bloom today's plant; a skipped day withers it.
+ *   - Jackie at the seed farm (seeds) → plant a new 7-day garden row.
+ *   - Jorgito at La Plaza (water, daily) → bloom today's plant; a skipped day withers it.
  *   - Doña Tienda (store) → a graded review that pays money.
  */
 
@@ -16,9 +16,9 @@ import { HtmlDialogueView, type DialogueViewData } from "../ui/html/HtmlDialogue
 import { HtmlConversationView } from "../ui/html/HtmlConversationView";
 import { HtmlDevPanel } from "../ui/html/HtmlDevPanel";
 import { blockCanvas, unblockCanvas } from "../ui/html/canvasBlock";
-import { getMap, HUB_MAP_ID } from "../content/maps";
+import { buildMaps, HUB_MAP_ID } from "../content/maps";
 import { findNpc, visibleLocations, type Npc } from "../content/world";
-import { CURRENT_LESSON } from "../content/lessons";
+import type { Campaign } from "../content/campaigns";
 import type { MapNpc, MapDoor } from "../domain/gameMap";
 import { buildDailyGraph } from "../domain/objectives/daily";
 import type { ObjectiveGraph } from "../domain/objective";
@@ -33,6 +33,7 @@ import type { Adapters } from "./adapters";
 export class GameController {
   private worldView!: HtmlWorldView;
   private objectives: ObjectiveGraph;
+  private maps: ReturnType<typeof buildMaps>;
   /** Which map is on screen: the hub, or a location room. */
   private currentMapId = HUB_MAP_ID;
   private devPanel?: HtmlDevPanel;
@@ -40,8 +41,10 @@ export class GameController {
   constructor(
     private readonly player: PlayerService,
     private readonly adapters: Adapters,
+    private readonly campaign: Campaign,
   ) {
-    this.objectives = buildDailyGraph(CURRENT_LESSON);
+    this.objectives = buildDailyGraph(campaign.lesson);
+    this.maps = buildMaps(campaign.area);
   }
 
   start() {
@@ -68,7 +71,9 @@ export class GameController {
     const state = this.player.getState();
     const objState = state.daily.objectiveState;
 
-    const visibleNpcIds = new Set(visibleLocations().flatMap((loc) => loc.npcIds));
+    const visibleNpcIds = new Set(
+      visibleLocations(this.campaign.area).flatMap((loc) => loc.npcIds),
+    );
     const activeObjectives = this.objectives
       .all()
       .filter((obj) => visibleNpcIds.has(obj.npcId));
@@ -78,12 +83,12 @@ export class GameController {
       activeObjectives.filter((obj) => objState[obj.id] != null).map((obj) => obj.npcId),
     );
 
-    const map = getMap(this.currentMapId) ?? getMap(HUB_MAP_ID)!;
+    const map = this.maps.getMap(this.currentMapId) ?? this.maps.getMap(HUB_MAP_ID)!;
     this.worldView.loadMap(map, objState, completedNpcIds);
     this.worldView.updateHud(state.money);
 
     this.worldView.setExtraCards(
-      this.currentMapId === HUB_MAP_ID ? [this.gardenCard()] : [],
+      this.currentMapId === HUB_MAP_ID ? [this.gardenCard(), this.foliageCard()] : [],
     );
 
     // On the hub, show each location's "who's left to talk to" status so the
@@ -94,7 +99,9 @@ export class GameController {
 
     const now = new Date();
     const hours = hoursUntilNextDay(state.daily, now);
-    const allClaimed = activeObjectives.every((obj) => objState[obj.id] != null);
+    // Bonus objectives (e.g. Arlene's foliage) don't gate "day complete".
+    const requiredObjectives = activeObjectives.filter((obj) => !obj.bonus);
+    const allClaimed = requiredObjectives.every((obj) => objState[obj.id] != null);
     this.worldView.updateDailyStatus({
       allDone: allClaimed,
       hoursUntilReset: hours,
@@ -114,7 +121,7 @@ export class GameController {
    */
   private hubDoorStatus(objState: ReturnType<PlayerService["getState"]>["daily"]["objectiveState"]) {
     const status: Record<string, { hint: string; done: boolean }> = {};
-    for (const loc of visibleLocations()) {
+    for (const loc of visibleLocations(this.campaign.area)) {
       const total = loc.npcIds.length;
       const done = loc.npcIds.filter((npcId) => {
         const obj = this.objectives.forNpc(npcId);
@@ -138,11 +145,11 @@ export class GameController {
   private gardenCard() {
     const field = this.player.getState().field;
     const today = appDay(this.adapters.clock.now());
-    const cells = grid(field, today).map((row) => row.map(cellEmoji));
+    const cells = grid(field, today).map((row) => row.map((c) => cellEmoji(c, "🌸")));
     const hint = needsSeed(field, today)
       ? field.rows.length === 0
-        ? "Get seed from Don Semilla to plant your first row"
-        : "Row done! Get seed from Don Semilla for the next row"
+        ? "Hear Jackie's story at the seed farm to plant your first row"
+        : "Row done! Hear Jackie's next story for the next row"
       : `${bloomsThisRow(field, today)}/${ROW_LENGTH} bloomed — water daily at La Plaza`;
 
     return {
@@ -155,6 +162,24 @@ export class GameController {
     };
   }
 
+  private foliageCard() {
+    const foliage = this.player.getState().foliage;
+    const today = appDay(this.adapters.clock.now());
+    const cells = grid(foliage, today).map((row) => row.map((c) => cellEmoji(c, "🍃")));
+    const hint = needsSeed(foliage, today)
+      ? "Visit Arlene at El Bosque to start gathering greenery"
+      : `${bloomsThisRow(foliage, today)}/${ROW_LENGTH} gathered — bonus practice, any time`;
+
+    return {
+      id: "foliage",
+      icon: "🍃",
+      label: "Your foliage",
+      hint,
+      grid: cells,
+      onTap: () => this.toast("🍃 Talk to Arlene at El Bosque any time for a bonus practice rep."),
+    };
+  }
+
   // --- Garden interactions --------------------------------------------------
 
   private onGardenTap() {
@@ -163,8 +188,8 @@ export class GameController {
     if (needsSeed(field, today)) {
       this.toast(
         field.rows.length === 0
-          ? "🌱 Visit Don Semilla at the seed farm to plant your first row."
-          : "🌱 This week's row is complete — get seed from Don Semilla for the next one.",
+          ? "🌱 Visit Jackie at the seed farm to plant your first row."
+          : "🌱 This week's row is complete — hear Jackie's next story for the next one.",
       );
       return;
     }
@@ -180,6 +205,7 @@ export class GameController {
       onSeeds: () => void this.devComplete("story-telling", "seeds"),
       onWater: () => void this.devComplete("story-retell", "water"),
       onStore: () => void this.devComplete("store-review", "store"),
+      onFoliage: () => void this.devComplete("foliage-gathering", "foliage"),
       onAdvanceDay: (n) => void this.devAdvanceDay(n),
     });
     this.updateDevStatus();
@@ -189,7 +215,7 @@ export class GameController {
     await this.player.completeActivity({
       objectiveId,
       role,
-      level: CURRENT_LESSON.level,
+      level: this.campaign.lesson.level,
       communication: 1,
       accuracy: 1,
     });
@@ -262,7 +288,9 @@ export class GameController {
   private openConversation(npc: Npc) {
     const objective = this.objectives.forNpc(npc.id);
     if (!objective) return;
-    const lesson = CURRENT_LESSON;
+    const lesson = this.campaign.lesson;
+    const canDo = objective.canDo ?? lesson.canDo;
+    const vocab = objective.vocab ?? lesson.vocab;
 
     const inputs = this.objectives.gatherInputs(
       objective.id,
@@ -280,8 +308,8 @@ export class GameController {
         level: lesson.level,
         objectiveId: objective.id,
         role: objective.role,
-        canDo: lesson.canDo,
-        vocab: lesson.vocab.map((v) => ({ es: v.es, en: v.en })),
+        canDo,
+        vocab: vocab.map((v) => ({ es: v.es, en: v.en })),
         theme,
         cropTheme: lesson.id,
         extractOutputs: (npcLines) => objective.extractOutputs(npcLines),
@@ -313,7 +341,7 @@ export class GameController {
       },
     });
 
-    view.setHeader(npc.name, "", lesson.canDo);
+    view.setHeader(npc.name, "", canDo);
 
     const opener = npc.conversation.opener;
     session.begin(opener);
@@ -334,7 +362,12 @@ export class GameController {
           outcome.grade.corrections.length > 0 ? outcome.grade.corrections.join("; ") : "";
         const sold = outcome.applied.soldValue > 0 ? `+${outcome.applied.soldValue} 💰` : "";
         const grew = outcome.applied.grown > 0 ? "🌸 Your plant bloomed!" : "";
-        view.setFeedback(outcome.grade.feedback, corr, [sold, grew].filter(Boolean).join("  "));
+        const grewFoliage = outcome.applied.grownFoliage > 0 ? "🍃 Foliage gathered!" : "";
+        view.setFeedback(
+          outcome.grade.feedback,
+          corr,
+          [sold, grew, grewFoliage].filter(Boolean).join("  "),
+        );
 
         view.setNpcSpeech(outcome.npcReply);
         await channel.speak(outcome.npcReply, npc.voice);
@@ -369,6 +402,8 @@ export class GameController {
       this.toast(`🛒 Nice review! +${applied.soldValue} 💰`);
     } else if (role === "water" && applied.grown > 0) {
       this.toast("🌸 Your plant bloomed! Come back tomorrow to keep the streak.");
+    } else if (role === "foliage" && applied.grownFoliage > 0) {
+      this.toast("🍃 Gathered some foliage for the bouquet!");
     }
   }
 
@@ -389,10 +424,10 @@ export class GameController {
   }
 }
 
-function cellEmoji(c: CellState): string {
+function cellEmoji(c: CellState, bloomIcon: string): string {
   switch (c) {
     case "bloomed":
-      return "🌸";
+      return bloomIcon;
     case "withered":
       return "🥀";
     case "today":

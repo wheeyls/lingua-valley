@@ -1,7 +1,7 @@
 /**
- * Story-telling objective — Marisol's seed conversation (at the seed farm).
+ * Story-telling objective — Jackie's seed conversation (at the seed farm).
  *
- * Marisol recounts a couple of things she did today in the past tense and hands
+ * Jackie recounts a couple of things she did today in the past tense and hands
  * over this week's seed. The player just has to understand; her story is captured
  * as `storyText` output so the retell objective can quiz against it.
  *
@@ -13,7 +13,7 @@ import type { Lesson } from "./lesson.js";
 
 export class StoryTelling implements Objective {
   readonly id = "story-telling";
-  readonly npcId = "marisol";
+  readonly npcId = "jackie";
   readonly role = "seeds" as const;
   readonly dependsOn: string[] = [];
 

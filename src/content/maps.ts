@@ -12,7 +12,7 @@
 
 import type { GameMap, MapNpc, MapDoor } from "../domain/gameMap.js";
 import { STREET_BG, HOME_BG, PRACTICE_BG } from "./art.js";
-import { CURRENT_AREA, visibleLocations, findNpc, type Location } from "./world.js";
+import { visibleLocations, findNpc, type Area, type Location } from "./world.js";
 
 export const HUB_MAP_ID = "hub";
 
@@ -52,25 +52,35 @@ function locationRoom(loc: Location): GameMap {
   };
 }
 
-/** The hub: a door card per location (the Field + Station are extra cards). */
-export const HUB: GameMap = {
-  id: HUB_MAP_ID,
-  name: CURRENT_AREA.name,
-  backgroundSvg: STREET_BG,
-  entities: visibleLocations().map((loc) => ({
-    id: `${loc.id}-door`,
-    kind: "door" as const,
-    targetMapId: loc.id,
-    unlockedBy: [],
-    label: `${loc.icon} ${loc.name}`,
-  })),
-};
+/**
+ * Build the hub + all location rooms for a given campaign area. Instantiable
+ * per campaign so a new area (different place, different NPCs) needs no
+ * changes here — just a new `Area` passed in.
+ */
+export function buildMaps(area: Area): {
+  hub: GameMap;
+  all: Record<string, GameMap>;
+  getMap(id: string): GameMap | undefined;
+} {
+  const locations = visibleLocations(area);
 
-export const ALL_MAPS: Record<string, GameMap> = {
-  [HUB.id]: HUB,
-  ...Object.fromEntries(visibleLocations().map((loc) => [loc.id, locationRoom(loc)])),
-};
+  const hub: GameMap = {
+    id: HUB_MAP_ID,
+    name: area.name,
+    backgroundSvg: STREET_BG,
+    entities: locations.map((loc) => ({
+      id: `${loc.id}-door`,
+      kind: "door" as const,
+      targetMapId: loc.id,
+      unlockedBy: [],
+      label: `${loc.icon} ${loc.name}`,
+    })),
+  };
 
-export function getMap(id: string): GameMap | undefined {
-  return ALL_MAPS[id];
+  const all: Record<string, GameMap> = {
+    [hub.id]: hub,
+    ...Object.fromEntries(locations.map((loc) => [loc.id, locationRoom(loc)])),
+  };
+
+  return { hub, all, getMap: (id: string) => all[id] };
 }

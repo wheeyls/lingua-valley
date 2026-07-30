@@ -28,7 +28,7 @@ export class SupabasePlayerRepository implements PlayerStateRepository {
       this.sb.from("profiles").select("id,display_name,avatar_color").eq("id", this.userId).maybeSingle(),
       this.sb
         .from("player_state")
-        .select("user_id,money,field,inventory,daily")
+        .select("user_id,money,field,foliage,inventory,daily")
         .eq("user_id", this.userId)
         .maybeSingle(),
     ]);
