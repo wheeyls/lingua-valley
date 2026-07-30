@@ -2,7 +2,7 @@
  * Objective system — code-driven, composable, dependency-aware.
  *
  * An Objective is a unit of daily practice (e.g. "greet Rosa", "listen to
- * Marisol's story", "retell the story to Pablo"). Each objective:
+ * Jackie's story", "retell the story to Jorgito"). Each objective:
  *   - is tied to an NPC
  *   - has a theme/instructions for the LLM conversation
  *   - can DEPEND on other objectives (won't activate until deps are complete)
@@ -67,7 +67,7 @@ export interface Objective {
   buildTheme(ctx: ObjectiveContext): string;
 
   /**
-   * Extract outputs from a completed conversation (e.g. the story Marisol told).
+   * Extract outputs from a completed conversation (e.g. the story Jackie told).
    * `npcLines` is every line the NPC spoke during the conversation.
    * Returns key-value outputs that downstream objectives can consume.
    */

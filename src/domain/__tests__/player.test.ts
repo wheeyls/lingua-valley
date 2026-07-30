@@ -174,7 +174,7 @@ describe("applyActivity — authoritative side-effects", () => {
   });
 });
 
-describe("applyActivity — foliage (Jorge's bonus, independent practice)", () => {
+describe("applyActivity — foliage (Arlene's bonus, independent practice)", () => {
   it("auto-plants and blooms the foliage row in one action (no separate seed step)", () => {
     const res = applyActivity(initialPlayerState("T", 1), activity({ role: "foliage" }), NOW);
     expect(res.grownFoliage).toBe(1);

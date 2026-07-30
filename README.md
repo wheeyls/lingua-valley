@@ -8,13 +8,10 @@ daily rhythm and a goal: earn money, buy a train ticket, move to the next town.
 
 ## The farming loop
 
-1. **Get seeds** from **Don Semilla** at *La Granja de Semillas* — an intro
-   conversation that sets this week's lesson and plants one crop.
-2. **Water daily** at *La Plaza* — the daily practice conversation. **Marisol**
-   tells you a story, then you retell it to **Pablo**; finishing the practice
-   grows every crop **+1 unit**, gated to once per day. (A location can host a
-   single NPC or a two-person story→retell pair; the current campaign uses the
-   pair.)
+1. **Get seeds** at *La Granja de Semillas* — **Jackie** tells you a story
+   about her day; understanding it sets this week's lesson and plants one crop.
+2. **Water daily** at *La Plaza* — retell Jackie's story to **Jorgito**;
+   finishing the practice grows every crop **+1 unit**, gated to once per day.
 3. **Sell the harvest** to **Doña Tienda** at *La Tienda* after ~5 days — a
    review conversation that pays out **money**.
 4. **Buy a train ticket** at the station to reach the next town.

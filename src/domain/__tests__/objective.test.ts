@@ -12,33 +12,33 @@ const LESSON: Lesson = {
   canDo: "understand and retell a simple past-tense story",
   vocab: [{ es: "fui", en: "I went" }],
   storyTheme: "Tell the player two things you did today.",
-  retellTheme: "Ask the player to retell Marisol's story.",
+  retellTheme: "Ask the player to retell Jackie's story.",
   reviewTheme: "Ask the player about their day.",
 };
 
 describe("ObjectiveGraph (farming loop, paired practice)", () => {
   it("registers the story/retell pair and store by id/npc/role", () => {
     const g = buildDailyGraph(LESSON);
-    expect(g.forNpc("marisol")?.id).toBe("story-telling");
-    expect(g.forNpc("marisol")?.role).toBe("seeds");
-    expect(g.forNpc("pablo")?.id).toBe("story-retell");
-    expect(g.forNpc("pablo")?.role).toBe("water");
+    expect(g.forNpc("jackie")?.id).toBe("story-telling");
+    expect(g.forNpc("jackie")?.role).toBe("seeds");
+    expect(g.forNpc("jorgito")?.id).toBe("story-retell");
+    expect(g.forNpc("jorgito")?.role).toBe("water");
     expect(g.forNpc("shopkeeper")?.id).toBe("store-review");
     expect(g.all()).toHaveLength(4);
   });
 
-  it("registers Jorge's foliage objective as independent and bonus", () => {
+  it("registers Arlene's foliage objective as independent and bonus", () => {
     const g = buildDailyGraph(LESSON);
-    const jorge = g.forNpc("jorge");
-    expect(jorge?.id).toBe("foliage-gathering");
-    expect(jorge?.role).toBe("foliage");
-    expect(jorge?.dependsOn).toEqual([]);
-    expect(jorge?.bonus).toBe(true);
+    const arlene = g.forNpc("arlene");
+    expect(arlene?.id).toBe("foliage-gathering");
+    expect(arlene?.role).toBe("foliage");
+    expect(arlene?.dependsOn).toEqual([]);
+    expect(arlene?.bonus).toBe(true);
     // Available from the start, with no dependency on the story/retell chain.
     expect(g.isAvailable("foliage-gathering", {})).toBe(true);
     // Has its own can-do/vocab, distinct from the lesson's past-tense content.
-    expect(jorge?.canDo).toMatch(/ir a|plans/i);
-    expect(jorge?.vocab?.length ?? 0).toBeGreaterThan(0);
+    expect(arlene?.canDo).toMatch(/ir a|plans/i);
+    expect(arlene?.vocab?.length ?? 0).toBeGreaterThan(0);
   });
 
   it("the retell objective depends on the story being told first", () => {

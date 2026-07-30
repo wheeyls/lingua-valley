@@ -56,7 +56,7 @@ export interface PlayerState {
   field: Garden;
 
   /**
-   * The foliage garden — greenery gathered from Jorge's bonus daily
+   * The foliage garden — greenery gathered from Arlene's bonus daily
    * conversation, grown in parallel with `field` (same 7-day row mechanic).
    */
   foliage: Garden;
@@ -255,7 +255,7 @@ export function applyActivity(
     if (watered.bloomed) daily = claimRole(daily, "water", now);
   }
 
-  // FOLIAGE: Jorge's bonus practice — plants (if needed) and blooms today's
+  // FOLIAGE: Arlene's bonus practice — plants (if needed) and blooms today's
   // foliage in one action, once per day. Independent of seeds/water.
   if (activity.role === "foliage" && roleEarnsReward(prev.daily, "foliage")) {
     if (needsSeed(foliage, day)) foliage = plantRow(foliage, day);

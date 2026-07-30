@@ -123,21 +123,21 @@ describe("the garden fills over a week of watering", () => {
   });
 });
 
-describe("Jorge's foliage — independent, bonus daily practice", () => {
+describe("Arlene's foliage — independent, bonus daily practice", () => {
   it("grows the foliage garden without needing seeds/water first, and doesn't gate them", async () => {
     const adapters = makeAdapters("test");
     const player = newPlayer(adapters);
     await player.init();
     adapters.fakes!.grader.setDefault({ communication: 0.9, accuracy: 0.9 });
 
-    // Visit Jorge before Marisol/Pablo — nothing else has happened yet.
-    const jorge = sessionFor(adapters, player, "foliage", "foliage-gathering");
-    jorge.begin("¡Hola!");
-    const outcome = await jorge.submit("Voy a estudiar esta tarde.");
+    // Visit Arlene before Jackie/Jorgito — nothing else has happened yet.
+    const arlene = sessionFor(adapters, player, "foliage", "foliage-gathering");
+    arlene.begin("¡Hola!");
+    const outcome = await arlene.submit("Voy a estudiar esta tarde.");
 
     expect(outcome.applied.grownFoliage).toBe(1);
     expect(totalBlooms(player.getState().foliage)).toBe(1);
-    // The flower field is untouched — Jorge doesn't gate or feed it.
+    // The flower field is untouched — Arlene doesn't gate or feed it.
     expect(player.getState().field.rows).toHaveLength(0);
   });
 
@@ -154,9 +154,9 @@ describe("Jorge's foliage — independent, bonus daily practice", () => {
     water.begin("¡Hola!");
     await water.submit("Hola, ¿cómo estás?");
 
-    const jorge = sessionFor(adapters, player, "foliage", "foliage-gathering");
-    jorge.begin("¡Hola!");
-    await jorge.submit("Vamos a salir el fin de semana.");
+    const arlene = sessionFor(adapters, player, "foliage", "foliage-gathering");
+    arlene.begin("¡Hola!");
+    await arlene.submit("Vamos a salir el fin de semana.");
 
     expect(totalBlooms(player.getState().field)).toBe(1);
     expect(totalBlooms(player.getState().foliage)).toBe(1);

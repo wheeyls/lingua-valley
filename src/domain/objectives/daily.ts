@@ -1,8 +1,8 @@
 /**
  * Build the daily objective graph for a lesson.
  *
- * Marisol tells a story + hands over the seed (role "seeds", plants the row);
- * Pablo retells it (role "water", waters the field) and DEPENDS on Marisol's
+ * Jackie tells a story + hands over the seed (role "seeds", plants the row);
+ * Jorgito retells it (role "water", waters the field) and DEPENDS on Jackie's
  * story. Store review stays registered but is hidden in the UI. Pure factory.
  */
 
@@ -17,7 +17,7 @@ export function buildDailyGraph(lesson: Lesson): ObjectiveGraph {
   return new ObjectiveGraph()
     .register(new StoryTelling(lesson))
     .register(new StoryRetell(lesson))
-    // Foliage: Jorge's independent, bonus daily practice (near-future plans).
+    // Foliage: Arlene's independent, bonus daily practice (near-future plans).
     .register(new FoliageGathering())
     .register(new StoreReview(lesson));
 }

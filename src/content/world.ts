@@ -5,9 +5,9 @@
  * handful of LOCATIONS you click into:
  *
  *   - Field        — your crops (rendered live from player state, not an NPC).
- *   - Seed farm    — Marisol tells her story and hands over this week's seed;
+ *   - Seed farm    — Jackie tells her story and hands over this week's seed;
  *                    plants this week's crop.
- *   - Practice     — retell Marisol's story to Pablo. Waters the field.
+ *   - Practice     — retell Jackie's story to Jorgito. Waters the field.
  *   - Store        — review conversation; sells the harvest for money.
  *   - Station      — buy a train ticket to the next campaign (live card).
  *
@@ -81,16 +81,16 @@ export const PUEBLO_DEL_AYER: Area = {
       name: "La Granja de Semillas",
       role: "seeds",
       icon: "🌱",
-      blurb: "Hear Marisol's story and take home this week's seed.",
-      npcIds: ["marisol"],
+      blurb: "Hear Jackie's story and take home this week's seed.",
+      npcIds: ["jackie"],
     },
     {
       id: "plaza",
       name: "La Plaza",
       role: "water",
       icon: "💧",
-      blurb: "Retell Marisol's story to Pablo. Waters your field.",
-      npcIds: ["pablo"],
+      blurb: "Retell Jackie's story to Jorgito. Waters your field.",
+      npcIds: ["jorgito"],
     },
     {
       id: "store",
@@ -106,14 +106,14 @@ export const PUEBLO_DEL_AYER: Area = {
       name: "El Bosque",
       role: "foliage",
       icon: "🍃",
-      blurb: "Gather greenery with Jorge for this week's bouquet.",
-      npcIds: ["jorge"],
+      blurb: "Gather greenery with Arlene for this week's bouquet.",
+      npcIds: ["arlene"],
     },
   ],
   npcs: [
     {
-      id: "marisol",
-      name: "Marisol",
+      id: "jackie",
+      name: "Jackie",
       color: 0x2a9d8f,
       voice: "nova",
       conversation: {
@@ -122,24 +122,24 @@ export const PUEBLO_DEL_AYER: Area = {
       lines: [
         {
           level: "A2",
-          es: "👂 Escucha la historia de Marisol",
-          en: "Marisol will tell you what she did today. Listen and understand her story. Tap 'Talk' to begin.",
+          es: "👂 Escucha la historia de Jackie",
+          en: "Jackie will tell you what she did today. Listen and understand her story. Tap 'Talk' to begin.",
         },
       ],
     },
     {
-      id: "pablo",
-      name: "Pablo",
+      id: "jorgito",
+      name: "Jorgito",
       color: 0x3d5a80,
       voice: "echo",
       conversation: {
-        opener: "Oye, ¿qué hizo Marisol hoy? Cuéntame.",
+        opener: "Oye, ¿qué hizo Jackie hoy? Cuéntame.",
       },
       lines: [
         {
           level: "A2",
-          es: "🗣️ Cuéntale a Pablo la historia",
-          en: "Retell what Marisol did, in the past tense. Finishing this waters your field. Tap 'Talk' to begin.",
+          es: "🗣️ Cuéntale a Jorgito la historia",
+          en: "Retell what Jackie did, in the past tense. Finishing this waters your field. Tap 'Talk' to begin.",
         },
       ],
     },
@@ -160,8 +160,8 @@ export const PUEBLO_DEL_AYER: Area = {
       ],
     },
     {
-      id: "jorge",
-      name: "Jorge",
+      id: "arlene",
+      name: "Arlene",
       color: 0x6b8f47,
       voice: "alloy",
       conversation: {
@@ -170,8 +170,8 @@ export const PUEBLO_DEL_AYER: Area = {
       lines: [
         {
           level: "A2",
-          es: "🍃 Reúne follaje con Jorge",
-          en: "Chat with Jorge about your plans — today, this week, or the weekend. Gathers greenery for this week's bouquet. Tap 'Talk' to begin.",
+          es: "🍃 Reúne follaje con Arlene",
+          en: "Chat with Arlene about your plans — today, this week, or the weekend. Gathers greenery for this week's bouquet. Tap 'Talk' to begin.",
         },
       ],
     },

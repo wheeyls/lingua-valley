@@ -1,5 +1,5 @@
 /**
- * Foliage-gathering objective — Jorge, the bonus daily conversation.
+ * Foliage-gathering objective — Arlene, the bonus daily conversation.
  *
  * Independent of the week's story/retell chain (no `dependsOn`) and doesn't
  * gate "day complete" (`bonus = true`) — it's extra practice, not a required
@@ -33,7 +33,7 @@ const VOCAB: LessonVocab[] = [
 
 export class FoliageGathering implements Objective {
   readonly id = "foliage-gathering";
-  readonly npcId = "jorge";
+  readonly npcId = "arlene";
   readonly role = "foliage" as const;
   readonly dependsOn: string[] = [];
   readonly bonus = true;
@@ -44,7 +44,7 @@ export class FoliageGathering implements Objective {
 
   buildTheme(_ctx: ObjectiveContext): string {
     return (
-      "You are Jorge, a cheerful gardener gathering greenery and filler for " +
+      "You are Arlene, a cheerful gardener gathering greenery and filler for " +
       "the village's shared weekly bouquet. Chat with the player about their " +
       "PLANS — what they're going to do today, this week, or this weekend — " +
       "using 'ir a + infinitivo' (voy a…, vas a…, vamos a…). Ask '¿Qué vas a " +

@@ -6,8 +6,8 @@
  * stays pure; this is wiring + presentation.
  *
  * The loop:
- *   - Marisol at the seed farm (seeds) → plant a new 7-day garden row.
- *   - Pablo at La Plaza (water, daily) → bloom today's plant; a skipped day withers it.
+ *   - Jackie at the seed farm (seeds) → plant a new 7-day garden row.
+ *   - Jorgito at La Plaza (water, daily) → bloom today's plant; a skipped day withers it.
  *   - Doña Tienda (store) → a graded review that pays money.
  */
 
@@ -99,7 +99,7 @@ export class GameController {
 
     const now = new Date();
     const hours = hoursUntilNextDay(state.daily, now);
-    // Bonus objectives (e.g. Jorge's foliage) don't gate "day complete".
+    // Bonus objectives (e.g. Arlene's foliage) don't gate "day complete".
     const requiredObjectives = activeObjectives.filter((obj) => !obj.bonus);
     const allClaimed = requiredObjectives.every((obj) => objState[obj.id] != null);
     this.worldView.updateDailyStatus({
@@ -148,8 +148,8 @@ export class GameController {
     const cells = grid(field, today).map((row) => row.map((c) => cellEmoji(c, "🌸")));
     const hint = needsSeed(field, today)
       ? field.rows.length === 0
-        ? "Hear Marisol's story at the seed farm to plant your first row"
-        : "Row done! Hear Marisol's next story for the next row"
+        ? "Hear Jackie's story at the seed farm to plant your first row"
+        : "Row done! Hear Jackie's next story for the next row"
       : `${bloomsThisRow(field, today)}/${ROW_LENGTH} bloomed — water daily at La Plaza`;
 
     return {
@@ -167,7 +167,7 @@ export class GameController {
     const today = appDay(this.adapters.clock.now());
     const cells = grid(foliage, today).map((row) => row.map((c) => cellEmoji(c, "🍃")));
     const hint = needsSeed(foliage, today)
-      ? "Visit Jorge at El Bosque to start gathering greenery"
+      ? "Visit Arlene at El Bosque to start gathering greenery"
       : `${bloomsThisRow(foliage, today)}/${ROW_LENGTH} gathered — bonus practice, any time`;
 
     return {
@@ -176,7 +176,7 @@ export class GameController {
       label: "Your foliage",
       hint,
       grid: cells,
-      onTap: () => this.toast("🍃 Talk to Jorge at El Bosque any time for a bonus practice rep."),
+      onTap: () => this.toast("🍃 Talk to Arlene at El Bosque any time for a bonus practice rep."),
     };
   }
 
@@ -188,8 +188,8 @@ export class GameController {
     if (needsSeed(field, today)) {
       this.toast(
         field.rows.length === 0
-          ? "🌱 Visit Marisol at the seed farm to plant your first row."
-          : "🌱 This week's row is complete — hear Marisol's next story for the next one.",
+          ? "🌱 Visit Jackie at the seed farm to plant your first row."
+          : "🌱 This week's row is complete — hear Jackie's next story for the next one.",
       );
       return;
     }
