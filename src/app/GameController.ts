@@ -26,6 +26,8 @@ import { grid, needsSeed, bloomsThisRow, ROW_LENGTH, type CellState } from "../d
 import { hoursUntilNextDay, type DailyRole } from "../domain/dailyLoop";
 import { settleDailyState, type ApplyResult } from "../domain/player";
 import { appDay } from "../domain/time";
+import { currentCheckpointSunday } from "../domain/checkpoint";
+import { getMyGroupId } from "../net/groupMembership";
 import { ConversationSession } from "./ConversationSession";
 import type { PlayerService } from "./PlayerService";
 import type { Adapters } from "./adapters";
@@ -57,12 +59,26 @@ export class GameController {
     this.worldView.setUser(user.displayName, () => {
       void this.adapters.auth.signOut().then(() => window.location.reload());
     });
+    if (!user.isGuest) void this.setupCheckpointLink(user.id);
 
     if (this.adapters.fakes) this.setupDevPanel();
 
     this.render();
     // Keep the reset countdown fresh.
     setInterval(() => this.render(), 60_000);
+  }
+
+  /**
+   * Look up the signed-in user's group and, if found, show a link to this
+   * week's checkpoint in the HUD. A never-blocking best-effort — no group
+   * (guest/local-fakes, or a backend hiccup) just means no link.
+   */
+  private async setupCheckpointLink(userId: string) {
+    const groupId = await getMyGroupId(userId);
+    if (!groupId) return;
+    const today = appDay(this.adapters.clock.now());
+    const sunday = currentCheckpointSunday(today);
+    this.worldView.setCheckpointLink(`/organizations/${groupId}/checkpoints/${sunday}`);
   }
 
   // --- Rendering ------------------------------------------------------------

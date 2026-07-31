@@ -1,10 +1,15 @@
 /**
  * Checkpoints — a group's weekly bloom review.
  *
- * A checkpoint "exists" on every Sunday. Its page sums each group member's
- * blooms over the 7 days ending the night before that Sunday, giving a TEAM
- * snapshot rather than an individual ranking. There are no streaks here: the
- * reward is helping the group put up a good week, not personal glory.
+ * A checkpoint is identified by the Sunday that ENDS its week. Its page sums
+ * each group member's blooms over that Monday–Sunday week (inclusive of the
+ * Sunday itself), giving a TEAM snapshot rather than an individual ranking.
+ * There are no streaks here: the reward is helping the group put up a good
+ * week, not personal glory.
+ *
+ * The "latest" checkpoint is the week containing today — which may still be
+ * in progress. That's fine: `bloomsInWeek` only counts days that actually
+ * happened, so a week isn't "wrong" until it's over, it's just partial.
  *
  * Blooms are recorded per Pacific calendar day by the garden (the app timezone;
  * see time.ts), so the checkpoint week is a set of 7 Pacific date strings and
@@ -15,7 +20,7 @@
 
 import type { Garden } from "./garden.js";
 
-/** Days reviewed by one checkpoint (its own Sunday excluded). */
+/** Days reviewed by one checkpoint (Monday through its own Sunday, inclusive). */
 export const CHECKPOINT_WINDOW_DAYS = 7;
 
 /** The YYYY-MM-DD `n` days from `day` (UTC). */
@@ -37,27 +42,42 @@ export function isCheckpointSunday(day: string): boolean {
 }
 
 export interface CheckpointWeek {
-  /** The checkpoint Sunday (the exclusive end of the window). */
+  /** The checkpoint Sunday (the inclusive end of the window). */
   sunday: string;
-  /** First day counted — the previous Sunday (S-7). */
+  /** First day counted — the Monday of this week (S-6). */
   start: string;
-  /** Last day counted — the Saturday before the checkpoint (S-1). */
+  /** Last day counted — the checkpoint Sunday itself (S-0). */
   end: string;
-  /** The 7 UTC date strings [start..end], Sunday→Saturday. */
+  /** The 7 UTC date strings [start..end], Monday→Sunday. */
   days: string[];
 }
 
 /**
- * The window a checkpoint reviews: the previous Sunday through the Saturday
- * before the checkpoint Sunday, i.e. [S-7 .. S-1]. The checkpoint's own Sunday
- * is excluded (it belongs to the next week). Assumes `sunday` is a Sunday —
- * validate with isCheckpointSunday first.
+ * The window a checkpoint reviews: the Monday through the Sunday itself,
+ * i.e. [S-6 .. S]. Assumes `sunday` is a Sunday — validate with
+ * isCheckpointSunday first.
  */
 export function checkpointWeek(sunday: string): CheckpointWeek {
   const days = Array.from({ length: CHECKPOINT_WINDOW_DAYS }, (_, i) =>
-    addDays(sunday, i - CHECKPOINT_WINDOW_DAYS),
+    addDays(sunday, i - (CHECKPOINT_WINDOW_DAYS - 1)),
   );
   return { sunday, start: days[0], end: days[days.length - 1], days };
+}
+
+/**
+ * The Sunday ending the Monday–Sunday week that contains `today` — the
+ * "latest" checkpoint. May be a few days in the future relative to `today`
+ * (if today isn't a Sunday yet); that's fine, the week is just still in
+ * progress.
+ */
+export function currentCheckpointSunday(today: string): string {
+  const untilSunday = (7 - weekday(today)) % 7;
+  return addDays(today, untilSunday);
+}
+
+/** Shift a checkpoint's anchor Sunday by whole weeks (+forward, -backward). */
+export function shiftCheckpointWeek(sunday: string, weeks: number): string {
+  return addDays(sunday, weeks * CHECKPOINT_WINDOW_DAYS);
 }
 
 /** How many blooms a garden recorded within the given set of days. */

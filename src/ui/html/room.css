@@ -45,6 +45,23 @@
   white-space: nowrap;
 }
 
+/* Checkpoint link in the HUD bar (sits just left of the user block) */
+.hud-checkpoint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(155, 201, 149, 0.16);
+  border: 1px solid #9bc995;
+  font-size: 16px;
+  text-decoration: none;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.hud-checkpoint:active { opacity: 0.7; }
+
 /* User + logout in the HUD bar */
 .hud-user {
   display: flex;
