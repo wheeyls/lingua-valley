@@ -15,7 +15,8 @@ import { HtmlForgotPasswordView } from "./ui/html/HtmlForgotPasswordView";
 import { HtmlResetPasswordView } from "./ui/html/HtmlResetPasswordView";
 import { getSupabase, getAccessToken } from "./net/supabaseClient";
 import { SupabaseAuthGateway } from "./net/SupabaseAuthGateway";
-import { isCheckpointSunday } from "./domain/checkpoint";
+import { isCheckpointSunday, currentCheckpointSunday, shiftCheckpointWeek } from "./domain/checkpoint";
+import { appDay } from "./domain/time";
 
 async function main() {
   const path = window.location.pathname;
@@ -76,7 +77,7 @@ async function main() {
     const groupId = decodeURIComponent(checkpointMatch[1]);
     const date = decodeURIComponent(checkpointMatch[2]);
     if (!isCheckpointSunday(date)) {
-      document.body.innerHTML = '<div style="color:#f4ecd8;font-family:sans-serif;padding:40px;text-align:center"><h2>Not found</h2></div>';
+      new HtmlCheckpointView().showError("No checkpoint here.");
       return;
     }
     const app = await composeApp();
@@ -186,9 +187,17 @@ async function showLeaderboard() {
   }
 }
 
-/** Fetch + render a group's weekly checkpoint (assumes a signed-in session). */
-async function showCheckpoint(groupId: string, date: string) {
-  const view = new HtmlCheckpointView();
+/**
+ * Fetch + render a group's weekly checkpoint (assumes a signed-in session).
+ * Reuses `view` across Previous/Next/Jump-to-latest navigation instead of
+ * creating a new overlay each time.
+ */
+async function showCheckpoint(
+  groupId: string,
+  date: string,
+  view: HtmlCheckpointView = new HtmlCheckpointView(),
+) {
+  view.showLoading();
   try {
     const token = await getAccessToken();
     const res = await fetch(
@@ -208,14 +217,25 @@ async function showCheckpoint(groupId: string, date: string) {
       totalFoliage: number;
       rows: { displayName: string; avatarColor: number; blooms: number; foliage: number }[];
     };
-    view.render({
-      groupName: raw.group.name,
-      start: raw.start,
-      end: raw.end,
-      totalBlooms: raw.totalBlooms,
-      totalFoliage: raw.totalFoliage,
-      rows: raw.rows,
-    });
+    const today = appDay(new Date());
+    const latestSunday = currentCheckpointSunday(today);
+    history.replaceState(null, "", `/organizations/${groupId}/checkpoints/${date}`);
+    view.render(
+      {
+        groupName: raw.group.name,
+        start: raw.start,
+        end: raw.end,
+        totalBlooms: raw.totalBlooms,
+        totalFoliage: raw.totalFoliage,
+        rows: raw.rows,
+        isLatest: date === latestSunday,
+      },
+      {
+        onPrevWeek: () => void showCheckpoint(groupId, shiftCheckpointWeek(date, -1), view),
+        onNextWeek: () => void showCheckpoint(groupId, shiftCheckpointWeek(date, 1), view),
+        onJumpToLatest: () => void showCheckpoint(groupId, latestSunday, view),
+      },
+    );
   } catch (err) {
     view.showError(err instanceof Error ? err.message : "Could not load checkpoint");
   }

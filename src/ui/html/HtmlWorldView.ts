@@ -97,6 +97,29 @@ export class HtmlWorldView {
     if (info) info.textContent = `💰 ${money}`;
   }
 
+  /**
+   * Show (or hide, when `url` is null) a link to this week's group checkpoint
+   * in the HUD bar, just left of the user/logout block.
+   */
+  setCheckpointLink(url: string | null) {
+    const existing = this.barEl.querySelector(".hud-checkpoint") as HTMLAnchorElement | null;
+    if (!url) {
+      existing?.remove();
+      return;
+    }
+    let linkEl = existing;
+    if (!linkEl) {
+      linkEl = document.createElement("a");
+      linkEl.className = "hud-checkpoint";
+      linkEl.title = "This week's checkpoint";
+      linkEl.textContent = "💐";
+      const userEl = this.barEl.querySelector(".hud-user");
+      if (userEl) this.barEl.insertBefore(linkEl, userEl);
+      else this.barEl.appendChild(linkEl);
+    }
+    linkEl.href = url;
+  }
+
   /** Show the current user email + logout button in the HUD bar. */
   setUser(displayName: string, onLogout: () => void) {
     let userEl = this.barEl.querySelector(".hud-user") as HTMLElement | null;
@@ -143,11 +166,24 @@ export class HtmlWorldView {
   destroy() { this.root.remove(); }
 
   private renderRoom(map: GameMap, objState: ObjectiveState, completedNpcIds: Set<string> = new Set()) {
-    // Top bar
-    this.barEl.innerHTML = `
-      <span class="room-name">${map.name}</span>
-      <span class="hud-info"></span>
-    `;
+    // Top bar — update the per-room bits (name) in place rather than
+    // resetting the whole bar's innerHTML, so persistent overlay children
+    // appended elsewhere (.hud-info, .hud-checkpoint, .hud-user, .hud-daily)
+    // survive across the multiple renderRoom calls one GameController.render()
+    // triggers (loadMap/setExtraCards/setDoorStatus each call this).
+    let nameEl = this.barEl.querySelector(".room-name") as HTMLElement | null;
+    if (!nameEl) {
+      nameEl = document.createElement("span");
+      nameEl.className = "room-name";
+      this.barEl.insertBefore(nameEl, this.barEl.firstChild);
+    }
+    nameEl.textContent = map.name;
+
+    if (!this.barEl.querySelector(".hud-info")) {
+      const infoEl = document.createElement("span");
+      infoEl.className = "hud-info";
+      this.barEl.insertBefore(infoEl, nameEl.nextSibling);
+    }
 
     // Background: full-bleed SVG behind the cards
     const existingBg = this.root.querySelector(".room-bg");

@@ -10,9 +10,11 @@ export const config = { api: { bodyParser: { sizeLimit: "1mb" } } };
  * Auth: Bearer <supabase access token>
  *
  * A group's weekly bloom checkpoint. `date` must be a Sunday (else 404). Sums
- * every group member's blooms over the 7 days ending the night before that
- * Sunday and returns the per-member tally + the group total. Reads use the
- * service role so it can see all members' rows (RLS otherwise scopes to self).
+ * every group member's blooms over the Monday–Sunday week ending on that
+ * Sunday (inclusive) and returns the per-member tally + the group total.
+ * `date` may be today's still-in-progress week — days not yet lived simply
+ * haven't recorded blooms. Reads use the service role so it can see all
+ * members' rows (RLS otherwise scopes to self).
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
