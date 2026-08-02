@@ -22,9 +22,9 @@
 import type { ObjectiveState } from "./objective.js";
 import { appDay } from "./time.js";
 
-export type DailyRole = "seeds" | "water" | "store" | "foliage";
+export type DailyRole = "seeds" | "water" | "store" | "foliage" | "ribbons";
 
-export const DAILY_ROLES: DailyRole[] = ["seeds", "water", "store", "foliage"];
+export const DAILY_ROLES: DailyRole[] = ["seeds", "water", "store", "foliage", "ribbons"];
 
 export const DAY_COOLDOWN_MS = 12 * 60 * 60 * 1000; // 12 hours
 

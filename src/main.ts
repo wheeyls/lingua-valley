@@ -215,7 +215,14 @@ async function showCheckpoint(
       end: string;
       totalBlooms: number;
       totalFoliage: number;
-      rows: { displayName: string; avatarColor: number; blooms: number; foliage: number }[];
+      totalRibbons: number;
+      rows: {
+        displayName: string;
+        avatarColor: number;
+        blooms: number;
+        foliage: number;
+        ribbons: number;
+      }[];
     };
     const today = appDay(new Date());
     const latestSunday = currentCheckpointSunday(today);
@@ -227,6 +234,7 @@ async function showCheckpoint(
         end: raw.end,
         totalBlooms: raw.totalBlooms,
         totalFoliage: raw.totalFoliage,
+        totalRibbons: raw.totalRibbons,
         rows: raw.rows,
         isLatest: date === latestSunday,
       },

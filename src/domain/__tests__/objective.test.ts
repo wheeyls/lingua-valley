@@ -24,7 +24,7 @@ describe("ObjectiveGraph (farming loop, paired practice)", () => {
     expect(g.forNpc("jorgito")?.id).toBe("story-retell");
     expect(g.forNpc("jorgito")?.role).toBe("water");
     expect(g.forNpc("shopkeeper")?.id).toBe("store-review");
-    expect(g.all()).toHaveLength(4);
+    expect(g.all()).toHaveLength(5);
   });
 
   it("registers Arlene's foliage objective as independent and bonus", () => {
@@ -39,6 +39,23 @@ describe("ObjectiveGraph (farming loop, paired practice)", () => {
     // Has its own can-do/vocab, distinct from the lesson's past-tense content.
     expect(arlene?.canDo).toMatch(/ir a|plans/i);
     expect(arlene?.vocab?.length ?? 0).toBeGreaterThan(0);
+  });
+
+  it("registers Maria's where-are-things objective as independent and bonus", () => {
+    const g = buildDailyGraph(LESSON);
+    const maria = g.forNpc("maria");
+    expect(maria?.id).toBe("where-are-things");
+    expect(maria?.role).toBe("ribbons");
+    expect(maria?.dependsOn).toEqual([]);
+    expect(maria?.bonus).toBe(true);
+    // Available from the start, with no dependency on the story/retell chain.
+    expect(g.isAvailable("where-are-things", {})).toBe(true);
+    // Has its own can-do/vocab, distinct from the lesson's past-tense content.
+    expect(maria?.canDo).toMatch(/prepositions|encima|debajo/i);
+    expect(maria?.vocab?.length ?? 0).toBeGreaterThan(0);
+    // buildTheme embeds today's concrete scene as ground truth for the LLM.
+    const theme = maria!.buildTheme({ inputs: {}, state: {}, today: "2026-07-30" });
+    expect(theme).toContain("está delante de la puerta");
   });
 
   it("the retell objective depends on the story being told first", () => {
@@ -58,13 +75,15 @@ describe("ObjectiveGraph (farming loop, paired practice)", () => {
 
     const inputs = g.gatherInputs("story-retell", s);
     expect(inputs.storyText).toContain("Compré pan");
-    const theme = g.get("story-retell")!.buildTheme({ inputs, state: s });
+    const theme = g.get("story-retell")!.buildTheme({ inputs, state: s, today: "2025-06-01" });
     expect(theme).toContain("Compré pan");
   });
 
   it("buildTheme weaves the lesson title into the store review", () => {
     const g = buildDailyGraph(LESSON);
-    expect(g.get("store-review")!.buildTheme({ inputs: {}, state: {} })).toContain(
+    expect(
+      g.get("store-review")!.buildTheme({ inputs: {}, state: {}, today: "2025-06-01" }),
+    ).toContain(
       "Talking about the past",
     );
   });

@@ -97,6 +97,8 @@ export interface CheckpointRow {
   blooms: number;
   /** Foliage gathered this week — the greenery half of the shared bouquet. */
   foliage: number;
+  /** Ribbons tied this week — the finishing touch on the shared bouquet. */
+  ribbons: number;
 }
 
 /** A group member's identity + gardens, as the checkpoint builder needs them. */
@@ -105,6 +107,7 @@ export interface CheckpointMember {
   avatarColor: number;
   garden: Garden;
   foliage: Garden;
+  ribbons: Garden;
 }
 
 export interface Checkpoint {
@@ -113,12 +116,14 @@ export interface Checkpoint {
   totalBlooms: number;
   /** Foliage the whole group gathered this week — the bouquet's greenery. */
   totalFoliage: number;
+  /** Ribbons the whole group tied this week — the bouquet's finishing touch. */
+  totalRibbons: number;
 }
 
 /**
- * Build the group checkpoint: each member's blooms + foliage for the week plus
- * the group totals — together, the shared bouquet. Ordered by contribution
- * then name — a team tally, not a glory board.
+ * Build the group checkpoint: each member's blooms + foliage + ribbons for
+ * the week plus the group totals — together, the shared bouquet. Ordered by
+ * contribution then name — a team tally, not a glory board.
  */
 export function buildCheckpoint(
   members: readonly CheckpointMember[],
@@ -130,9 +135,11 @@ export function buildCheckpoint(
       avatarColor: m.avatarColor,
       blooms: bloomsInWeek(m.garden, week.days),
       foliage: bloomsInWeek(m.foliage, week.days),
+      ribbons: bloomsInWeek(m.ribbons, week.days),
     }))
     .sort((a, b) => b.blooms - a.blooms || a.displayName.localeCompare(b.displayName));
   const totalBlooms = rows.reduce((n, r) => n + r.blooms, 0);
   const totalFoliage = rows.reduce((n, r) => n + r.foliage, 0);
-  return { rows, totalBlooms, totalFoliage };
+  const totalRibbons = rows.reduce((n, r) => n + r.ribbons, 0);
+  return { rows, totalBlooms, totalFoliage, totalRibbons };
 }

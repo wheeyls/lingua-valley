@@ -28,7 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const [profiles, states, activity] = await Promise.all([
       admin.from("profiles").select("id,display_name,avatar_color"),
-      admin.from("player_state").select("user_id,money,field,foliage,inventory,daily"),
+      admin.from("player_state").select("user_id,money,field,foliage,ribbons,inventory,daily"),
       admin.from("activity_log").select("user_id,created_at"),
     ]);
 

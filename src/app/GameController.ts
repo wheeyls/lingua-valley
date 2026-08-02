@@ -104,7 +104,9 @@ export class GameController {
     this.worldView.updateHud(state.money);
 
     this.worldView.setExtraCards(
-      this.currentMapId === HUB_MAP_ID ? [this.gardenCard(), this.foliageCard()] : [],
+      this.currentMapId === HUB_MAP_ID
+        ? [this.gardenCard(), this.foliageCard(), this.ribbonsCard()]
+        : [],
     );
 
     // On the hub, show each location's "who's left to talk to" status so the
@@ -196,6 +198,24 @@ export class GameController {
     };
   }
 
+  private ribbonsCard() {
+    const ribbons = this.player.getState().ribbons;
+    const today = appDay(this.adapters.clock.now());
+    const cells = grid(ribbons, today).map((row) => row.map((c) => cellEmoji(c, "🎀")));
+    const hint = needsSeed(ribbons, today)
+      ? "Visit Maria at La Sala to start finishing the bouquet"
+      : `${bloomsThisRow(ribbons, today)}/${ROW_LENGTH} tied — bonus practice, any time`;
+
+    return {
+      id: "ribbons",
+      icon: "🎀",
+      label: "Your ribbons",
+      hint,
+      grid: cells,
+      onTap: () => this.toast("🎀 Talk to Maria at La Sala any time for a bonus practice rep."),
+    };
+  }
+
   // --- Garden interactions --------------------------------------------------
 
   private onGardenTap() {
@@ -222,6 +242,7 @@ export class GameController {
       onWater: () => void this.devComplete("story-retell", "water"),
       onStore: () => void this.devComplete("store-review", "store"),
       onFoliage: () => void this.devComplete("foliage-gathering", "foliage"),
+      onRibbons: () => void this.devComplete("where-are-things", "ribbons"),
       onAdvanceDay: (n) => void this.devAdvanceDay(n),
     });
     this.updateDevStatus();
@@ -315,6 +336,7 @@ export class GameController {
     const theme = objective.buildTheme({
       inputs,
       state: this.player.getState().daily.objectiveState,
+      today: appDay(this.adapters.clock.now()),
     });
 
     const session = new ConversationSession(
@@ -379,10 +401,11 @@ export class GameController {
         const sold = outcome.applied.soldValue > 0 ? `+${outcome.applied.soldValue} 💰` : "";
         const grew = outcome.applied.grown > 0 ? "🌸 Your plant bloomed!" : "";
         const grewFoliage = outcome.applied.grownFoliage > 0 ? "🍃 Foliage gathered!" : "";
+        const grewRibbons = outcome.applied.grownRibbons > 0 ? "🎀 Ribbon tied!" : "";
         view.setFeedback(
           outcome.grade.feedback,
           corr,
-          [sold, grew, grewFoliage].filter(Boolean).join("  "),
+          [sold, grew, grewFoliage, grewRibbons].filter(Boolean).join("  "),
         );
 
         view.setNpcSpeech(outcome.npcReply);
@@ -420,6 +443,8 @@ export class GameController {
       this.toast("🌸 Your plant bloomed! Come back tomorrow to keep the streak.");
     } else if (role === "foliage" && applied.grownFoliage > 0) {
       this.toast("🍃 Gathered some foliage for the bouquet!");
+    } else if (role === "ribbons" && applied.grownRibbons > 0) {
+      this.toast("🎀 Tied a ribbon onto the bouquet!");
     }
   }
 

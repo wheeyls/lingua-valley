@@ -109,6 +109,14 @@ export const PUEBLO_DEL_AYER: Area = {
       blurb: "Gather greenery with Arlene for this week's bouquet.",
       npcIds: ["arlene"],
     },
+    {
+      id: "the-room",
+      name: "La Sala",
+      role: "ribbons",
+      icon: "🪑",
+      blurb: "Help Maria find where things are — and finish off the bouquet.",
+      npcIds: ["maria"],
+    },
   ],
   npcs: [
     {
@@ -172,6 +180,22 @@ export const PUEBLO_DEL_AYER: Area = {
           level: "A2",
           es: "🍃 Reúne follaje con Arlene",
           en: "Chat with Arlene about your plans — today, this week, or the weekend. Gathers greenery for this week's bouquet. Tap 'Talk' to begin.",
+        },
+      ],
+    },
+    {
+      id: "maria",
+      name: "Maria",
+      color: 0xd4a373,
+      voice: "fable",
+      conversation: {
+        opener: "¡Hola! Mira mi cuarto… ¿sabes dónde están las cosas hoy?",
+      },
+      lines: [
+        {
+          level: "A2",
+          es: "🪑 Adivina dónde están las cosas con Maria",
+          en: "Maria will ask where things are in her room — practice on top of / under, in front of / behind, left / right. Adds ribbons to this week's bouquet. Tap 'Talk' to begin.",
         },
       ],
     },

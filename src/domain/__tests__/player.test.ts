@@ -208,6 +208,42 @@ describe("applyActivity — foliage (Arlene's bonus, independent practice)", () 
   });
 });
 
+describe("applyActivity — ribbons (Maria's bonus, independent practice)", () => {
+  it("auto-plants and blooms the ribbons row in one action (no separate seed step)", () => {
+    const res = applyActivity(initialPlayerState("T", 1), activity({ role: "ribbons" }), NOW);
+    expect(res.grownRibbons).toBe(1);
+    expect(res.state.ribbons.rows).toHaveLength(1);
+    expect(totalBlooms(res.state.ribbons)).toBe(1);
+  });
+
+  it("blooms ribbons once per day — replays are idempotent", () => {
+    let s = applyActivity(initialPlayerState("T", 1), activity({ role: "ribbons" }), NOW).state;
+    const again = applyActivity(s, activity({ role: "ribbons" }), NOW);
+    expect(again.grownRibbons).toBe(0);
+    expect(totalBlooms(again.state.ribbons)).toBe(1);
+  });
+
+  it("does not touch the flower field, foliage, or gate day completion", () => {
+    const res = applyActivity(initialPlayerState("T", 1), activity({ role: "ribbons" }), NOW);
+    expect(res.state.field.rows).toHaveLength(0);
+    expect(res.state.foliage.rows).toHaveLength(0);
+    expect(res.grown).toBe(0);
+    expect(res.grownFoliage).toBe(0);
+    expect(res.planted).toBe(false);
+  });
+
+  it("grows independently of the flower field's seed/water state", () => {
+    // No seed planted for the flower field, but ribbons still grow.
+    const res = applyActivity(
+      initialPlayerState("T", 1),
+      activity({ objectiveId: "where-are-things", role: "ribbons" }),
+      NOW,
+    );
+    expect(res.state.field.rows).toHaveLength(0);
+    expect(totalBlooms(res.state.ribbons)).toBe(1);
+  });
+});
+
 describe("applyPlayerAction — buy ticket (authoritative)", () => {
   it("buys a ticket when affordable and not owned", () => {
     const s0: PlayerState = { ...initialPlayerState("T", 1), money: 100 };
@@ -262,6 +298,13 @@ describe("mergeStates (guest claim)", () => {
     const merged = mergeStates(account, guest);
     expect(totalBlooms(merged.foliage)).toBe(4);
   });
+
+  it("keeps the ribbons garden with more blooms, independent of field/foliage", () => {
+    const account: PlayerState = { ...initialPlayerState("Acct", 1), ribbons: bloomGarden(1) };
+    const guest: PlayerState = { ...initialPlayerState("Guest", 2), ribbons: bloomGarden(4) };
+    const merged = mergeStates(account, guest);
+    expect(totalBlooms(merged.ribbons)).toBe(4);
+  });
 });
 
 describe("normalizePlayerState (forward-compatible loads)", () => {
@@ -296,6 +339,14 @@ describe("normalizePlayerState (forward-compatible loads)", () => {
 
     const oldSave = normalizePlayerState({ field: bloomGarden(1) });
     expect(oldSave.foliage.rows).toEqual([]);
+  });
+
+  it("loads a saved ribbons garden, and defaults it when absent (old saves)", () => {
+    const withRibbons = normalizePlayerState({ ribbons: bloomGarden(2) });
+    expect(totalBlooms(withRibbons.ribbons)).toBe(2);
+
+    const oldSave = normalizePlayerState({ field: bloomGarden(1) });
+    expect(oldSave.ribbons.rows).toEqual([]);
   });
 
   it("returns a fresh state for garbage/null input", () => {

@@ -181,6 +181,65 @@ describe("Arlene's foliage — independent, bonus daily practice", () => {
   });
 });
 
+describe("Maria's ribbons — independent, bonus daily practice", () => {
+  it("grows the ribbons garden without needing seeds/water first, and doesn't gate them", async () => {
+    const adapters = makeAdapters("test");
+    const player = newPlayer(adapters);
+    await player.init();
+    adapters.fakes!.grader.setDefault({ communication: 0.9, accuracy: 0.9 });
+
+    // Visit Maria before Jackie/Jorgito/Arlene — nothing else has happened yet.
+    const maria = sessionFor(adapters, player, "ribbons", "where-are-things");
+    maria.begin("¡Hola!");
+    const outcome = await maria.submit("El gato está detrás de la puerta.");
+
+    expect(outcome.applied.grownRibbons).toBe(1);
+    expect(totalBlooms(player.getState().ribbons)).toBe(1);
+    // The flower field and foliage are untouched — Maria doesn't gate or feed them.
+    expect(player.getState().field.rows).toHaveLength(0);
+    expect(player.getState().foliage.rows).toHaveLength(0);
+  });
+
+  it("interleaves with the water role on the same day without interfering", async () => {
+    const adapters = makeAdapters("test");
+    const player = newPlayer(adapters);
+    await player.init();
+    adapters.fakes!.grader.setDefault({ communication: 0.9, accuracy: 0.9 });
+
+    const today = appDay(adapters.fakes!.clock.now());
+    await player.update((s) => ({ ...s, field: plantRow(s.field, today) }));
+
+    const water = sessionFor(adapters, player, "water");
+    water.begin("¡Hola!");
+    await water.submit("Hola, ¿cómo estás?");
+
+    const maria = sessionFor(adapters, player, "ribbons", "where-are-things");
+    maria.begin("¡Hola!");
+    await maria.submit("La llave está encima de la mesa.");
+
+    expect(totalBlooms(player.getState().field)).toBe(1);
+    expect(totalBlooms(player.getState().ribbons)).toBe(1);
+  });
+
+  it("blooms ribbons once per day even across replays, same as the flower field", async () => {
+    const adapters = makeAdapters("test");
+    const player = newPlayer(adapters);
+    await player.init();
+    adapters.fakes!.grader.setDefault({ communication: 0.9, accuracy: 0.9 });
+
+    const first = sessionFor(adapters, player, "ribbons", "where-are-things");
+    first.begin("¡Hola!");
+    await first.submit("El sombrero está a la izquierda del florero.");
+
+    const again = sessionFor(adapters, player, "ribbons", "where-are-things");
+    again.begin("¡Hola!");
+    const replay = await again.submit("La pelota está debajo de la mesa.");
+
+    expect(replay.applied.grownRibbons).toBe(0);
+    expect(totalBlooms(player.getState().ribbons)).toBe(1);
+  });
+});
+
 describe("farming side-effects persist across a refresh", () => {
   it("completing the seeds chat starts a row that survives a reload", async () => {
     const adapters = makeAdapters("test");

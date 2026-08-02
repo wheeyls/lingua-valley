@@ -61,6 +61,13 @@ export interface PlayerState {
    */
   foliage: Garden;
 
+  /**
+   * The ribbons garden — grown from Maria's bonus daily "where are things"
+   * conversation, the finishing touch on the shared weekly bouquet alongside
+   * `field` and `foliage` (same 7-day row mechanic).
+   */
+  ribbons: Garden;
+
   /** Items the player holds (train tickets, etc.). */
   inventory: Inventory;
 
@@ -78,6 +85,7 @@ export function initialPlayerState(
     money: 0,
     field: makeGarden(),
     foliage: makeGarden(),
+    ribbons: makeGarden(),
     inventory: emptyInventory(),
     daily: INITIAL_DAILY_STATE,
   };
@@ -107,6 +115,7 @@ export function normalizePlayerState(value: unknown): PlayerState {
           : 0,
     field: normalizeGarden(v.field),
     foliage: normalizeGarden(v.foliage),
+    ribbons: normalizeGarden(v.ribbons),
     inventory: isObject(v.inventory)
       ? (v.inventory as Inventory)
       : emptyInventory(),
@@ -138,7 +147,12 @@ function normalizeDaily(v: unknown): DailyState {
     dayStartedAt: typeof d.dayStartedAt === "string" ? d.dayStartedAt : "",
     rewardedRoles: Array.isArray(d.rewardedRoles)
       ? (d.rewardedRoles.filter(
-          (r) => r === "seeds" || r === "water" || r === "store" || r === "foliage",
+          (r) =>
+            r === "seeds" ||
+            r === "water" ||
+            r === "store" ||
+            r === "foliage" ||
+            r === "ribbons",
         ) as DailyRole[])
       : [],
     rewardedObjectives: Array.isArray(d.rewardedObjectives)
@@ -192,6 +206,8 @@ export interface ApplyResult {
   grown: number;
   /** 1 if today's foliage bloomed this turn (foliage role, once/day). */
   grownFoliage: number;
+  /** 1 if today's ribbons bloomed this turn (ribbons role, once/day). */
+  grownRibbons: number;
   /** True if this completion started a new garden row (seeds role, first of the day). */
   planted: boolean;
   /** 1 if the store review paid out this turn (store role, first of the day). */
@@ -229,9 +245,11 @@ export function applyActivity(
   let money = prev.money;
   let field = prev.field;
   let foliage = prev.foliage;
+  let ribbons = prev.ribbons;
   let daily = prev.daily;
   let grown = 0;
   let grownFoliage = 0;
+  let grownRibbons = 0;
   let planted = false;
   let sold = 0;
   let soldValue = 0;
@@ -263,6 +281,16 @@ export function applyActivity(
     foliage = wateredFoliage.garden;
     grownFoliage = wateredFoliage.bloomed ? 1 : 0;
     if (wateredFoliage.bloomed) daily = claimRole(daily, "foliage", now);
+  }
+
+  // RIBBONS: Maria's bonus practice — plants (if needed) and blooms today's
+  // ribbons in one action, once per day. Independent of seeds/water/foliage.
+  if (activity.role === "ribbons" && roleEarnsReward(prev.daily, "ribbons")) {
+    if (needsSeed(ribbons, day)) ribbons = plantRow(ribbons, day);
+    const wateredRibbons = waterActiveRow(ribbons, day);
+    ribbons = wateredRibbons.garden;
+    grownRibbons = wateredRibbons.bloomed ? 1 : 0;
+    if (wateredRibbons.bloomed) daily = claimRole(daily, "ribbons", now);
   }
 
   // STORE: the review conversation pays money from its grade, once per day.
@@ -301,11 +329,12 @@ export function applyActivity(
   daily = recordPlay(daily, now);
 
   return {
-    state: { ...prev, money, field, foliage, daily },
+    state: { ...prev, money, field, foliage, ribbons, daily },
     reward,
     earnedReward,
     grown,
     grownFoliage,
+    grownRibbons,
     planted,
     sold,
     soldValue,
@@ -374,6 +403,10 @@ export function mergeStates(account: PlayerState, guest: PlayerState): PlayerSta
     totalBlooms(guest.foliage) > totalBlooms(account.foliage)
       ? guest.foliage
       : account.foliage;
+  const ribbons =
+    totalBlooms(guest.ribbons) > totalBlooms(account.ribbons)
+      ? guest.ribbons
+      : account.ribbons;
 
   // Inventory: union, summing quantities.
   let inventory: Inventory = { ...account.inventory };
@@ -386,6 +419,7 @@ export function mergeStates(account: PlayerState, guest: PlayerState): PlayerSta
     money: account.money + guest.money,
     field,
     foliage,
+    ribbons,
     inventory,
     // Keep the better streak across the two saves.
     daily: {
