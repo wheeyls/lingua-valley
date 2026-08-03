@@ -24,6 +24,7 @@ export interface PlayerStateRow {
   money: number;
   field: Garden | null;
   foliage: Garden | null;
+  ribbons: Garden | null;
   inventory: Inventory | null;
   daily: DailyState | null;
 }
@@ -45,6 +46,7 @@ export function rowsToPlayerState(
     money: state.money,
     field: state.field,
     foliage: state.foliage,
+    ribbons: state.ribbons,
     inventory: state.inventory,
     daily: state.daily,
   });
@@ -56,6 +58,7 @@ export function playerStateToRow(userId: string, s: PlayerState): PlayerStateRow
     money: s.money,
     field: s.field,
     foliage: s.foliage,
+    ribbons: s.ribbons,
     inventory: s.inventory,
     daily: s.daily,
   };

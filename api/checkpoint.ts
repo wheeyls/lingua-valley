@@ -45,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const statesRes = memberIds.length
       ? await admin
           .from("player_state")
-          .select("user_id,money,field,foliage,inventory,daily")
+          .select("user_id,money,field,foliage,ribbons,inventory,daily")
           .in("user_id", memberIds)
       : { data: [] as PlayerStateRow[] };
     const stateByUser = new Map<string, PlayerStateRow>();
@@ -59,6 +59,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         avatarColor: state.avatarColor,
         garden: state.field,
         foliage: state.foliage,
+        ribbons: state.ribbons,
       };
     });
     const checkpoint = buildCheckpoint(members, week);
@@ -70,6 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       end: week.end,
       totalBlooms: checkpoint.totalBlooms,
       totalFoliage: checkpoint.totalFoliage,
+      totalRibbons: checkpoint.totalRibbons,
       rows: checkpoint.rows,
     });
   } catch (err) {

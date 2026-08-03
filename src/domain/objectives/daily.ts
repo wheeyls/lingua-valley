@@ -12,6 +12,7 @@ import { StoryTelling } from "./StoryTelling.js";
 import { StoryRetell } from "./StoryRetell.js";
 import { StoreReview } from "./StoreReview.js";
 import { FoliageGathering } from "./FoliageGathering.js";
+import { WhereAreThings } from "./WhereAreThings.js";
 
 export function buildDailyGraph(lesson: Lesson): ObjectiveGraph {
   return new ObjectiveGraph()
@@ -19,5 +20,7 @@ export function buildDailyGraph(lesson: Lesson): ObjectiveGraph {
     .register(new StoryRetell(lesson))
     // Foliage: Arlene's independent, bonus daily practice (near-future plans).
     .register(new FoliageGathering())
+    // Ribbons: Maria's independent, bonus daily practice (prepositions of place).
+    .register(new WhereAreThings())
     .register(new StoreReview(lesson));
 }

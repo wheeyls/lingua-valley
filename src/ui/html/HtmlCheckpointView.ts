@@ -16,7 +16,14 @@ export interface CheckpointData {
   end: string;
   totalBlooms: number;
   totalFoliage: number;
-  rows: { displayName: string; avatarColor: number; blooms: number; foliage: number }[];
+  totalRibbons: number;
+  rows: {
+    displayName: string;
+    avatarColor: number;
+    blooms: number;
+    foliage: number;
+    ribbons: number;
+  }[];
   /** True when this is the current (possibly still in-progress) week. */
   isLatest: boolean;
 }
@@ -93,6 +100,11 @@ export class HtmlCheckpointView {
             <div style="font-size:clamp(28px,8vw,44px);font-weight:bold;color:#9bc995">${data.totalFoliage}</div>
             <div style="color:#bcae93;font-size:13px">🍃 foliage gathered this week</div>
           </div>
+          <div style="flex:1;background:rgba(212,163,115,0.14);border:2px solid #d4a373;border-radius:12px;
+                      padding:16px;text-align:center">
+            <div style="font-size:clamp(28px,8vw,44px);font-weight:bold;color:#9bc995">${data.totalRibbons}</div>
+            <div style="color:#bcae93;font-size:13px">🎀 ribbons tied this week</div>
+          </div>
         </div>
         ${data.rows.length === 0 ? '<p style="color:#9bc995">No members in this group yet.</p>' : ""}
         <div style="display:flex;flex-direction:column;gap:8px">${body}</div>
@@ -117,6 +129,7 @@ export class HtmlCheckpointView {
     avatarColor: number;
     blooms: number;
     foliage: number;
+    ribbons: number;
   }): string {
     const color = `#${(r.avatarColor >>> 0).toString(16).padStart(6, "0").slice(-6)}`;
     const initial = (r.displayName[0] ?? "?").toUpperCase();
@@ -130,6 +143,7 @@ export class HtmlCheckpointView {
                     text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.displayName)}</div>
         <div style="color:#9bc995;font-weight:bold;font-size:15px;flex-shrink:0">🌸 ${r.blooms}</div>
         <div style="color:#9bc995;font-weight:bold;font-size:15px;flex-shrink:0">🍃 ${r.foliage}</div>
+        <div style="color:#9bc995;font-weight:bold;font-size:15px;flex-shrink:0">🎀 ${r.ribbons}</div>
       </div>`;
   }
 

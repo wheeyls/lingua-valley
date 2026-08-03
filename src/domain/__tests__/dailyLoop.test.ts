@@ -40,6 +40,7 @@ describe("daily loop", () => {
     expect(roleEarnsReward(s, "seeds")).toBe(true);
     expect(roleEarnsReward(s, "store")).toBe(true);
     expect(roleEarnsReward(s, "foliage")).toBe(true);
+    expect(roleEarnsReward(s, "ribbons")).toBe(true);
   });
 
   it("tracks foliage rewards independently of seeds/water/store", () => {
@@ -49,6 +50,17 @@ describe("daily loop", () => {
     expect(roleEarnsReward(s, "seeds")).toBe(true);
     expect(roleEarnsReward(s, "water")).toBe(true);
     expect(roleEarnsReward(s, "store")).toBe(true);
+    expect(roleEarnsReward(s, "ribbons")).toBe(true);
+  });
+
+  it("tracks ribbons rewards independently of seeds/water/store/foliage", () => {
+    let s = startNewDay(NOW);
+    s = claimRole(s, "ribbons", NOW);
+    expect(roleEarnsReward(s, "ribbons")).toBe(false); // replay
+    expect(roleEarnsReward(s, "seeds")).toBe(true);
+    expect(roleEarnsReward(s, "water")).toBe(true);
+    expect(roleEarnsReward(s, "store")).toBe(true);
+    expect(roleEarnsReward(s, "foliage")).toBe(true);
   });
 
   it("claiming a role is idempotent", () => {

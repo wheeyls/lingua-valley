@@ -34,6 +34,8 @@ export interface ObjectiveContext {
   inputs: Record<string, string>;
   /** The current daily cycle's objective state (for checking deps). */
   state: ObjectiveState;
+  /** Today's Pacific calendar day (YYYY-MM-DD), for date-seeded content. */
+  today: string;
 }
 
 /**

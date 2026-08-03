@@ -101,6 +101,7 @@ describe("buildCheckpoint", () => {
         avatarColor: 1,
         garden: { rows: [{ seedDay: "2026-07-06", wateredDays: ["2026-07-06"] }] },
         foliage: emptyGarden,
+        ribbons: emptyGarden,
       },
       {
         displayName: "Ana",
@@ -111,6 +112,7 @@ describe("buildCheckpoint", () => {
           ],
         },
         foliage: emptyGarden,
+        ribbons: emptyGarden,
       },
     ];
     const cp = buildCheckpoint(members, week);
@@ -121,7 +123,15 @@ describe("buildCheckpoint", () => {
 
   it("handles a group with no blooms this week", () => {
     const cp = buildCheckpoint(
-      [{ displayName: "Ana", avatarColor: 1, garden: emptyGarden, foliage: emptyGarden }],
+      [
+        {
+          displayName: "Ana",
+          avatarColor: 1,
+          garden: emptyGarden,
+          foliage: emptyGarden,
+          ribbons: emptyGarden,
+        },
+      ],
       week,
     );
     expect(cp.totalBlooms).toBe(0);
@@ -135,17 +145,42 @@ describe("buildCheckpoint", () => {
         avatarColor: 1,
         garden: emptyGarden,
         foliage: { rows: [{ seedDay: "2026-07-06", wateredDays: ["2026-07-06", "2026-07-07"] }] },
+        ribbons: emptyGarden,
       },
       {
         displayName: "Bea",
         avatarColor: 2,
         garden: emptyGarden,
         foliage: { rows: [{ seedDay: "2026-07-06", wateredDays: ["2026-07-08"] }] },
+        ribbons: emptyGarden,
       },
     ];
     const cp = buildCheckpoint(members, week);
     expect(cp.totalFoliage).toBe(3);
     expect(cp.rows.find((r) => r.displayName === "Ana")?.foliage).toBe(2);
     expect(cp.rows.find((r) => r.displayName === "Bea")?.foliage).toBe(1);
+  });
+
+  it("sums ribbons alongside blooms and foliage — the bouquet's finishing touch", () => {
+    const members = [
+      {
+        displayName: "Ana",
+        avatarColor: 1,
+        garden: emptyGarden,
+        foliage: emptyGarden,
+        ribbons: { rows: [{ seedDay: "2026-07-06", wateredDays: ["2026-07-06", "2026-07-07"] }] },
+      },
+      {
+        displayName: "Bea",
+        avatarColor: 2,
+        garden: emptyGarden,
+        foliage: emptyGarden,
+        ribbons: { rows: [{ seedDay: "2026-07-06", wateredDays: ["2026-07-08"] }] },
+      },
+    ];
+    const cp = buildCheckpoint(members, week);
+    expect(cp.totalRibbons).toBe(3);
+    expect(cp.rows.find((r) => r.displayName === "Ana")?.ribbons).toBe(2);
+    expect(cp.rows.find((r) => r.displayName === "Bea")?.ribbons).toBe(1);
   });
 });
