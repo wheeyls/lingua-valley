@@ -56,6 +56,14 @@ describe("ObjectiveGraph (farming loop, paired practice)", () => {
     // buildTheme embeds today's concrete scene as ground truth for the LLM.
     const theme = maria!.buildTheme({ inputs: {}, state: {}, today: "2026-07-30" });
     expect(theme).toContain("está delante de la puerta");
+    // referencePanel surfaces the same day's layout so the player has
+    // something to look at while answering.
+    const panel = maria!.referencePanel?.({ inputs: {}, state: {}, today: "2026-07-30" });
+    expect(panel).toEqual([
+      { icon: "🚪", label: "Puerta: el sombrero (delante)" },
+      { icon: "🪑", label: "Mesa: la llave (encima)" },
+      { icon: "🏺", label: "Florero: la pelota (a la derecha)" },
+    ]);
   });
 
   it("the retell objective depends on the story being told first", () => {

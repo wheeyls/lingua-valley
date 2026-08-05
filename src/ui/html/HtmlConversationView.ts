@@ -12,6 +12,7 @@
 
 import "./overlay.css";
 import { blockCanvas, unblockCanvas } from "./canvasBlock";
+import type { ReferencePanelItem } from "../../domain/objective";
 
 export interface ConvoViewCallbacks {
   onLeave: () => void;
@@ -24,6 +25,7 @@ export class HtmlConversationView {
   private npcNameEl: HTMLElement;
   private friendshipEl: HTMLElement;
   private goalEl: HTMLElement;
+  private referenceEl: HTMLElement;
   private npcSpeechEl: HTMLElement;
   private transcriptEl: HTMLElement;
   private feedbackEl: HTMLElement;
@@ -42,6 +44,7 @@ export class HtmlConversationView {
         </div>
         <button class="convo-leave-btn" type="button">Leave</button>
       </div>
+      <div class="convo-reference" style="display:none"></div>
       <div class="convo-body">
         <div class="convo-npc-speech"></div>
         <div class="convo-transcript"></div>
@@ -55,6 +58,7 @@ export class HtmlConversationView {
     this.npcNameEl = this.root.querySelector(".convo-npc-name")!;
     this.friendshipEl = this.root.querySelector(".convo-friendship")!;
     this.goalEl = this.root.querySelector(".convo-goal")!;
+    this.referenceEl = this.root.querySelector(".convo-reference")!;
     this.npcSpeechEl = this.root.querySelector(".convo-npc-speech")!;
     this.transcriptEl = this.root.querySelector(".convo-transcript")!;
     this.feedbackEl = this.root.querySelector(".convo-feedback")!;
@@ -104,6 +108,27 @@ export class HtmlConversationView {
     this.npcNameEl.textContent = npcName;
     this.friendshipEl.textContent = friendship ? `♥ ${friendship}` : "";
     this.goalEl.textContent = goal;
+  }
+
+  /**
+   * Show (or hide, when absent/empty) an on-screen reference the player can
+   * look at while answering — e.g. Maria's room layout for today.
+   */
+  setReferencePanel(items: ReferencePanelItem[] | null | undefined): void {
+    if (!items || items.length === 0) {
+      this.referenceEl.style.display = "none";
+      this.referenceEl.innerHTML = "";
+      return;
+    }
+    this.referenceEl.style.display = "block";
+    this.referenceEl.innerHTML =
+      '<div class="convo-reference-title">Reference</div>' +
+      items
+        .map(
+          (item) =>
+            `<div class="convo-reference-item"><span class="convo-reference-icon">${escHtml(item.icon)}</span> ${escHtml(item.label)}</div>`,
+        )
+        .join("");
   }
 
   setNpcSpeech(text: string): void {

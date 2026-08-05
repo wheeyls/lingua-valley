@@ -21,7 +21,7 @@ import { findNpc, visibleLocations, type Npc } from "../content/world";
 import type { Campaign } from "../content/campaigns";
 import type { MapNpc, MapDoor } from "../domain/gameMap";
 import { buildDailyGraph } from "../domain/objectives/daily";
-import type { ObjectiveGraph } from "../domain/objective";
+import type { ObjectiveGraph, ObjectiveContext } from "../domain/objective";
 import { grid, needsSeed, bloomsThisRow, ROW_LENGTH, type CellState } from "../domain/garden";
 import { hoursUntilNextDay, type DailyRole } from "../domain/dailyLoop";
 import { settleDailyState, type ApplyResult } from "../domain/player";
@@ -333,11 +333,13 @@ export class GameController {
       objective.id,
       this.player.getState().daily.objectiveState,
     );
-    const theme = objective.buildTheme({
+    const ctx: ObjectiveContext = {
       inputs,
       state: this.player.getState().daily.objectiveState,
       today: appDay(this.adapters.clock.now()),
-    });
+    };
+    const theme = objective.buildTheme(ctx);
+    const referencePanel = objective.referencePanel?.(ctx);
 
     const session = new ConversationSession(
       {
@@ -380,6 +382,7 @@ export class GameController {
     });
 
     view.setHeader(npc.name, "", canDo);
+    view.setReferencePanel(referencePanel);
 
     const opener = npc.conversation.opener;
     session.begin(opener);
