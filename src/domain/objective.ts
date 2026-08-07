@@ -17,7 +17,18 @@
 
 import type { DailyRole } from "./dailyLoop.js";
 import type { LessonVocab } from "./objectives/lesson.js";
-import type { DailyScene } from "./objectives/scene.js";
+import type { DailyScene as RoomScene } from "./objectives/scene.js";
+import type { DailyScene as PartyScene } from "./objectives/partyScene.js";
+
+/**
+ * A visual scene an objective wants the player to peek at, tagged by which
+ * content module (and matching renderer) it came from — different campaigns'
+ * "picture to confirm against" objectives can each bring their own shape of
+ * scene (different slots/items) without this interface hardcoding just one.
+ */
+export type ReferenceScene =
+  | { kind: "room"; scene: RoomScene }
+  | { kind: "party"; scene: PartyScene };
 
 /** The completion record for one objective in one daily cycle. */
 export interface ObjectiveCompletion {
@@ -82,7 +93,7 @@ export interface Objective {
    * with no target-language text, so answering still requires producing the
    * Spanish themselves. Absent for objectives that don't need one.
    */
-  referenceScene?(ctx: ObjectiveContext): DailyScene;
+  referenceScene?(ctx: ObjectiveContext): ReferenceScene;
 }
 
 /**

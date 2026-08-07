@@ -16,9 +16,9 @@
  * text, so answering still requires producing the vocabulary themselves.
  */
 
-import type { Objective, ObjectiveContext } from "../objective.js";
+import type { Objective, ObjectiveContext, ReferenceScene } from "../objective.js";
 import type { LessonVocab } from "./lesson.js";
-import { sceneForDay, describeScene, type DailyScene } from "./scene.js";
+import { sceneForDay, describeScene } from "./scene.js";
 
 const VOCAB: LessonVocab[] = [
   { es: "¿Dónde está…?", en: "Where is…?" },
@@ -66,7 +66,7 @@ export class WhereAreThings implements Objective {
   }
 
   /** Today's raw scene — the UI draws this as a picture the player peeks at. */
-  referenceScene(ctx: ObjectiveContext): DailyScene {
-    return sceneForDay(ctx.today);
+  referenceScene(ctx: ObjectiveContext): ReferenceScene {
+    return { kind: "room", scene: sceneForDay(ctx.today) };
   }
 }

@@ -14,11 +14,13 @@ import type { Lesson } from "./lesson.js";
 
 export class StoryRetell implements Objective {
   readonly id = "story-retell";
-  readonly npcId = "jorgito";
   readonly role = "water" as const;
   readonly dependsOn = ["story-telling"];
 
-  constructor(private readonly lesson: Lesson) {}
+  constructor(
+    private readonly lesson: Lesson,
+    readonly npcId = "jorgito",
+  ) {}
 
   buildTheme(ctx: ObjectiveContext): string {
     const story = ctx.inputs["storyText"] ?? "";

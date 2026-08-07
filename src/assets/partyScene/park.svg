@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" style="width:100%;height:100%;display:block;">
+  <!-- Sky — sunny December Phoenix, no clouds needed -->
+  <rect width="400" height="150" fill="#BEE7F7"/>
+  <circle cx="350" cy="34" r="26" fill="#FFE08A" opacity="0.9"/>
+  <circle cx="350" cy="34" r="20" fill="#FFD700"/>
+  <!-- Distant mountains -->
+  <polygon points="0,140 70,85 150,140" fill="#B08968" opacity="0.45"/>
+  <polygon points="230,140 320,75 400,140" fill="#9C7A5B" opacity="0.4"/>
+  <!-- Grass -->
+  <rect y="150" width="400" height="90" fill="#8FBC6A"/>
+  <g stroke="#7CAE58" stroke-width="1.5" opacity="0.4">
+    <path d="M20,175 q6,-4 12,0"/>
+    <path d="M170,225 q6,-4 12,0"/>
+    <path d="M370,200 q6,-4 12,0"/>
+    <path d="M100,235 q6,-4 12,0"/>
+  </g>
+  <!-- Bunting -->
+  <path d="M0,12 Q200,-8 400,12" fill="none" stroke="#C0392B" stroke-width="1.5" opacity="0.7"/>
+  <g opacity="0.85">
+    <polygon points="30,12 38,26 22,26" fill="#E74C3C"/>
+    <polygon points="70,10 78,24 62,24" fill="#F39C12"/>
+    <polygon points="110,9 118,23 102,23" fill="#27AE60"/>
+    <polygon points="150,8 158,22 142,22" fill="#3498DB"/>
+    <polygon points="190,8 198,22 182,22" fill="#9B59B6"/>
+    <polygon points="230,8 238,22 222,22" fill="#E74C3C"/>
+    <polygon points="270,9 278,23 262,23" fill="#F39C12"/>
+    <polygon points="310,10 318,24 302,24" fill="#27AE60"/>
+    <polygon points="350,12 358,26 342,26" fill="#3498DB"/>
+  </g>
+
+  <!-- ===== Tree (slot: tree) ===== -->
+  <g id="art-tree">
+    <rect x="80" y="120" width="20" height="52" rx="3" fill="#7D5A3C"/>
+    <ellipse cx="90" cy="95" rx="65" ry="48" fill="#4A7C59"/>
+    <ellipse cx="65" cy="78" rx="32" ry="24" fill="#5A8F5A" opacity="0.6"/>
+    <ellipse cx="118" cy="85" rx="26" ry="20" fill="#5A8F5A" opacity="0.5"/>
+  </g>
+  <!-- ===== Picnic table (slot: table) ===== -->
+  <g id="art-table">
+    <rect x="220" y="162" width="8" height="35" rx="2" fill="#8A6244"/>
+    <rect x="297" y="162" width="8" height="35" rx="2" fill="#8A6244"/>
+    <rect x="205" y="150" width="120" height="12" rx="3" fill="#B98253"/>
+    <rect x="205" y="150" width="120" height="6" rx="3" fill="#C99A6E"/>
+  </g>
+  <!-- Picnic rug -->
+  <ellipse cx="265" cy="205" rx="65" ry="13" fill="#E8956D" opacity="0.4"/>
+
+  <!-- ===== Cooler (slot: cooler) ===== -->
+  <g id="art-cooler">
+    <rect x="345" y="172" width="20" height="6" rx="3" fill="#2E86C1"/>
+    <rect x="326" y="178" width="53" height="12" rx="4" fill="#2E86C1"/>
+    <rect x="330" y="185" width="45" height="32" rx="4" fill="#3498DB"/>
+    <rect x="330" y="185" width="45" height="6" fill="#5DADE2" opacity="0.6"/>
+  </g>
+</svg>

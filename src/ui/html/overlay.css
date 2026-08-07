@@ -109,8 +109,9 @@
 }
 .convo-scene-overlay.visible { display: flex; }
 
-/* The room canvas: a fixed-aspect box holding the background art plus item
- * art layered on top at their slot's percentage position (see sceneArt.ts). */
+/* The scene canvas: a fixed-aspect box holding the background art plus item
+ * art layered on top at their slot's percentage position (see sceneArt.ts /
+ * partySceneArt.ts — whichever campaign's "picture to peek at" is active). */
 .scene-diagram {
   position: relative;
   width: min(88vw, 420px);
@@ -119,7 +120,7 @@
   overflow: hidden;
   box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5);
 }
-.scene-room-bg {
+.scene-bg {
   position: absolute;
   inset: 0;
   width: 100%;

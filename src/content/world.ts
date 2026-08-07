@@ -202,8 +202,185 @@ export const PUEBLO_DEL_AYER: Area = {
   ],
 };
 
-/** All areas in the game (currently just the one). */
-export const AREAS: Area[] = [PUEBLO_DEL_AYER];
+/**
+ * El Cumpleaños de Daphne — a park in Phoenix, December, Daphne's first
+ * birthday. The family is visiting from out of town, practicing Spanish
+ * with Daphne's family. Same daily-loop mechanics as Pueblo del Ayer (paired
+ * story/retell, near-future bonus plans, prepositions-of-place bonus with a
+ * picture to peek at) — different story, different place, different people.
+ */
+export const FIESTA_DE_DAPHNE: Area = {
+  id: "fiesta-de-daphne",
+  name: "El Cumpleaños de Daphne",
+  level: "A2",
+  blurb:
+    "Diciembre en Phoenix — hace sol pero no hace calor. La familia se " +
+    "reúne en el parque para el primer cumpleaños de Daphne. Esta semana: " +
+    "contar una historia en el pasado — entender, recontar, y compartir la tuya.",
+  ticketPrice: 60,
+  locations: [
+    {
+      id: "con-el-abuelo",
+      name: "Con el Abuelo Jorge",
+      role: "seeds",
+      icon: "🎂",
+      blurb: "Escucha al abuelo Jorge contar cómo prepararon el parque para la fiesta.",
+      npcIds: ["jorge-abuelo"],
+    },
+    {
+      id: "con-jorgito",
+      name: "Con Tío Jorgito",
+      role: "water",
+      icon: "🎈",
+      blurb: "Cuéntale a Jorgito lo que hizo el abuelo esa mañana.",
+      npcIds: ["jorgito-tio"],
+    },
+    {
+      id: "con-el-paletero",
+      name: "El Paletero",
+      role: "store",
+      icon: "🍧",
+      blurb: "Cuéntale al paletero sobre la fiesta y compra una paleta.",
+      npcIds: ["paletero"],
+      hidden: true,
+    },
+    {
+      id: "con-las-tias",
+      name: "Con las Tías",
+      role: "foliage",
+      icon: "🎉",
+      blurb: "Habla con las tías sobre lo que va a pasar en la fiesta.",
+      npcIds: ["jackie-tia", "arlene-tia", "annette-tia"],
+    },
+    {
+      id: "con-la-abuela",
+      name: "Con la Abuela Maria",
+      role: "ribbons",
+      icon: "🧺",
+      blurb: "Ayuda a la abuela a encontrar las cosas en la mesa de picnic.",
+      npcIds: ["maria-abuela"],
+    },
+  ],
+  npcs: [
+    {
+      id: "jorge-abuelo",
+      name: "Jorge",
+      color: 0xc0392b,
+      voice: "onyx",
+      conversation: {
+        opener:
+          "¡Hola! ¿Te cuento cómo preparamos el parque para la fiesta de Daphne? Escucha bien…",
+      },
+      lines: [
+        {
+          level: "A2",
+          es: "👂 Escucha al abuelo Jorge",
+          en: "Jorge will tell you how the family got the park ready for Daphne's party. Listen and understand his story. Tap 'Talk' to begin.",
+        },
+      ],
+    },
+    {
+      id: "jorgito-tio",
+      name: "Jorgito",
+      color: 0x3d5a80,
+      voice: "echo",
+      conversation: {
+        opener: "Oye, ¿qué hizo el abuelo esa mañana? Cuéntame.",
+      },
+      lines: [
+        {
+          level: "A2",
+          es: "🗣️ Cuéntale a Jorgito la historia",
+          en: "Retell what Jorge did that morning, in the past tense. Tap 'Talk' to begin.",
+        },
+      ],
+    },
+    {
+      id: "paletero",
+      name: "El Paletero",
+      color: 0x3498db,
+      voice: "onyx",
+      conversation: {
+        opener:
+          "¡Paletas! ¡Paletas frías! Pero primero, cuéntame, ¿qué pasó hoy en la fiesta?",
+      },
+      lines: [
+        {
+          level: "A2",
+          es: "🍧 Cuéntale al paletero sobre la fiesta",
+          en: "Tell the paletero about the party day as a friendly review, then get a treat. Tap 'Talk' to begin.",
+        },
+      ],
+    },
+    {
+      id: "jackie-tia",
+      name: "Tía Jackie",
+      color: 0x2a9d8f,
+      voice: "nova",
+      conversation: {
+        opener: "¡Hola! ¿Ya viste el pastel? Cuéntame, ¿qué vamos a hacer ahora?",
+      },
+      lines: [
+        {
+          level: "A2",
+          es: "🎉 Habla con tía Jackie sobre la fiesta",
+          en: "Chat with tía Jackie about what's about to happen at the party — cake, games, presents. Tap 'Talk' to begin.",
+        },
+      ],
+    },
+    {
+      id: "arlene-tia",
+      name: "Tía Arlene",
+      color: 0x6b8f47,
+      voice: "alloy",
+      conversation: {
+        opener: "¡Hola! Esta fiesta va a estar increíble. ¿Qué va a pasar después del pastel?",
+      },
+      lines: [
+        {
+          level: "A2",
+          es: "🎉 Habla con tía Arlene sobre la fiesta",
+          en: "Chat with tía Arlene about what's coming up next at the party. Tap 'Talk' to begin.",
+        },
+      ],
+    },
+    {
+      id: "annette-tia",
+      name: "Tía Annette",
+      color: 0x9b59b6,
+      voice: "shimmer",
+      conversation: {
+        opener: "¡Hola! ¿Vamos a cantar 'Las Mañanitas' pronto? Cuéntame tus planes para hoy.",
+      },
+      lines: [
+        {
+          level: "A2",
+          es: "🎉 Habla con tía Annette sobre la fiesta",
+          en: "Chat with tía Annette about your plans for the rest of the party. Tap 'Talk' to begin.",
+        },
+      ],
+    },
+    {
+      id: "maria-abuela",
+      name: "Abuela Maria",
+      color: 0xd4a373,
+      voice: "fable",
+      conversation: {
+        opener: "¡Hola! Mira la mesa de picnic… ¿sabes dónde están las cosas de la fiesta hoy?",
+      },
+      lines: [
+        {
+          level: "A2",
+          es: "🧺 Adivina dónde están las cosas con la abuela Maria",
+          en: "Maria will ask where things are on the picnic table — practice on top of / under, in front of / behind, left / right. Tap 'Talk' to begin.",
+        },
+      ],
+    },
+  ],
+};
+
+/** All areas in the game. */
+export const AREAS: Area[] = [PUEBLO_DEL_AYER, FIESTA_DE_DAPHNE];
 
 export function findNpc(id: string): Npc | undefined {
   for (const a of AREAS) {

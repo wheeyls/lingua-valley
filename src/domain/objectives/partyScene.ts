@@ -1,19 +1,19 @@
 /**
- * Scene — the daily "where are things" layout for Maria's room.
- *
- * 5 possible items rotate through 3 fixed slots (door, table, vase); each
- * slot has 2 possible positions (e.g. the door's item is either in front of
- * or behind it). Each day, a pure deterministic shuffle (seeded by the day
- * string) picks 3 of the 5 items and a position for each slot — the same
- * scene for everyone that day, no persisted state needed.
+ * Party scene — the daily "where are things" layout for the picnic table at
+ * Daphne's first birthday party. Same shape as scene.ts (Maria's room): 5
+ * possible items rotate through 3 fixed slots, each slot has 2 positions, a
+ * pure deterministic shuffle (seeded by the day string) picks 3 of the 5
+ * items and a position for each slot — the same scene for everyone that day,
+ * no persisted state needed. Just re-themed: door/table/vase → the cooler,
+ * the picnic table, and the shade tree.
  *
  * PURE DOMAIN: no framework, no Date.now()/Math.random(). Fully testable.
  */
 
 import { seedFromDay, mulberry32 } from "../prng.js";
 
-export type SlotId = "door" | "table" | "vase";
-export type ItemId = "cat" | "ball" | "key" | "hat" | "book";
+export type SlotId = "cooler" | "table" | "tree";
+export type ItemId = "pinata" | "pastel" | "regalo" | "globo" | "vela";
 
 export interface SlotAssignment {
   slot: SlotId;
@@ -23,22 +23,22 @@ export interface SlotAssignment {
 
 export type DailyScene = SlotAssignment[];
 
-const SLOTS: SlotId[] = ["door", "table", "vase"];
-const ITEMS: ItemId[] = ["cat", "ball", "key", "hat", "book"];
+const SLOTS: SlotId[] = ["cooler", "table", "tree"];
+const ITEMS: ItemId[] = ["pinata", "pastel", "regalo", "globo", "vela"];
 
 const ITEM_ES: Record<ItemId, string> = {
-  cat: "el gato",
-  ball: "la pelota",
-  key: "la llave",
-  hat: "el sombrero",
-  book: "el libro",
+  pinata: "la piñata",
+  pastel: "el pastel",
+  regalo: "el regalo",
+  globo: "el globo",
+  vela: "la vela",
 };
 
 /** [position 0 phrase, position 1 phrase] for each slot. */
 const POSITION_ES: Record<SlotId, [string, string]> = {
-  door: ["delante de la puerta", "detrás de la puerta"],
+  cooler: ["delante de la hielera", "detrás de la hielera"],
   table: ["encima de la mesa", "debajo de la mesa"],
-  vase: ["a la izquierda del florero", "a la derecha del florero"],
+  tree: ["a la izquierda del árbol", "a la derecha del árbol"],
 };
 
 /**
@@ -59,7 +59,7 @@ export function sceneForDay(day: string): DailyScene {
   }));
 }
 
-/** Spanish sentences stating where each item is, e.g. "El gato está encima de la mesa." */
+/** Spanish sentences stating where each item is, e.g. "El pastel está encima de la mesa." */
 export function describeScene(scene: DailyScene): string {
   return scene
     .map((a) => {

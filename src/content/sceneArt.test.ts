@@ -46,7 +46,7 @@ describe("renderSceneHtml", () => {
 
   it("renders the room background plus one image per occupied slot", () => {
     const html = renderSceneHtml(PINNED_SCENE);
-    expect(html).toContain("scene-room-bg");
+    expect(html).toContain("scene-bg");
     expect(html.match(/<img/g)).toHaveLength(4); // room + 3 items
   });
 
