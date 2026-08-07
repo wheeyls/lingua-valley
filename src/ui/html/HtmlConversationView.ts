@@ -12,7 +12,6 @@
 
 import "./overlay.css";
 import { blockCanvas, unblockCanvas } from "./canvasBlock";
-import type { ReferencePanelItem } from "../../domain/objective";
 
 export interface ConvoViewCallbacks {
   onLeave: () => void;
@@ -25,7 +24,8 @@ export class HtmlConversationView {
   private npcNameEl: HTMLElement;
   private friendshipEl: HTMLElement;
   private goalEl: HTMLElement;
-  private referenceEl: HTMLElement;
+  private peekBtnWrapEl: HTMLElement;
+  private sceneOverlayEl: HTMLElement;
   private npcSpeechEl: HTMLElement;
   private transcriptEl: HTMLElement;
   private feedbackEl: HTMLElement;
@@ -44,7 +44,13 @@ export class HtmlConversationView {
         </div>
         <button class="convo-leave-btn" type="button">Leave</button>
       </div>
-      <div class="convo-reference" style="display:none"></div>
+      <div class="convo-peek-btn-wrap" style="display:none">
+        <button class="convo-peek-btn" type="button">👁 Hold to see the room</button>
+      </div>
+      <div class="convo-scene-overlay">
+        <div class="scene-diagram"></div>
+        <div class="scene-hint">Release to return to the chat</div>
+      </div>
       <div class="convo-body">
         <div class="convo-npc-speech"></div>
         <div class="convo-transcript"></div>
@@ -58,7 +64,8 @@ export class HtmlConversationView {
     this.npcNameEl = this.root.querySelector(".convo-npc-name")!;
     this.friendshipEl = this.root.querySelector(".convo-friendship")!;
     this.goalEl = this.root.querySelector(".convo-goal")!;
-    this.referenceEl = this.root.querySelector(".convo-reference")!;
+    this.peekBtnWrapEl = this.root.querySelector(".convo-peek-btn-wrap")!;
+    this.sceneOverlayEl = this.root.querySelector(".convo-scene-overlay")!;
     this.npcSpeechEl = this.root.querySelector(".convo-npc-speech")!;
     this.transcriptEl = this.root.querySelector(".convo-transcript")!;
     this.feedbackEl = this.root.querySelector(".convo-feedback")!;
@@ -70,6 +77,17 @@ export class HtmlConversationView {
       e.stopPropagation();
       callbacks.onLeave();
     });
+
+    const peekBtn = this.root.querySelector(".convo-peek-btn")!;
+    const showScene = (e: Event) => {
+      e.stopPropagation();
+      this.sceneOverlayEl.classList.add("visible");
+    };
+    const hideScene = () => this.sceneOverlayEl.classList.remove("visible");
+    peekBtn.addEventListener("pointerdown", showScene);
+    peekBtn.addEventListener("pointerup", hideScene);
+    peekBtn.addEventListener("pointerleave", hideScene);
+    peekBtn.addEventListener("pointercancel", hideScene);
 
     document.body.appendChild(this.root);
     blockCanvas(); // prevent the Phaser canvas from receiving taps while open
@@ -111,24 +129,19 @@ export class HtmlConversationView {
   }
 
   /**
-   * Show (or hide, when absent/empty) an on-screen reference the player can
-   * look at while answering — e.g. Maria's room layout for today.
+   * Show (or hide, when absent) a "hold to peek" button that reveals `html`
+   * — a picture the player can look at while answering — for as long as
+   * it's held. `html` is trusted content built by the content layer (e.g.
+   * `renderSceneHtml`), not user input.
    */
-  setReferencePanel(items: ReferencePanelItem[] | null | undefined): void {
-    if (!items || items.length === 0) {
-      this.referenceEl.style.display = "none";
-      this.referenceEl.innerHTML = "";
+  setScenePeek(html: string | null): void {
+    if (!html) {
+      this.peekBtnWrapEl.style.display = "none";
+      this.sceneOverlayEl.querySelector(".scene-diagram")!.innerHTML = "";
       return;
     }
-    this.referenceEl.style.display = "block";
-    this.referenceEl.innerHTML =
-      '<div class="convo-reference-title">Reference</div>' +
-      items
-        .map(
-          (item) =>
-            `<div class="convo-reference-item"><span class="convo-reference-icon">${escHtml(item.icon)}</span> ${escHtml(item.label)}</div>`,
-        )
-        .join("");
+    this.peekBtnWrapEl.style.display = "flex";
+    this.sceneOverlayEl.querySelector(".scene-diagram")!.innerHTML = html;
   }
 
   setNpcSpeech(text: string): void {

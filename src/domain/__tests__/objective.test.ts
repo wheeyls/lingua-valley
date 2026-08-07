@@ -56,13 +56,13 @@ describe("ObjectiveGraph (farming loop, paired practice)", () => {
     // buildTheme embeds today's concrete scene as ground truth for the LLM.
     const theme = maria!.buildTheme({ inputs: {}, state: {}, today: "2026-07-30" });
     expect(theme).toContain("está delante de la puerta");
-    // referencePanel surfaces the same day's layout so the player has
-    // something to look at while answering.
-    const panel = maria!.referencePanel?.({ inputs: {}, state: {}, today: "2026-07-30" });
-    expect(panel).toEqual([
-      { icon: "🚪", label: "Puerta: el sombrero (delante)" },
-      { icon: "🪑", label: "Mesa: la llave (encima)" },
-      { icon: "🏺", label: "Florero: la pelota (a la derecha)" },
+    // referenceScene exposes the same day's raw layout, for the UI to draw
+    // as a picture (no Spanish leaks through the domain layer).
+    const scene = maria!.referenceScene?.({ inputs: {}, state: {}, today: "2026-07-30" });
+    expect(scene).toEqual([
+      { slot: "door", item: "hat", position: 0 },
+      { slot: "table", item: "key", position: 0 },
+      { slot: "vase", item: "ball", position: 1 },
     ]);
   });
 
