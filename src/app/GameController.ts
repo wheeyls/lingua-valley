@@ -19,6 +19,7 @@ import { blockCanvas, unblockCanvas } from "../ui/html/canvasBlock";
 import { buildMaps, HUB_MAP_ID } from "../content/maps";
 import { findNpc, visibleLocations, type Npc } from "../content/world";
 import type { Campaign } from "../content/campaigns";
+import { renderSceneHtml } from "../content/sceneArt";
 import type { MapNpc, MapDoor } from "../domain/gameMap";
 import { buildDailyGraph } from "../domain/objectives/daily";
 import type { ObjectiveGraph, ObjectiveContext } from "../domain/objective";
@@ -339,7 +340,7 @@ export class GameController {
       today: appDay(this.adapters.clock.now()),
     };
     const theme = objective.buildTheme(ctx);
-    const referencePanel = objective.referencePanel?.(ctx);
+    const scene = objective.referenceScene?.(ctx);
 
     const session = new ConversationSession(
       {
@@ -382,7 +383,7 @@ export class GameController {
     });
 
     view.setHeader(npc.name, "", canDo);
-    view.setReferencePanel(referencePanel);
+    view.setScenePeek(scene ? renderSceneHtml(scene) : null);
 
     const opener = npc.conversation.opener;
     session.begin(opener);

@@ -11,14 +11,14 @@
  * touch that rounds out the week's shared bouquet alongside flowers and
  * foliage.
  *
- * `referencePanel` surfaces today's room layout on screen (via
- * `scenePanelItems`) so the player has something to look at when answering —
- * Maria's questions describe a room only she can "see" otherwise.
+ * `referenceScene` exposes today's raw scene so the UI can draw it as a
+ * picture the player peeks at (press-and-hold) while answering — no Spanish
+ * text, so answering still requires producing the vocabulary themselves.
  */
 
-import type { Objective, ObjectiveContext, ReferencePanelItem } from "../objective.js";
+import type { Objective, ObjectiveContext } from "../objective.js";
 import type { LessonVocab } from "./lesson.js";
-import { sceneForDay, describeScene, scenePanelItems } from "./scene.js";
+import { sceneForDay, describeScene, type DailyScene } from "./scene.js";
 
 const VOCAB: LessonVocab[] = [
   { es: "¿Dónde está…?", en: "Where is…?" },
@@ -65,8 +65,8 @@ export class WhereAreThings implements Objective {
     return {};
   }
 
-  /** Today's room layout — the player looks at this to answer Maria's questions. */
-  referencePanel(ctx: ObjectiveContext): ReferencePanelItem[] {
-    return scenePanelItems(sceneForDay(ctx.today));
+  /** Today's raw scene — the UI draws this as a picture the player peeks at. */
+  referenceScene(ctx: ObjectiveContext): DailyScene {
+    return sceneForDay(ctx.today);
   }
 }

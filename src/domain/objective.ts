@@ -17,6 +17,7 @@
 
 import type { DailyRole } from "./dailyLoop.js";
 import type { LessonVocab } from "./objectives/lesson.js";
+import type { DailyScene } from "./objectives/scene.js";
 
 /** The completion record for one objective in one daily cycle. */
 export interface ObjectiveCompletion {
@@ -36,12 +37,6 @@ export interface ObjectiveContext {
   state: ObjectiveState;
   /** Today's Pacific calendar day (YYYY-MM-DD), for date-seeded content. */
   today: string;
-}
-
-/** An on-screen reference item shown alongside the conversation. */
-export interface ReferencePanelItem {
-  icon: string;
-  label: string;
 }
 
 /**
@@ -82,11 +77,12 @@ export interface Objective {
   extractOutputs(npcLines: string[]): Record<string, string>;
 
   /**
-   * Optional on-screen reference shown alongside the conversation (e.g. a
-   * scene diagram) — content the player can look at while answering.
-   * Absent for objectives that don't need one.
+   * Optional visual scene the player can peek at during the conversation
+   * (e.g. Maria's room) — the UI renders this into a picture, deliberately
+   * with no target-language text, so answering still requires producing the
+   * Spanish themselves. Absent for objectives that don't need one.
    */
-  referencePanel?(ctx: ObjectiveContext): ReferencePanelItem[];
+  referenceScene?(ctx: ObjectiveContext): DailyScene;
 }
 
 /**
