@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sceneForDay, describeScene, type DailyScene } from "./scene.js";
+import { sceneForDay, describeScene, scenePanelItems, type DailyScene } from "./scene.js";
 
 describe("sceneForDay", () => {
   it("is deterministic — the same day always produces the same scene", () => {
@@ -60,5 +60,29 @@ describe("describeScene", () => {
     const sentences = describeScene(scene).split(". ").filter(Boolean);
     expect(sentences).toHaveLength(3);
     for (const s of sentences) expect(s).toContain("está");
+  });
+});
+
+describe("scenePanelItems", () => {
+  it("matches the pinned example — one on-screen item per slot", () => {
+    const scene: DailyScene = [
+      { slot: "door", item: "hat", position: 0 },
+      { slot: "table", item: "key", position: 0 },
+      { slot: "vase", item: "ball", position: 1 },
+    ];
+    expect(scenePanelItems(scene)).toEqual([
+      { icon: "🚪", label: "Puerta: el sombrero (delante)" },
+      { icon: "🪑", label: "Mesa: la llave (encima)" },
+      { icon: "🏺", label: "Florero: la pelota (a la derecha)" },
+    ]);
+  });
+
+  it("produces one item per slot for any day", () => {
+    const items = scenePanelItems(sceneForDay("2026-08-02"));
+    expect(items).toHaveLength(3);
+    for (const item of items) {
+      expect(item.icon.length).toBeGreaterThan(0);
+      expect(item.label).toMatch(/^(Puerta|Mesa|Florero): /);
+    }
   });
 });

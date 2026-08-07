@@ -39,6 +39,16 @@ const POSITION_ES: Record<SlotId, [string, string]> = {
   vase: ["a la izquierda del florero", "a la derecha del florero"],
 };
 
+const SLOT_ICON: Record<SlotId, string> = { door: "🚪", table: "🪑", vase: "🏺" };
+const SLOT_NAME_ES: Record<SlotId, string> = { door: "Puerta", table: "Mesa", vase: "Florero" };
+
+/** Short [position 0, position 1] phrase for each slot (no repeated slot noun). */
+const POSITION_SHORT_ES: Record<SlotId, [string, string]> = {
+  door: ["delante", "detrás"],
+  table: ["encima", "debajo"],
+  vase: ["a la izquierda", "a la derecha"],
+};
+
 /** Deterministic 32-bit hash of a YYYY-MM-DD string. */
 function seedFromDay(day: string): number {
   let h = 0;
@@ -84,4 +94,18 @@ export function describeScene(scene: DailyScene): string {
       return `${Item} está ${POSITION_ES[a.slot][a.position]}.`;
     })
     .join(" ");
+}
+
+/** A slot's icon + short label, e.g. { icon: "🚪", label: "Puerta: el sombrero (detrás)" }. */
+export interface ScenePanelItem {
+  icon: string;
+  label: string;
+}
+
+/** The scene as on-screen reference items — what the player looks at to answer. */
+export function scenePanelItems(scene: DailyScene): ScenePanelItem[] {
+  return scene.map((a) => ({
+    icon: SLOT_ICON[a.slot],
+    label: `${SLOT_NAME_ES[a.slot]}: ${ITEM_ES[a.item]} (${POSITION_SHORT_ES[a.slot][a.position]})`,
+  }));
 }

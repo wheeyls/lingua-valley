@@ -38,6 +38,12 @@ export interface ObjectiveContext {
   today: string;
 }
 
+/** An on-screen reference item shown alongside the conversation. */
+export interface ReferencePanelItem {
+  icon: string;
+  label: string;
+}
+
 /**
  * An Objective is a code-driven unit of daily practice. Implement this
  * interface for each type of interaction (greeting, story, retelling, etc.).
@@ -74,6 +80,13 @@ export interface Objective {
    * Returns key-value outputs that downstream objectives can consume.
    */
   extractOutputs(npcLines: string[]): Record<string, string>;
+
+  /**
+   * Optional on-screen reference shown alongside the conversation (e.g. a
+   * scene diagram) — content the player can look at while answering.
+   * Absent for objectives that don't need one.
+   */
+  referencePanel?(ctx: ObjectiveContext): ReferencePanelItem[];
 }
 
 /**

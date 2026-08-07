@@ -10,11 +10,15 @@
  * Role: "ribbons". Completing it grows the player's ribbons — the finishing
  * touch that rounds out the week's shared bouquet alongside flowers and
  * foliage.
+ *
+ * `referencePanel` surfaces today's room layout on screen (via
+ * `scenePanelItems`) so the player has something to look at when answering —
+ * Maria's questions describe a room only she can "see" otherwise.
  */
 
-import type { Objective, ObjectiveContext } from "../objective.js";
+import type { Objective, ObjectiveContext, ReferencePanelItem } from "../objective.js";
 import type { LessonVocab } from "./lesson.js";
-import { sceneForDay, describeScene } from "./scene.js";
+import { sceneForDay, describeScene, scenePanelItems } from "./scene.js";
 
 const VOCAB: LessonVocab[] = [
   { es: "¿Dónde está…?", en: "Where is…?" },
@@ -59,5 +63,10 @@ export class WhereAreThings implements Objective {
 
   extractOutputs(_npcLines: string[]): Record<string, string> {
     return {};
+  }
+
+  /** Today's room layout — the player looks at this to answer Maria's questions. */
+  referencePanel(ctx: ObjectiveContext): ReferencePanelItem[] {
+    return scenePanelItems(sceneForDay(ctx.today));
   }
 }
