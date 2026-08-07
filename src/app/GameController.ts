@@ -17,11 +17,11 @@ import { HtmlConversationView } from "../ui/html/HtmlConversationView";
 import { HtmlDevPanel } from "../ui/html/HtmlDevPanel";
 import { blockCanvas, unblockCanvas } from "../ui/html/canvasBlock";
 import { buildMaps, HUB_MAP_ID } from "../content/maps";
-import { findNpc, visibleLocations, type Npc } from "../content/world";
+import { findNpc, visibleLocations, type Npc, type Location } from "../content/world";
 import type { Campaign } from "../content/campaigns";
 import { renderSceneHtml } from "../content/sceneArt";
+import { renderPartySceneHtml } from "../content/partySceneArt";
 import type { MapNpc, MapDoor } from "../domain/gameMap";
-import { buildDailyGraph } from "../domain/objectives/daily";
 import type { ObjectiveGraph, ObjectiveContext } from "../domain/objective";
 import { grid, needsSeed, bloomsThisRow, ROW_LENGTH, type CellState } from "../domain/garden";
 import { hoursUntilNextDay, type DailyRole } from "../domain/dailyLoop";
@@ -46,7 +46,7 @@ export class GameController {
     private readonly adapters: Adapters,
     private readonly campaign: Campaign,
   ) {
-    this.objectives = buildDailyGraph(campaign.lesson);
+    this.objectives = campaign.objectives;
     this.maps = buildMaps(campaign.area);
   }
 
@@ -161,15 +161,25 @@ export class GameController {
     return status;
   }
 
+  /** The location + first NPC's name fulfilling a given role, if any (campaign-driven, not hardcoded). */
+  private roleLocation(role: DailyRole): { loc: Location; npcName: string } | undefined {
+    const loc = this.campaign.area.locations.find((l) => l.role === role);
+    if (!loc) return undefined;
+    const npc = findNpc(loc.npcIds[0]);
+    return { loc, npcName: npc?.name ?? "them" };
+  }
+
   private gardenCard() {
     const field = this.player.getState().field;
     const today = appDay(this.adapters.clock.now());
     const cells = grid(field, today).map((row) => row.map((c) => cellEmoji(c, "🌸")));
+    const seedLoc = this.roleLocation("seeds");
+    const waterLoc = this.roleLocation("water");
     const hint = needsSeed(field, today)
       ? field.rows.length === 0
-        ? "Hear Jackie's story at the seed farm to plant your first row"
-        : "Row done! Hear Jackie's next story for the next row"
-      : `${bloomsThisRow(field, today)}/${ROW_LENGTH} bloomed — water daily at La Plaza`;
+        ? `Hear ${seedLoc?.npcName ?? "the story"}'s story at ${seedLoc?.loc.name ?? "the seed farm"} to plant your first row`
+        : `Row done! Hear ${seedLoc?.npcName ?? "the"} next story for the next row`
+      : `${bloomsThisRow(field, today)}/${ROW_LENGTH} bloomed — water daily at ${waterLoc?.loc.name ?? "the plaza"}`;
 
     return {
       id: "field",
@@ -185,8 +195,9 @@ export class GameController {
     const foliage = this.player.getState().foliage;
     const today = appDay(this.adapters.clock.now());
     const cells = grid(foliage, today).map((row) => row.map((c) => cellEmoji(c, "🍃")));
+    const loc = this.roleLocation("foliage");
     const hint = needsSeed(foliage, today)
-      ? "Visit Arlene at El Bosque to start gathering greenery"
+      ? `Visit ${loc?.npcName ?? "someone"} at ${loc?.loc.name ?? "the bonus location"} to start gathering greenery`
       : `${bloomsThisRow(foliage, today)}/${ROW_LENGTH} gathered — bonus practice, any time`;
 
     return {
@@ -195,7 +206,10 @@ export class GameController {
       label: "Your foliage",
       hint,
       grid: cells,
-      onTap: () => this.toast("🍃 Talk to Arlene at El Bosque any time for a bonus practice rep."),
+      onTap: () =>
+        this.toast(
+          `🍃 Talk to ${loc?.npcName ?? "someone"} at ${loc?.loc.name ?? "the bonus location"} any time for a bonus practice rep.`,
+        ),
     };
   }
 
@@ -203,8 +217,9 @@ export class GameController {
     const ribbons = this.player.getState().ribbons;
     const today = appDay(this.adapters.clock.now());
     const cells = grid(ribbons, today).map((row) => row.map((c) => cellEmoji(c, "🎀")));
+    const loc = this.roleLocation("ribbons");
     const hint = needsSeed(ribbons, today)
-      ? "Visit Maria at La Sala to start finishing the bouquet"
+      ? `Visit ${loc?.npcName ?? "someone"} at ${loc?.loc.name ?? "the bonus location"} to start finishing the bouquet`
       : `${bloomsThisRow(ribbons, today)}/${ROW_LENGTH} tied — bonus practice, any time`;
 
     return {
@@ -213,7 +228,10 @@ export class GameController {
       label: "Your ribbons",
       hint,
       grid: cells,
-      onTap: () => this.toast("🎀 Talk to Maria at La Sala any time for a bonus practice rep."),
+      onTap: () =>
+        this.toast(
+          `🎀 Talk to ${loc?.npcName ?? "someone"} at ${loc?.loc.name ?? "the bonus location"} any time for a bonus practice rep.`,
+        ),
     };
   }
 
@@ -222,16 +240,18 @@ export class GameController {
   private onGardenTap() {
     const field = this.player.getState().field;
     const today = appDay(this.adapters.clock.now());
+    const seedLoc = this.roleLocation("seeds");
+    const waterLoc = this.roleLocation("water");
     if (needsSeed(field, today)) {
       this.toast(
         field.rows.length === 0
-          ? "🌱 Visit Jackie at the seed farm to plant your first row."
-          : "🌱 This week's row is complete — hear Jackie's next story for the next one.",
+          ? `🌱 Visit ${seedLoc?.npcName ?? "them"} at ${seedLoc?.loc.name ?? "the seed farm"} to plant your first row.`
+          : `🌱 This week's row is complete — hear ${seedLoc?.npcName ?? "the"} next story for the next one.`,
       );
       return;
     }
     this.toast(
-      `💧 ${bloomsThisRow(field, today)}/${ROW_LENGTH} plants bloomed this week. Water daily at La Plaza to keep your streak alive.`,
+      `💧 ${bloomsThisRow(field, today)}/${ROW_LENGTH} plants bloomed this week. Water daily at ${waterLoc?.loc.name ?? "the plaza"} to keep your streak alive.`,
     );
   }
 
@@ -239,17 +259,20 @@ export class GameController {
 
   private setupDevPanel() {
     this.devPanel = new HtmlDevPanel({
-      onSeeds: () => void this.devComplete("story-telling", "seeds"),
-      onWater: () => void this.devComplete("story-retell", "water"),
-      onStore: () => void this.devComplete("store-review", "store"),
-      onFoliage: () => void this.devComplete("foliage-gathering", "foliage"),
-      onRibbons: () => void this.devComplete("where-are-things", "ribbons"),
+      onSeeds: () => void this.devCompleteRole("seeds"),
+      onWater: () => void this.devCompleteRole("water"),
+      onStore: () => void this.devCompleteRole("store"),
+      onFoliage: () => void this.devCompleteRole("foliage"),
+      onRibbons: () => void this.devCompleteRole("ribbons"),
       onAdvanceDay: (n) => void this.devAdvanceDay(n),
     });
     this.updateDevStatus();
   }
 
-  private async devComplete(objectiveId: string, role: DailyRole) {
+  /** Completes whichever objective fulfills `role` in the active campaign — campaign-agnostic. */
+  private async devCompleteRole(role: DailyRole) {
+    const objectiveId = this.objectives.all().find((o) => o.role === role)?.id;
+    if (!objectiveId) return;
     await this.player.completeActivity({
       objectiveId,
       role,
@@ -340,7 +363,12 @@ export class GameController {
       today: appDay(this.adapters.clock.now()),
     };
     const theme = objective.buildTheme(ctx);
-    const scene = objective.referenceScene?.(ctx);
+    const ref = objective.referenceScene?.(ctx);
+    const sceneHtml = !ref
+      ? null
+      : ref.kind === "party"
+        ? renderPartySceneHtml(ref.scene)
+        : renderSceneHtml(ref.scene);
 
     const session = new ConversationSession(
       {
@@ -383,7 +411,7 @@ export class GameController {
     });
 
     view.setHeader(npc.name, "", canDo);
-    view.setScenePeek(scene ? renderSceneHtml(scene) : null);
+    view.setScenePeek(sceneHtml);
 
     const opener = npc.conversation.opener;
     session.begin(opener);
@@ -440,7 +468,8 @@ export class GameController {
     if (!applied) return;
 
     if (applied.planted) {
-      this.toast("🌱 New row planted! Water it daily at La Plaza this week.");
+      const waterPlace = this.roleLocation("water")?.loc.name ?? "the plaza";
+      this.toast(`🌱 New row planted! Water it daily at ${waterPlace} this week.`);
     } else if (applied.sold > 0) {
       this.toast(`🛒 Nice review! +${applied.soldValue} 💰`);
     } else if (role === "water" && applied.grown > 0) {

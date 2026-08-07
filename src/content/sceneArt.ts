@@ -77,7 +77,7 @@ function itemLayer(a: SlotAssignment | undefined): string {
 export function renderSceneHtml(scene: DailyScene): string {
   const { door, table, vase } = bySlot(scene);
   return (
-    `<img class="scene-room-bg" src="${roomUrl}" alt="" />` +
+    `<img class="scene-bg" src="${roomUrl}" alt="" />` +
     itemLayer(door) +
     itemLayer(table) +
     itemLayer(vase)

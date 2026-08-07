@@ -4,7 +4,7 @@
  * the farming loop end-to-end and is the safety net for all future changes.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { makeAdapters, type Adapters } from "../adapters";
 import { PlayerService } from "../PlayerService";
 import { ConversationSession } from "../ConversationSession";
@@ -398,6 +398,11 @@ describe("free-form conversation (LLM-driven)", () => {
 
 describe("reward grant resilience", () => {
   it("a throwing grader does not break gameplay — falls back to local economy", async () => {
+    // PlayerService.completeActivity logs this fallback via console.error by
+    // design (so real failures are visible in prod); silence it here since
+    // we're deliberately triggering it.
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
     const { InMemoryPlayerRepository } = await import(
       "../../net/fakes/InMemoryPlayerRepository"
     );
@@ -420,5 +425,7 @@ describe("reward grant resilience", () => {
 
     expect(result.earnedReward).toBe(true);
     expect(result.soldValue).toBeGreaterThan(0);
+
+    consoleError.mockRestore();
   });
 });

@@ -13,11 +13,13 @@ import type { Lesson } from "./lesson.js";
 
 export class StoryTelling implements Objective {
   readonly id = "story-telling";
-  readonly npcId = "jackie";
   readonly role = "seeds" as const;
   readonly dependsOn: string[] = [];
 
-  constructor(private readonly lesson: Lesson) {}
+  constructor(
+    private readonly lesson: Lesson,
+    readonly npcId = "jackie",
+  ) {}
 
   buildTheme(_ctx: ObjectiveContext): string {
     return (
