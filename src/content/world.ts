@@ -246,11 +246,11 @@ export const FIESTA_DE_DAPHNE: Area = {
     },
     {
       id: "con-las-tias",
-      name: "Con las Tías",
+      name: "Con Tía Jackie",
       role: "foliage",
       icon: "🎉",
-      blurb: "Habla con las tías sobre lo que va a pasar en la fiesta.",
-      npcIds: ["jackie-tia", "arlene-tia", "annette-tia"],
+      blurb: "Habla con tía Jackie sobre lo que va a pasar en la fiesta.",
+      npcIds: ["jackie-tia"],
     },
     {
       id: "con-la-abuela",
@@ -325,38 +325,6 @@ export const FIESTA_DE_DAPHNE: Area = {
           level: "A2",
           es: "🎉 Habla con tía Jackie sobre la fiesta",
           en: "Chat with tía Jackie about what's about to happen at the party — cake, games, presents. Tap 'Talk' to begin.",
-        },
-      ],
-    },
-    {
-      id: "arlene-tia",
-      name: "Tía Arlene",
-      color: 0x6b8f47,
-      voice: "alloy",
-      conversation: {
-        opener: "¡Hola! Esta fiesta va a estar increíble. ¿Qué va a pasar después del pastel?",
-      },
-      lines: [
-        {
-          level: "A2",
-          es: "🎉 Habla con tía Arlene sobre la fiesta",
-          en: "Chat with tía Arlene about what's coming up next at the party. Tap 'Talk' to begin.",
-        },
-      ],
-    },
-    {
-      id: "annette-tia",
-      name: "Tía Annette",
-      color: 0x9b59b6,
-      voice: "shimmer",
-      conversation: {
-        opener: "¡Hola! ¿Vamos a cantar 'Las Mañanitas' pronto? Cuéntame tus planes para hoy.",
-      },
-      lines: [
-        {
-          level: "A2",
-          es: "🎉 Habla con tía Annette sobre la fiesta",
-          en: "Chat with tía Annette about your plans for the rest of the party. Tap 'Talk' to begin.",
         },
       ],
     },
