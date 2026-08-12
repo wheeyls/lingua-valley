@@ -1,20 +1,16 @@
 /**
- * HtmlWorldView — room-based point-and-click navigator.
+ * HtmlWorldView — flat point-and-click hub.
  *
- * Each "room" is a static screen showing tappable NPCs, doors, and items as
- * cards. Tap an NPC to talk, tap a door to enter (if unlocked), back button to
- * go back. No movement, no scrolling, no player character. A tree of screens.
+ * A single static screen showing tappable NPCs and live cards. Tap an NPC to
+ * talk. No movement, no scrolling, no player character, no sub-screens.
  */
 
 import "./room.css";
-import type { GameMap, MapNpc, MapDoor } from "../../domain/gameMap";
-import { npcsOn, doorsOn, isDoorUnlocked } from "../../domain/gameMap";
-import type { ObjectiveState } from "../../domain/objective";
-import { npcAvatarSvg, HOUSE_DOOR_SVG, LOCKED_DOOR_SVG } from "../../content/art";
+import type { GameMap, MapNpc } from "../../domain/gameMap";
+import { npcAvatarSvg } from "../../content/art";
 
 export interface WorldViewCallbacks {
   onNpcTap: (npc: MapNpc) => void;
-  onDoorTap: (door: MapDoor) => void;
 }
 
 /** A live, state-driven card injected by the controller (the garden). */
@@ -27,14 +23,6 @@ export interface ExtraCard {
   onTap: () => void;
 }
 
-/** Per-door status shown on the hub (e.g. how many people are done inside). */
-export interface DoorStatus {
-  /** Short hint under the label, e.g. "1 person to talk to" or "All done ✓". */
-  hint: string;
-  /** True when everything inside is finished today (renders a ✓ badge). */
-  done: boolean;
-}
-
 export class HtmlWorldView {
   private root: HTMLDivElement;
   private barEl: HTMLDivElement;
@@ -42,8 +30,6 @@ export class HtmlWorldView {
   private callbacks: WorldViewCallbacks;
   private currentMap!: GameMap;
   private extraCards: ExtraCard[] = [];
-  private doorStatus: Record<string, DoorStatus> = {};
-  private lastObjState: ObjectiveState = {};
   private lastCompleted: Set<string> = new Set();
 
   constructor(callbacks: WorldViewCallbacks) {
@@ -63,32 +49,17 @@ export class HtmlWorldView {
     document.body.appendChild(this.root);
   }
 
-  loadMap(map: GameMap, objState: ObjectiveState, completedNpcIds: Set<string> = new Set()) {
+  loadMap(map: GameMap, completedNpcIds: Set<string> = new Set()) {
     this.currentMap = map;
-    this.lastObjState = objState;
     this.lastCompleted = completedNpcIds;
-    this.renderRoom(map, objState, completedNpcIds);
-  }
-
-  refresh(objState: ObjectiveState, completedNpcIds: Set<string> = new Set()) {
-    this.lastObjState = objState;
-    this.lastCompleted = completedNpcIds;
-    this.renderRoom(this.currentMap, objState, completedNpcIds);
+    this.renderRoom(map, completedNpcIds);
   }
 
   /** Set the live, controller-driven cards (field, station) and re-render. */
   setExtraCards(cards: ExtraCard[]) {
     this.extraCards = cards;
     if (this.currentMap) {
-      this.renderRoom(this.currentMap, this.lastObjState, this.lastCompleted);
-    }
-  }
-
-  /** Set per-door status (keyed by door id) shown on the hub, and re-render. */
-  setDoorStatus(status: Record<string, DoorStatus>) {
-    this.doorStatus = status;
-    if (this.currentMap) {
-      this.renderRoom(this.currentMap, this.lastObjState, this.lastCompleted);
+      this.renderRoom(this.currentMap, this.lastCompleted);
     }
   }
 
@@ -165,12 +136,12 @@ export class HtmlWorldView {
 
   destroy() { this.root.remove(); }
 
-  private renderRoom(map: GameMap, objState: ObjectiveState, completedNpcIds: Set<string> = new Set()) {
+  private renderRoom(map: GameMap, completedNpcIds: Set<string> = new Set()) {
     // Top bar — update the per-room bits (name) in place rather than
     // resetting the whole bar's innerHTML, so persistent overlay children
     // appended elsewhere (.hud-info, .hud-checkpoint, .hud-user, .hud-daily)
     // survive across the multiple renderRoom calls one GameController.render()
-    // triggers (loadMap/setExtraCards/setDoorStatus each call this).
+    // triggers (loadMap/setExtraCards each call this).
     let nameEl = this.barEl.querySelector(".room-name") as HTMLElement | null;
     if (!nameEl) {
       nameEl = document.createElement("span");
@@ -204,8 +175,8 @@ export class HtmlWorldView {
 
     this.bodyEl.innerHTML = "";
 
-    // NPC cards — SVG avatar as the icon
-    for (const npc of npcsOn(map)) {
+    // NPC cards — SVG avatar as the icon, an optional icon badge for flavor.
+    for (const npc of map.npcs) {
       const done = completedNpcIds.has(npc.npcId);
       const color = `#${npc.color.toString(16).padStart(6, "0")}`;
       const initial = npc.name[0].toUpperCase();
@@ -221,36 +192,13 @@ export class HtmlWorldView {
           </div>
           ${done ? '<div class="card-npc-badge">✓</div>' : ""}
         </div>
-        <div class="card-label">${npc.name}</div>
+        <div class="card-label">${npc.icon ? `${npc.icon} ` : ""}${npc.name}</div>
         <div class="card-hint">${done ? "Done today ✓" : "Tap to talk"}</div>
       `;
       card.addEventListener("pointerdown", (e) => {
         e.stopPropagation();
         this.callbacks.onNpcTap(npc);
       });
-      this.bodyEl.appendChild(card);
-    }
-
-    // Door cards — house facade SVG, with optional "who's left inside" status.
-    for (const door of doorsOn(map)) {
-      const unlocked = isDoorUnlocked(door, objState);
-      const status = this.doorStatus[door.id];
-      const card = document.createElement("div");
-      card.className = `card card-door ${unlocked ? "unlocked" : "locked"}${
-        status?.done ? " card-door-done" : ""
-      }`;
-      card.innerHTML = `
-        <div class="card-door-art">${unlocked ? HOUSE_DOOR_SVG : LOCKED_DOOR_SVG}</div>
-        ${status?.done ? '<div class="card-npc-badge">✓</div>' : ""}
-        <div class="card-label">${door.label ?? "Door"}</div>
-        ${status ? `<div class="card-hint">${status.hint}</div>` : ""}
-      `;
-      if (unlocked) {
-        card.addEventListener("pointerdown", (e) => {
-          e.stopPropagation();
-          this.callbacks.onDoorTap(door);
-        });
-      }
       this.bodyEl.appendChild(card);
     }
 

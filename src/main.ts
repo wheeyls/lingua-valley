@@ -77,7 +77,7 @@ async function main() {
     const groupId = decodeURIComponent(checkpointMatch[1]);
     const date = decodeURIComponent(checkpointMatch[2]);
     if (!isCheckpointSunday(date)) {
-      new HtmlCheckpointView().showError("No checkpoint here.");
+      new HtmlCheckpointView(DEFAULT_CAMPAIGN.rewardTheme).showError("No checkpoint here.");
       return;
     }
     const app = await composeApp();
@@ -173,7 +173,7 @@ function showForgotPassword(
 
 /** Fetch + render the leaderboard (assumes a signed-in session). */
 async function showLeaderboard() {
-  const view = new HtmlLeaderboardView();
+  const view = new HtmlLeaderboardView(DEFAULT_CAMPAIGN.rewardTheme.primary);
   try {
     const token = await getAccessToken();
     const res = await fetch("/api/leaderboard", {
@@ -195,7 +195,7 @@ async function showLeaderboard() {
 async function showCheckpoint(
   groupId: string,
   date: string,
-  view: HtmlCheckpointView = new HtmlCheckpointView(),
+  view: HtmlCheckpointView = new HtmlCheckpointView(DEFAULT_CAMPAIGN.rewardTheme),
 ) {
   view.showLoading();
   try {

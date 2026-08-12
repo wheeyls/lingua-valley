@@ -7,11 +7,12 @@
  */
 
 import type { LeaderboardRow } from "../../domain/leaderboard";
+import type { ResourceTheme } from "../../content/campaigns";
 
 export class HtmlLeaderboardView {
   private root: HTMLDivElement;
 
-  constructor() {
+  constructor(private readonly theme: ResourceTheme) {
     this.root = document.createElement("div");
     this.root.style.cssText = `
       position:fixed; inset:0; overflow:auto; z-index:10;
@@ -72,7 +73,7 @@ export class HtmlLeaderboardView {
           </div>
           <div style="font-size:12px;color:#bcae93;display:flex;gap:10px;flex-wrap:wrap;margin-top:2px">
             <span>💰 ${r.money}</span>
-            <span>🌸 ${r.growth} blooms (${pct}%)</span>
+            <span>${this.theme.icon} ${r.growth} ${this.theme.itemPlural} (${pct}%)</span>
             <span>📅 today ${r.doneToday}/${r.totalToday}</span>
             <span>🔥 ${r.streak}d streak</span>
             <span>${lastActiveLabel(r.lastActive)}</span>
