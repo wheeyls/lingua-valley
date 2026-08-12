@@ -16,12 +16,12 @@ import { HtmlDialogueView, type DialogueViewData } from "../ui/html/HtmlDialogue
 import { HtmlConversationView } from "../ui/html/HtmlConversationView";
 import { HtmlDevPanel } from "../ui/html/HtmlDevPanel";
 import { blockCanvas, unblockCanvas } from "../ui/html/canvasBlock";
-import { buildMaps, HUB_MAP_ID } from "../content/maps";
-import { findNpc, visibleLocations, type Npc, type Location } from "../content/world";
-import type { Campaign } from "../content/campaigns";
+import { buildHubMap } from "../content/maps";
+import { findNpc, visibleLocations, type Npc } from "../content/world";
+import { themeForRole, type Campaign, type ResourceTheme } from "../content/campaigns";
 import { renderSceneHtml } from "../content/sceneArt";
 import { renderPartySceneHtml } from "../content/partySceneArt";
-import type { MapNpc, MapDoor } from "../domain/gameMap";
+import type { GameMap, MapNpc } from "../domain/gameMap";
 import type { ObjectiveGraph, ObjectiveContext } from "../domain/objective";
 import { grid, needsSeed, bloomsThisRow, ROW_LENGTH, type CellState } from "../domain/garden";
 import { hoursUntilNextDay, type DailyRole } from "../domain/dailyLoop";
@@ -36,9 +36,7 @@ import type { Adapters } from "./adapters";
 export class GameController {
   private worldView!: HtmlWorldView;
   private objectives: ObjectiveGraph;
-  private maps: ReturnType<typeof buildMaps>;
-  /** Which map is on screen: the hub, or a location room. */
-  private currentMapId = HUB_MAP_ID;
+  private hub: GameMap;
   private devPanel?: HtmlDevPanel;
 
   constructor(
@@ -47,13 +45,12 @@ export class GameController {
     private readonly campaign: Campaign,
   ) {
     this.objectives = campaign.objectives;
-    this.maps = buildMaps(campaign.area);
+    this.hub = buildHubMap(campaign.area);
   }
 
   start() {
     this.worldView = new HtmlWorldView({
       onNpcTap: (npc) => this.onNpcTap(npc),
-      onDoorTap: (door) => this.onDoorTap(door),
     });
 
     const user = this.adapters.auth.current();
@@ -100,21 +97,9 @@ export class GameController {
       activeObjectives.filter((obj) => objState[obj.id] != null).map((obj) => obj.npcId),
     );
 
-    const map = this.maps.getMap(this.currentMapId) ?? this.maps.getMap(HUB_MAP_ID)!;
-    this.worldView.loadMap(map, objState, completedNpcIds);
+    this.worldView.loadMap(this.hub, completedNpcIds);
     this.worldView.updateHud(state.money);
-
-    this.worldView.setExtraCards(
-      this.currentMapId === HUB_MAP_ID
-        ? [this.gardenCard(), this.foliageCard(), this.ribbonsCard()]
-        : [],
-    );
-
-    // On the hub, show each location's "who's left to talk to" status so the
-    // player doesn't have to enter a house to check.
-    this.worldView.setDoorStatus(
-      this.currentMapId === HUB_MAP_ID ? this.hubDoorStatus(objState) : {},
-    );
+    this.worldView.setExtraCards([this.gardenCard(), this.foliageCard(), this.ribbonsCard()]);
 
     const now = new Date();
     const hours = hoursUntilNextDay(state.daily, now);
@@ -127,64 +112,36 @@ export class GameController {
     });
   }
 
-  // --- Navigation -----------------------------------------------------------
-
-  private onDoorTap(door: MapDoor) {
-    this.currentMapId = door.targetMapId;
-    this.render();
-  }
-
-  /**
-   * Per-location status for the hub doors: how many people inside still have
-   * something to do today. Keyed by door id (`<locationId>-door`).
-   */
-  private hubDoorStatus(objState: ReturnType<PlayerService["getState"]>["daily"]["objectiveState"]) {
-    const status: Record<string, { hint: string; done: boolean }> = {};
-    for (const loc of visibleLocations(this.campaign.area)) {
-      const total = loc.npcIds.length;
-      const done = loc.npcIds.filter((npcId) => {
-        const obj = this.objectives.forNpc(npcId);
-        return obj != null && objState[obj.id] != null;
-      }).length;
-      const remaining = total - done;
-
-      let hint: string;
-      if (done >= total) {
-        hint = total > 1 ? "All done today ✓" : "Done today ✓";
-      } else if (done === 0) {
-        hint = total > 1 ? `${total} people to talk to` : "Tap to talk";
-      } else {
-        hint = `${remaining} of ${total} left`;
-      }
-      status[`${loc.id}-door`] = { hint, done: done >= total };
-    }
-    return status;
-  }
-
-  /** The location + first NPC's name fulfilling a given role, if any (campaign-driven, not hardcoded). */
-  private roleLocation(role: DailyRole): { loc: Location; npcName: string } | undefined {
+  /** The display name of the NPC fulfilling a given role, if any (campaign-driven, not hardcoded). */
+  private roleNpcName(role: DailyRole): string | undefined {
     const loc = this.campaign.area.locations.find((l) => l.role === role);
     if (!loc) return undefined;
-    const npc = findNpc(loc.npcIds[0]);
-    return { loc, npcName: npc?.name ?? "them" };
+    return findNpc(loc.npcIds[0])?.name;
+  }
+
+  private resourceTheme(role: DailyRole): ResourceTheme {
+    // Every role gardenCard/foliageCard/ribbonsCard/afterConversation call
+    // this for has a theme (only "store" doesn't, and none of them pass it).
+    return themeForRole(this.campaign.rewardTheme, role)!;
   }
 
   private gardenCard() {
     const field = this.player.getState().field;
     const today = appDay(this.adapters.clock.now());
-    const cells = grid(field, today).map((row) => row.map((c) => cellEmoji(c, "🌸")));
-    const seedLoc = this.roleLocation("seeds");
-    const waterLoc = this.roleLocation("water");
+    const theme = this.resourceTheme("water");
+    const cells = grid(field, today).map((row) => row.map((c) => cellEmoji(c, theme.icon)));
+    const seedName = this.roleNpcName("seeds");
+    const waterName = this.roleNpcName("water");
     const hint = needsSeed(field, today)
       ? field.rows.length === 0
-        ? `Hear ${seedLoc?.npcName ?? "the story"}'s story at ${seedLoc?.loc.name ?? "the seed farm"} to plant your first row`
-        : `Row done! Hear ${seedLoc?.npcName ?? "the"} next story for the next row`
-      : `${bloomsThisRow(field, today)}/${ROW_LENGTH} bloomed — water daily at ${waterLoc?.loc.name ?? "the plaza"}`;
+        ? `Hear ${seedName ?? "the story"}'s story to plant your first row`
+        : `Row done! Hear ${seedName ?? "the"} next story for the next row`
+      : `${bloomsThisRow(field, today)}/${ROW_LENGTH} ${theme.grownVerb} — talk to ${waterName ?? "them"} daily`;
 
     return {
       id: "field",
-      icon: "🌱",
-      label: "Your garden",
+      icon: theme.icon,
+      label: theme.label,
       hint,
       grid: cells,
       onTap: () => this.onGardenTap(),
@@ -194,44 +151,42 @@ export class GameController {
   private foliageCard() {
     const foliage = this.player.getState().foliage;
     const today = appDay(this.adapters.clock.now());
-    const cells = grid(foliage, today).map((row) => row.map((c) => cellEmoji(c, "🍃")));
-    const loc = this.roleLocation("foliage");
+    const theme = this.resourceTheme("foliage");
+    const cells = grid(foliage, today).map((row) => row.map((c) => cellEmoji(c, theme.icon)));
+    const npcName = this.roleNpcName("foliage");
     const hint = needsSeed(foliage, today)
-      ? `Visit ${loc?.npcName ?? "someone"} at ${loc?.loc.name ?? "the bonus location"} to start gathering greenery`
-      : `${bloomsThisRow(foliage, today)}/${ROW_LENGTH} gathered — bonus practice, any time`;
+      ? `Visit ${npcName ?? "someone"} to start ${theme.startVerb} ${theme.itemPlural}`
+      : `${bloomsThisRow(foliage, today)}/${ROW_LENGTH} ${theme.grownVerb} — bonus practice, any time`;
 
     return {
       id: "foliage",
-      icon: "🍃",
-      label: "Your foliage",
+      icon: theme.icon,
+      label: theme.label,
       hint,
       grid: cells,
       onTap: () =>
-        this.toast(
-          `🍃 Talk to ${loc?.npcName ?? "someone"} at ${loc?.loc.name ?? "the bonus location"} any time for a bonus practice rep.`,
-        ),
+        this.toast(`Talk to ${npcName ?? "someone"} any time for a bonus practice rep.`),
     };
   }
 
   private ribbonsCard() {
     const ribbons = this.player.getState().ribbons;
     const today = appDay(this.adapters.clock.now());
-    const cells = grid(ribbons, today).map((row) => row.map((c) => cellEmoji(c, "🎀")));
-    const loc = this.roleLocation("ribbons");
+    const theme = this.resourceTheme("ribbons");
+    const cells = grid(ribbons, today).map((row) => row.map((c) => cellEmoji(c, theme.icon)));
+    const npcName = this.roleNpcName("ribbons");
     const hint = needsSeed(ribbons, today)
-      ? `Visit ${loc?.npcName ?? "someone"} at ${loc?.loc.name ?? "the bonus location"} to start finishing the bouquet`
-      : `${bloomsThisRow(ribbons, today)}/${ROW_LENGTH} tied — bonus practice, any time`;
+      ? `Visit ${npcName ?? "someone"} to start ${theme.startVerb} ${theme.itemPlural}`
+      : `${bloomsThisRow(ribbons, today)}/${ROW_LENGTH} ${theme.grownVerb} — bonus practice, any time`;
 
     return {
       id: "ribbons",
-      icon: "🎀",
-      label: "Your ribbons",
+      icon: theme.icon,
+      label: theme.label,
       hint,
       grid: cells,
       onTap: () =>
-        this.toast(
-          `🎀 Talk to ${loc?.npcName ?? "someone"} at ${loc?.loc.name ?? "the bonus location"} any time for a bonus practice rep.`,
-        ),
+        this.toast(`Talk to ${npcName ?? "someone"} any time for a bonus practice rep.`),
     };
   }
 
@@ -240,18 +195,19 @@ export class GameController {
   private onGardenTap() {
     const field = this.player.getState().field;
     const today = appDay(this.adapters.clock.now());
-    const seedLoc = this.roleLocation("seeds");
-    const waterLoc = this.roleLocation("water");
+    const seedName = this.roleNpcName("seeds");
+    const waterName = this.roleNpcName("water");
     if (needsSeed(field, today)) {
       this.toast(
         field.rows.length === 0
-          ? `🌱 Visit ${seedLoc?.npcName ?? "them"} at ${seedLoc?.loc.name ?? "the seed farm"} to plant your first row.`
-          : `🌱 This week's row is complete — hear ${seedLoc?.npcName ?? "the"} next story for the next one.`,
+          ? `🌱 Visit ${seedName ?? "them"} to plant your first row.`
+          : `🌱 This week's row is complete — hear ${seedName ?? "the"} next story for the next one.`,
       );
       return;
     }
+    const theme = this.resourceTheme("water");
     this.toast(
-      `💧 ${bloomsThisRow(field, today)}/${ROW_LENGTH} plants bloomed this week. Water daily at ${waterLoc?.loc.name ?? "the plaza"} to keep your streak alive.`,
+      `💧 ${bloomsThisRow(field, today)}/${ROW_LENGTH} ${theme.itemPlural} ${theme.grownVerb} this week. Talk to ${waterName ?? "them"} daily to keep your streak alive.`,
     );
   }
 
@@ -431,9 +387,9 @@ export class GameController {
         const corr =
           outcome.grade.corrections.length > 0 ? outcome.grade.corrections.join("; ") : "";
         const sold = outcome.applied.soldValue > 0 ? `+${outcome.applied.soldValue} 💰` : "";
-        const grew = outcome.applied.grown > 0 ? "🌸 Your plant bloomed!" : "";
-        const grewFoliage = outcome.applied.grownFoliage > 0 ? "🍃 Foliage gathered!" : "";
-        const grewRibbons = outcome.applied.grownRibbons > 0 ? "🎀 Ribbon tied!" : "";
+        const grew = outcome.applied.grown > 0 ? this.grownBadge("water") : "";
+        const grewFoliage = outcome.applied.grownFoliage > 0 ? this.grownBadge("foliage") : "";
+        const grewRibbons = outcome.applied.grownRibbons > 0 ? this.grownBadge("ribbons") : "";
         view.setFeedback(
           outcome.grade.feedback,
           corr,
@@ -459,6 +415,12 @@ export class GameController {
     channel.mountInput(view.inputArea(), view, (utterance) => void handleTurn(utterance));
   }
 
+  /** The compact "X grew" badge shown inline during a conversation turn. */
+  private grownBadge(role: DailyRole): string {
+    const theme = this.resourceTheme(role);
+    return `${theme.icon} Your ${theme.itemSingular} ${theme.grownVerb}!`;
+  }
+
   /**
    * End-of-conversation feedback. The field/money/objective side-effects already
    * happened authoritatively inside `applyActivity` (so they persist server-side);
@@ -468,16 +430,23 @@ export class GameController {
     if (!applied) return;
 
     if (applied.planted) {
-      const waterPlace = this.roleLocation("water")?.loc.name ?? "the plaza";
-      this.toast(`🌱 New row planted! Water it daily at ${waterPlace} this week.`);
+      const waterName = this.roleNpcName("water") ?? "them";
+      this.toast(`🌱 New row planted! Talk to ${waterName} daily this week to keep it growing.`);
     } else if (applied.sold > 0) {
       this.toast(`🛒 Nice review! +${applied.soldValue} 💰`);
     } else if (role === "water" && applied.grown > 0) {
-      this.toast("🌸 Your plant bloomed! Come back tomorrow to keep the streak.");
+      const theme = this.resourceTheme("water");
+      this.toast(`${theme.icon} Your ${theme.itemSingular} ${theme.grownVerb}! Come back tomorrow to keep the streak.`);
     } else if (role === "foliage" && applied.grownFoliage > 0) {
-      this.toast("🍃 Gathered some foliage for the bouquet!");
+      const theme = this.resourceTheme("foliage");
+      this.toast(
+        `${theme.icon} Your ${theme.itemSingular} ${theme.grownVerb} for the ${this.campaign.rewardTheme.collectionName}!`,
+      );
     } else if (role === "ribbons" && applied.grownRibbons > 0) {
-      this.toast("🎀 Tied a ribbon onto the bouquet!");
+      const theme = this.resourceTheme("ribbons");
+      this.toast(
+        `${theme.icon} Your ${theme.itemSingular} ${theme.grownVerb} for the ${this.campaign.rewardTheme.collectionName}!`,
+      );
     }
   }
 

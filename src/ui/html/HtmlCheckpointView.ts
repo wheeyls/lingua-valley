@@ -10,6 +10,8 @@
  * through history (Next is hidden once back at the latest, in-progress week).
  */
 
+import type { RewardTheme } from "../../content/campaigns";
+
 export interface CheckpointData {
   groupName: string;
   start: string;
@@ -37,7 +39,7 @@ export interface CheckpointNav {
 export class HtmlCheckpointView {
   private root: HTMLDivElement;
 
-  constructor() {
+  constructor(private readonly theme: RewardTheme) {
     this.root = document.createElement("div");
     this.root.style.cssText = `
       position:fixed; inset:0; overflow:auto; z-index:10;
@@ -70,7 +72,7 @@ export class HtmlCheckpointView {
     this.root.innerHTML = `
       <div style="max-width:760px;margin:0 auto">
         <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px">
-          <h1 style="color:#ffe08a;font-size:clamp(22px,5vw,30px)">💐 ${escapeHtml(data.groupName)} checkpoint</h1>
+          <h1 style="color:#ffe08a;font-size:clamp(22px,5vw,30px)">${this.theme.collectionIcon} ${escapeHtml(data.groupName)} checkpoint</h1>
           <a href="/" style="color:#9bc995;font-size:14px">← Back to the game</a>
         </div>
         <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:16px">
@@ -93,17 +95,17 @@ export class HtmlCheckpointView {
           <div style="flex:1;background:rgba(155,201,149,0.12);border:2px solid #9bc995;border-radius:12px;
                       padding:16px;text-align:center">
             <div style="font-size:clamp(28px,8vw,44px);font-weight:bold;color:#9bc995">${data.totalBlooms}</div>
-            <div style="color:#bcae93;font-size:13px">🌸 blooms as a group this week</div>
+            <div style="color:#bcae93;font-size:13px">${this.theme.primary.icon} ${this.theme.primary.itemPlural} as a group this week</div>
           </div>
           <div style="flex:1;background:rgba(107,143,71,0.12);border:2px solid #6b8f47;border-radius:12px;
                       padding:16px;text-align:center">
             <div style="font-size:clamp(28px,8vw,44px);font-weight:bold;color:#9bc995">${data.totalFoliage}</div>
-            <div style="color:#bcae93;font-size:13px">🍃 foliage gathered this week</div>
+            <div style="color:#bcae93;font-size:13px">${this.theme.bonusA.icon} ${this.theme.bonusA.itemPlural} ${this.theme.bonusA.grownVerb} this week</div>
           </div>
           <div style="flex:1;background:rgba(212,163,115,0.14);border:2px solid #d4a373;border-radius:12px;
                       padding:16px;text-align:center">
             <div style="font-size:clamp(28px,8vw,44px);font-weight:bold;color:#9bc995">${data.totalRibbons}</div>
-            <div style="color:#bcae93;font-size:13px">🎀 ribbons tied this week</div>
+            <div style="color:#bcae93;font-size:13px">${this.theme.bonusB.icon} ${this.theme.bonusB.itemPlural} ${this.theme.bonusB.grownVerb} this week</div>
           </div>
         </div>
         ${data.rows.length === 0 ? '<p style="color:#9bc995">No members in this group yet.</p>' : ""}
@@ -141,9 +143,9 @@ export class HtmlCheckpointView {
                     color:#1a1423;flex-shrink:0">${escapeHtml(initial)}</div>
         <div style="flex:1;min-width:0;font-weight:bold;font-size:16px;overflow:hidden;
                     text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.displayName)}</div>
-        <div style="color:#9bc995;font-weight:bold;font-size:15px;flex-shrink:0">🌸 ${r.blooms}</div>
-        <div style="color:#9bc995;font-weight:bold;font-size:15px;flex-shrink:0">🍃 ${r.foliage}</div>
-        <div style="color:#9bc995;font-weight:bold;font-size:15px;flex-shrink:0">🎀 ${r.ribbons}</div>
+        <div style="color:#9bc995;font-weight:bold;font-size:15px;flex-shrink:0">${this.theme.primary.icon} ${r.blooms}</div>
+        <div style="color:#9bc995;font-weight:bold;font-size:15px;flex-shrink:0">${this.theme.bonusA.icon} ${r.foliage}</div>
+        <div style="color:#9bc995;font-weight:bold;font-size:15px;flex-shrink:0">${this.theme.bonusB.icon} ${r.ribbons}</div>
       </div>`;
   }
 

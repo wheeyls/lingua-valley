@@ -174,39 +174,6 @@
   margin-top: 4px;
 }
 
-/* --- Door card --- */
-.card-door {
-  position: relative;
-  border: 3px solid #d9b08c;
-  min-width: clamp(100px, 22vw, 140px);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-}
-.card-door.unlocked { background: rgba(58, 47, 30, 0.85); }
-.card-door.locked {
-  background: rgba(40, 40, 40, 0.75);
-  opacity: 0.7;
-  cursor: default;
-}
-.card-door-done { border-color: #9bc995; }
-.card-door .card-hint {
-  font-size: clamp(11px, 2.2vw, 14px);
-  color: #9bc995;
-  margin-top: 4px;
-}
-.card-door-art {
-  width: clamp(48px, 10vw, 72px);
-  height: clamp(56px, 12vw, 84px);
-  margin-bottom: 8px;
-}
-.card-door-art svg { width: 100%; height: 100%; }
-.card-door .card-label {
-  font-size: clamp(13px, 2.5vw, 17px);
-  font-weight: bold;
-}
-.card-door.unlocked .card-label { color: #ffe08a; }
-.card-door.locked .card-label { color: #888; }
-
 /* --- Item card --- */
 .card-item {
   background: rgba(26, 20, 35, 0.82);
