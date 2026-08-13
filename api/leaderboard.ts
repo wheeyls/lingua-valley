@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getAdminClient, userIdFromAuthHeader } from "./_lib/supabaseAdmin.js";
 import { rowsToPlayerState, type ProfileRow, type PlayerStateRow } from "../src/net/supabaseMappers.js";
 import { toLeaderboardRow, rankLeaderboard } from "../src/domain/leaderboard.js";
+import { settleDailyState } from "../src/domain/player.js";
 import { DEFAULT_CAMPAIGN } from "../src/content/campaigns.js";
 
 export const config = { api: { bodyParser: { sizeLimit: "1mb" } } };
@@ -49,7 +50,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const totalToday = DEFAULT_CAMPAIGN.area.locations.reduce((n, loc) => n + loc.npcIds.length, 0);
 
     const rows = [...profileById.values()].map((profile) => {
-      const state = rowsToPlayerState(profile, stateByUser.get(profile.id) ?? null);
+      // In-memory only (read-only view) — rolls a stale daily gate over for
+      // display so "done today" doesn't show a player's LAST session's count.
+      const state = settleDailyState(
+        rowsToPlayerState(profile, stateByUser.get(profile.id) ?? null),
+        new Date(),
+      );
       return toLeaderboardRow(state, {
         totalToday,
         nextAreaId: DEFAULT_CAMPAIGN.area.nextAreaId,

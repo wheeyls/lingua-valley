@@ -1,6 +1,11 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getAdminClient, userIdFromAuthHeader } from "./_lib/supabaseAdmin.js";
-import { applyActivity, initialPlayerState, type ActivityResult } from "../src/domain/player.js";
+import {
+  applyActivity,
+  initialPlayerState,
+  settleDailyState,
+  type ActivityResult,
+} from "../src/domain/player.js";
 import {
   rowsToPlayerState,
   playerStateToRow,
@@ -40,12 +45,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       admin.from("player_state").select("*").eq("user_id", userId).maybeSingle(),
     ]);
 
-    const prev = state.data
+    const loaded = state.data
       ? rowsToPlayerState(
           (profile.data as ProfileRow) ?? null,
           state.data as PlayerStateRow,
         )
       : initialPlayerState();
+    // Roll over to a new day here too — don't rely solely on the client having
+    // already settled + persisted before this request lands (this endpoint is
+    // the one that's actually authoritative for the daily reward/growth gate).
+    const prev = settleDailyState(loaded, new Date());
 
     // THE authoritative economy step — identical domain logic to the client.
     const result = applyActivity(prev, activity, new Date());

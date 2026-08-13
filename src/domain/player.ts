@@ -437,9 +437,20 @@ export function mergeStates(account: PlayerState, guest: PlayerState): PlayerSta
  * Settle time-based state as of `now`: start a fresh day (clearing the daily
  * reward/growth gate) once the 12-hour cooldown has elapsed. Pure & idempotent —
  * call once when state is loaded (and safe to call again same-day).
+ *
+ * Checks for any populated progress (not just `dayStartedAt`) before bothering
+ * to reset: a save can end up with `dayStartedAt` empty while other daily
+ * fields are populated (e.g. a server write that skipped settling first), and
+ * `dayStartedAt` alone going stale-but-empty must not mask a needed reset.
  */
 export function settleDailyState(state: PlayerState, now: Date): PlayerState {
-  if (state.daily.dayStartedAt && isNewDay(state.daily, now)) {
+  const { dayStartedAt, rewardedRoles, rewardedObjectives, objectiveState } = state.daily;
+  const hasProgress =
+    dayStartedAt !== "" ||
+    rewardedRoles.length > 0 ||
+    rewardedObjectives.length > 0 ||
+    Object.keys(objectiveState).length > 0;
+  if (hasProgress && isNewDay(state.daily, now)) {
     // Carry the streak/lastPlayedDay forward; only the per-day gates reset.
     return { ...state, daily: startNewDay(now, state.daily) };
   }
