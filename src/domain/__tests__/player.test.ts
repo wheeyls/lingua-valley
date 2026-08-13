@@ -391,4 +391,30 @@ describe("settleDailyState (daily reset on load)", () => {
     const settled = settleDailyState(s0, NOW);
     expect(settled).toBe(s0);
   });
+
+  it("is a true no-op for a brand-new player (empty dayStartedAt, no progress)", () => {
+    const fresh = initialPlayerState("T", 1);
+    const settled = settleDailyState(fresh, NOW);
+    expect(settled).toBe(fresh);
+  });
+
+  it("still resets stale objectiveState even when dayStartedAt is empty — a save can end up with dayStartedAt missing while other daily fields are populated (e.g. a write that skipped settling first); that must not mask a needed reset", () => {
+    const s0: PlayerState = {
+      ...initialPlayerState("T", 1),
+      daily: {
+        dayStartedAt: "",
+        rewardedRoles: ["seeds", "water", "store", "foliage", "ribbons"],
+        rewardedObjectives: ["story-telling", "story-retell"],
+        objectiveState: {
+          "story-telling": { completedAt: "2025-05-01T00:00:00.000Z", outputs: {} },
+        },
+        streak: 3,
+        lastPlayedDay: "2025-05-01",
+      },
+    };
+    const settled = settleDailyState(s0, NOW);
+    expect(settled.daily.rewardedRoles).toEqual([]);
+    expect(settled.daily.objectiveState).toEqual({});
+    expect(settled.daily.streak).toBe(3);
+  });
 });
