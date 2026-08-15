@@ -1,7 +1,10 @@
 /*
  * Room-based point-and-click navigation.
  * Fully responsive — works in portrait, landscape, phone, tablet, desktop.
- * No fixed dimensions. Cards wrap naturally. Background fills the viewport.
+ * No fixed dimensions. NPCs render as small mini-map pins over an
+ * aspect-locked background stage (letterboxed, not cropped, so pin
+ * percentages always line up with the art); the field/foliage/ribbons
+ * resource cards wrap naturally below it.
  */
 
 .room {
@@ -94,17 +97,125 @@
 .room-body {
   flex: 1;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: clamp(12px, 3vw, 24px);
   padding: clamp(16px, 4vw, 32px)
            max(clamp(16px, 4vw, 32px), env(safe-area-inset-left, 0px));
   overflow-y: auto;
   position: relative;
   z-index: 1;
+  background: #1a1423;
   /* Leave room for the bottom safe area (home indicator) */
   padding-bottom: max(clamp(16px, 4vw, 32px), env(safe-area-inset-bottom, 0px));
+}
+
+/* --- Map stage: aspect-locked so pin percentages line up with the art
+       regardless of viewport shape (letterboxed, not cropped) --- */
+.room-stage {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: 400 / 220;
+  margin: 0 auto;
+  border-radius: 18px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.room-stage svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.room-markers {
+  position: absolute;
+  inset: 0;
+}
+
+/* --- Map marker (mini-map pin) --- */
+.map-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  padding: 12px;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.1s;
+}
+.map-marker:active { transform: translate(-50%, -50%) scale(0.92); }
+.marker-pin {
+  position: relative;
+  width: clamp(30px, 7vw, 44px);
+  height: clamp(30px, 7vw, 44px);
+  overflow: visible;
+}
+.marker-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid rgba(244, 236, 216, 0.85);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  background: #1a1423;
+}
+.map-marker.marker-done .marker-avatar {
+  border-color: #9bc995;
+}
+.marker-avatar svg { width: 100%; height: 100%; }
+.marker-avatar img { width: 100%; height: 100%; object-fit: cover; }
+/* Green checkmark badge on completed markers */
+.marker-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #4a7c59;
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #1a1423;
+}
+.marker-label {
+  margin-top: 3px;
+  font-size: clamp(9px, 2vw, 12px);
+  font-weight: bold;
+  color: #f4ecd8;
+  background: rgba(26, 20, 35, 0.72);
+  padding: 2px 6px;
+  border-radius: 8px;
+  white-space: nowrap;
+  max-width: 22vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- Extra-card row (garden/foliage/ribbons) — same layout the whole
+       .room-body used to have, now scoped to just this row --- */
+.room-extras {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(12px, 3vw, 24px);
+  width: 100%;
+}
+
+/* On narrow phones, trim the body's own padding so the stage (and its pins)
+   can claim as much of the limited width as possible. */
+@media (max-width: 480px) {
+  .room-body {
+    padding-left: max(10px, env(safe-area-inset-left, 0px));
+    padding-right: max(10px, env(safe-area-inset-right, 0px));
+    gap: 10px;
+  }
 }
 
 /* --- Shared card styles --- */
@@ -122,57 +233,6 @@
   min-width: clamp(100px, 25vw, 150px);
 }
 .card:active { transform: scale(0.95); }
-
-/* --- NPC card --- */
-.card-npc {
-  background: rgba(26, 20, 35, 0.82);
-  border: 3px solid #d9b08c;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-}
-.card-npc-done {
-  border-color: #9bc995;
-}
-.card-avatar-wrap {
-  position: relative;
-  margin-bottom: 8px;
-}
-.card-avatar {
-  width: clamp(56px, 12vw, 88px);
-  height: clamp(74px, 16vw, 117px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.card-avatar svg { width: 100%; height: 100%; }
-.card-avatar-img { width: 100%; height: 100%; object-fit: contain; }
-/* Green checkmark badge on completed NPC cards */
-.card-npc-badge {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #4a7c59;
-  color: white;
-  font-size: 13px;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid #1a1423;
-}
-.card-npc .card-label {
-  font-size: clamp(15px, 3vw, 20px);
-  font-weight: bold;
-  color: #f4ecd8;
-}
-.card-npc .card-hint {
-  font-size: clamp(11px, 2.2vw, 14px);
-  color: #9bc995;
-  margin-top: 4px;
-}
 
 /* --- Item card --- */
 .card-item {

@@ -17,6 +17,7 @@
 
 import type { CefrLevel } from "../domain/cefr.js";
 import type { DailyRole } from "../domain/dailyLoop.js";
+import { PARK_BG } from "./art.js";
 
 export interface DialogueLine {
   level: CefrLevel;
@@ -45,6 +46,10 @@ export interface Location {
   blurb: string;
   /** NPC ids hosted here, in the order you talk to them. */
   npcIds: string[];
+  /** Id of the anchor marker (a <circle id="..."> in the Area's
+   *  backgroundSvg) this location's pin cluster is centered on. Resolved to
+   *  actual coordinates by buildHubMap — see maps.ts's resolveAnchor(). */
+  anchor: string;
   /** Hidden locations are dropped from the UI (no hub door, no room) but kept in
    *  content, so re-enabling one is just a matter of removing this flag. */
   hidden?: boolean;
@@ -64,6 +69,8 @@ export interface Area {
   locations: Location[];
   /** All NPCs in the campaign (referenced by locations). */
   npcs: Npc[];
+  /** Inline SVG for the hub background. Falls back to STREET_BG if unset. */
+  backgroundSvg?: string;
 }
 
 export const PUEBLO_DEL_AYER: Area = {
@@ -83,6 +90,7 @@ export const PUEBLO_DEL_AYER: Area = {
       icon: "🌱",
       blurb: "Hear Jackie's story and take home this week's seed.",
       npcIds: ["jackie"],
+      anchor: "seed-farm",
     },
     {
       id: "plaza",
@@ -91,6 +99,7 @@ export const PUEBLO_DEL_AYER: Area = {
       icon: "💧",
       blurb: "Retell Jackie's story to Jorgito. Waters your field.",
       npcIds: ["jorgito"],
+      anchor: "plaza",
     },
     {
       id: "store",
@@ -99,6 +108,7 @@ export const PUEBLO_DEL_AYER: Area = {
       icon: "🛒",
       blurb: "Tell Doña Tienda about your day and sell your harvest.",
       npcIds: ["shopkeeper"],
+      anchor: "store",
       hidden: true,
     },
     {
@@ -108,6 +118,7 @@ export const PUEBLO_DEL_AYER: Area = {
       icon: "🍃",
       blurb: "Gather greenery with Arlene for this week's bouquet.",
       npcIds: ["arlene"],
+      anchor: "the-woods",
     },
     {
       id: "the-room",
@@ -116,6 +127,7 @@ export const PUEBLO_DEL_AYER: Area = {
       icon: "🪑",
       blurb: "Help Maria find where things are — and finish off the bouquet.",
       npcIds: ["maria"],
+      anchor: "the-room",
     },
   ],
   npcs: [
@@ -218,47 +230,53 @@ export const FIESTA_DE_DAPHNE: Area = {
     "reúne en el parque para el primer cumpleaños de Daphne. Esta semana: " +
     "contar una historia en el pasado — entender, recontar, y compartir la tuya.",
   ticketPrice: 60,
+  backgroundSvg: PARK_BG,
   locations: [
     {
-      id: "con-el-abuelo",
-      name: "Con el Abuelo Jorge",
+      id: "la-ramada",
+      name: "La Ramada",
       role: "seeds",
       icon: "🎂",
-      blurb: "Escucha al abuelo Jorge contar cómo prepararon el parque para la fiesta.",
+      blurb: "Escucha al abuelo Jorge contar cómo prepararon el parque, sentado bajo la ramada.",
       npcIds: ["jorge-abuelo"],
+      anchor: "la-ramada",
     },
     {
-      id: "con-jorgito",
-      name: "Con Tío Jorgito",
+      id: "el-chapoteadero",
+      name: "El Chapoteadero",
       role: "water",
-      icon: "🎈",
-      blurb: "Cuéntale a Jorgito lo que hizo el abuelo esa mañana.",
+      icon: "💦",
+      blurb: "Cuéntale a Jorgito lo que hizo el abuelo esa mañana, junto al chapoteadero.",
       npcIds: ["jorgito-tio"],
+      anchor: "el-chapoteadero",
     },
     {
-      id: "con-el-paletero",
-      name: "El Paletero",
+      id: "el-parque-infantil",
+      name: "El Parque Infantil",
       role: "store",
-      icon: "🍧",
-      blurb: "Cuéntale al paletero sobre la fiesta y compra una paleta.",
+      icon: "🛝",
+      blurb: "Cuéntale al paletero sobre la fiesta cerca de los toboganes y compra una paleta.",
       npcIds: ["paletero"],
+      anchor: "el-parque-infantil",
       hidden: true,
     },
     {
-      id: "con-las-tias",
-      name: "Con Tía Jackie",
+      id: "el-escenario",
+      name: "El Escenario",
       role: "foliage",
-      icon: "🎉",
-      blurb: "Habla con tía Jackie sobre lo que va a pasar en la fiesta.",
+      icon: "🎶",
+      blurb: "Habla con tía Jackie junto al escenario sobre lo que va a pasar en la fiesta.",
       npcIds: ["jackie-tia"],
+      anchor: "el-escenario",
     },
     {
-      id: "con-la-abuela",
-      name: "Con la Abuela Maria",
+      id: "el-estanque-de-los-patos",
+      name: "El Estanque de los Patos",
       role: "ribbons",
-      icon: "🧺",
-      blurb: "Ayuda a la abuela a encontrar las cosas en la mesa de picnic.",
-      npcIds: ["maria-abuela"],
+      icon: "🦆",
+      blurb: "Ayuda a la abuela a encontrar las cosas de picnic junto al estanque — cuidado con el ganso.",
+      npcIds: ["maria-abuela", "ganso-tonto"],
+      anchor: "el-estanque-de-los-patos",
     },
   ],
   npcs: [
@@ -341,6 +359,22 @@ export const FIESTA_DE_DAPHNE: Area = {
           level: "A2",
           es: "🧺 Adivina dónde están las cosas con la abuela Maria",
           en: "Maria will ask where things are on the picnic table — practice on top of / under, in front of / behind, left / right. Tap 'Talk' to begin.",
+        },
+      ],
+    },
+    {
+      id: "ganso-tonto",
+      name: "Silly Goose",
+      color: 0xe8b923,
+      voice: "shimmer",
+      conversation: {
+        opener: "¡HONK! ¿Tienes comida? ¡Dame, dame, dame!",
+      },
+      lines: [
+        {
+          level: "A2",
+          es: "🦆 ¡Cuidado con el ganso!",
+          en: "A silly goose has claimed the duck pond and honks at anyone holding snacks. Say hi if you dare. Tap 'Talk' to begin.",
         },
       ],
     },

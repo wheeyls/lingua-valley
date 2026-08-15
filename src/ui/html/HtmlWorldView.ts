@@ -1,13 +1,15 @@
 /**
  * HtmlWorldView — flat point-and-click hub.
  *
- * A single static screen showing tappable NPCs and live cards. Tap an NPC to
- * talk. No movement, no scrolling, no player character, no sub-screens.
+ * A single static screen: a small mini-map (aspect-locked SVG stage) with
+ * tappable NPC pins positioned over it, plus live resource cards below. Tap
+ * a pin to talk. No movement, no scrolling, no player character, no
+ * sub-screens.
  */
 
 import "./room.css";
 import type { GameMap, MapNpc } from "../../domain/gameMap";
-import { npcAvatarSvg } from "../../content/art";
+import { npcThumbnailSvg } from "../../content/art";
 
 export interface WorldViewCallbacks {
   onNpcTap: (npc: MapNpc) => void;
@@ -156,52 +158,58 @@ export class HtmlWorldView {
       this.barEl.insertBefore(infoEl, nameEl.nextSibling);
     }
 
-    // Background: full-bleed SVG behind the cards
-    const existingBg = this.root.querySelector(".room-bg");
-    if (existingBg) existingBg.remove();
-    if (map.backgroundSvg) {
-      const bg = document.createElement("div");
-      bg.className = "room-bg";
-      bg.style.cssText = "position:absolute;inset:0;z-index:0;overflow:hidden;";
-      bg.innerHTML = map.backgroundSvg;
-      const svg = bg.querySelector("svg");
-      if (svg) svg.style.cssText = "width:100%;height:100%;object-fit:cover;display:block;";
-      this.root.insertBefore(bg, this.bodyEl);
-    }
-
-    // Make body sit above the background
-    this.bodyEl.style.position = "relative";
-    this.bodyEl.style.zIndex = "1";
-
     this.bodyEl.innerHTML = "";
 
-    // NPC cards — SVG avatar as the icon, an optional icon badge for flavor.
+    // --- Map stage: aspect-locked container so pin x/y percentages always
+    // line up with the background art, regardless of viewport shape.
+    const stage = document.createElement("div");
+    stage.className = "room-stage";
+    const viewBoxWidth = map.viewBoxWidth ?? 400;
+    const viewBoxHeight = map.viewBoxHeight ?? 220;
+    stage.style.aspectRatio = `${viewBoxWidth} / ${viewBoxHeight}`;
+
+    if (map.backgroundSvg) {
+      const bg = document.createElement("div");
+      bg.className = "room-stage-bg";
+      bg.style.cssText = "position:absolute;inset:0;";
+      bg.innerHTML = map.backgroundSvg;
+      stage.appendChild(bg);
+    }
+
+    // NPC pins — small "mini-map" markers positioned over the stage.
+    const markers = document.createElement("div");
+    markers.className = "room-markers";
     for (const npc of map.npcs) {
       const done = completedNpcIds.has(npc.npcId);
       const color = `#${npc.color.toString(16).padStart(6, "0")}`;
-      const initial = npc.name[0].toUpperCase();
-      const card = document.createElement("div");
-      card.className = `card card-npc${done ? " card-npc-done" : ""}`;
-      card.innerHTML = `
-        <div class="card-avatar-wrap">
-          <div class="card-avatar">
+      const marker = document.createElement("div");
+      marker.className = `map-marker${done ? " marker-done" : ""}`;
+      marker.style.left = `${npc.x}%`;
+      marker.style.top = `${npc.y}%`;
+      marker.innerHTML = `
+        <div class="marker-pin">
+          <div class="marker-avatar">
             ${npc.art
-              ? `<img src="${npc.art}" alt="${npc.name}" class="card-avatar-img"/>`
-              : npcAvatarSvg(color, initial)
+              ? `<img src="${npc.art}" alt="${npc.name}"/>`
+              : npcThumbnailSvg(color)
             }
           </div>
-          ${done ? '<div class="card-npc-badge">✓</div>' : ""}
+          ${done ? '<div class="marker-badge">✓</div>' : ""}
         </div>
-        <div class="card-label">${npc.icon ? `${npc.icon} ` : ""}${npc.name}</div>
-        <div class="card-hint">${done ? "Done today ✓" : "Tap to talk"}</div>
+        <div class="marker-label">${npc.icon ? `${npc.icon} ` : ""}${npc.name}</div>
       `;
-      card.addEventListener("pointerdown", (e) => {
+      marker.addEventListener("pointerdown", (e) => {
         e.stopPropagation();
         this.callbacks.onNpcTap(npc);
       });
-      this.bodyEl.appendChild(card);
+      markers.appendChild(marker);
     }
+    stage.appendChild(markers);
+    this.bodyEl.appendChild(stage);
 
+    // --- Extra cards (garden/foliage/ribbons) — unchanged, below the stage.
+    const extras = document.createElement("div");
+    extras.className = "room-extras";
     for (const extra of this.extraCards) {
       const card = document.createElement("div");
       card.className = extra.grid ? "card card-item card-garden" : "card card-item";
@@ -224,7 +232,8 @@ export class HtmlWorldView {
         e.stopPropagation();
         extra.onTap();
       });
-      this.bodyEl.appendChild(card);
+      extras.appendChild(card);
     }
+    this.bodyEl.appendChild(extras);
   }
 }
