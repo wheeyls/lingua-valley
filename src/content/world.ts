@@ -137,13 +137,13 @@ export const PUEBLO_DEL_AYER: Area = {
       color: 0x2a9d8f,
       voice: "nova",
       conversation: {
-        opener: "¡Hola! ¿Te cuento lo que hice hoy? Escucha bien…",
+        opener: "¡Hola! ¿Cómo estás?",
       },
       lines: [
         {
           level: "A2",
           es: "👂 Escucha la historia de Jackie",
-          en: "Jackie will tell you what she did today. Listen and understand her story. Tap 'Talk' to begin.",
+          en: "Jackie will greet you and tell you about her day. Tap 'Talk' to begin.",
         },
       ],
     },
@@ -153,7 +153,7 @@ export const PUEBLO_DEL_AYER: Area = {
       color: 0x3d5a80,
       voice: "echo",
       conversation: {
-        opener: "Oye, ¿qué hizo Jackie hoy? Cuéntame.",
+        opener: "Oye, ¿qué tal?",
       },
       lines: [
         {
@@ -169,7 +169,7 @@ export const PUEBLO_DEL_AYER: Area = {
       color: 0xb5793a,
       voice: "shimmer",
       conversation: {
-        opener: "¡Bienvenido! ¿Qué me traes hoy? Cuéntame, ¿qué hiciste?",
+        opener: "¡Bienvenido! ¿Cómo estás?",
       },
       lines: [
         {
@@ -185,7 +185,7 @@ export const PUEBLO_DEL_AYER: Area = {
       color: 0x6b8f47,
       voice: "alloy",
       conversation: {
-        opener: "¡Hola! ¿Buscas verdor para el ramo? Cuéntame, ¿qué vas a hacer hoy?",
+        opener: "¡Hola! ¿Qué tal?",
       },
       lines: [
         {
@@ -201,7 +201,7 @@ export const PUEBLO_DEL_AYER: Area = {
       color: 0xd4a373,
       voice: "fable",
       conversation: {
-        opener: "¡Hola! Mira mi cuarto… ¿sabes dónde están las cosas hoy?",
+        opener: "¡Hola! ¿Cómo estás?",
       },
       lines: [
         {
@@ -286,14 +286,13 @@ export const FIESTA_DE_DAPHNE: Area = {
       color: 0xc0392b,
       voice: "onyx",
       conversation: {
-        opener:
-          "¡Hola! ¿Te cuento cómo preparamos el parque para la fiesta de Daphne? Escucha bien…",
+        opener: "¡Hola! ¿Cómo estás?",
       },
       lines: [
         {
           level: "A2",
           es: "👂 Escucha al abuelo Jorge",
-          en: "Jorge will tell you how the family got the park ready for Daphne's party. Listen and understand his story. Tap 'Talk' to begin.",
+          en: "Jorge will greet you and tell you how the family got the park ready for Daphne's party. Tap 'Talk' to begin.",
         },
       ],
     },
@@ -303,7 +302,7 @@ export const FIESTA_DE_DAPHNE: Area = {
       color: 0x3d5a80,
       voice: "echo",
       conversation: {
-        opener: "Oye, ¿qué hizo el abuelo esa mañana? Cuéntame.",
+        opener: "Oye, ¿qué tal?",
       },
       lines: [
         {
@@ -319,8 +318,7 @@ export const FIESTA_DE_DAPHNE: Area = {
       color: 0x3498db,
       voice: "onyx",
       conversation: {
-        opener:
-          "¡Paletas! ¡Paletas frías! Pero primero, cuéntame, ¿qué pasó hoy en la fiesta?",
+        opener: "¡Paletas frías! ¿Qué tal?",
       },
       lines: [
         {
@@ -336,7 +334,7 @@ export const FIESTA_DE_DAPHNE: Area = {
       color: 0x2a9d8f,
       voice: "nova",
       conversation: {
-        opener: "¡Hola! ¿Ya viste el pastel? Cuéntame, ¿qué vamos a hacer ahora?",
+        opener: "¡Hola! ¿Cómo estás?",
       },
       lines: [
         {
@@ -352,7 +350,7 @@ export const FIESTA_DE_DAPHNE: Area = {
       color: 0xd4a373,
       voice: "fable",
       conversation: {
-        opener: "¡Hola! Mira la mesa de picnic… ¿sabes dónde están las cosas de la fiesta hoy?",
+        opener: "¡Hola! ¿Qué tal?",
       },
       lines: [
         {
