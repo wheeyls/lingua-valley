@@ -22,7 +22,7 @@
 
 import type { Objective, ObjectiveContext } from "../objective.js";
 import type { Lesson } from "./lesson.js";
-import { gooseLocationForDay, allLocationNames } from "./gooseMystery.js";
+import { gooseLocationForDay, allLocationPairs } from "./gooseMystery.js";
 
 export class FindTheGoose implements Objective {
   readonly id = "find-the-goose";
@@ -34,7 +34,9 @@ export class FindTheGoose implements Objective {
 
   buildTheme(ctx: ObjectiveContext): string {
     const loc = gooseLocationForDay(ctx.today);
-    const places = allLocationNames().join(", ");
+    const places = allLocationPairs()
+      .map((p) => `the ${p.en} (${p.es})`)
+      .join(", ");
     return (
       "You are Marichuy, Daphne's grandmother, at the playground. The " +
       `Silly Goose is actually hiding at "${loc.name}" today — do not ` +
@@ -46,8 +48,8 @@ export class FindTheGoose implements Objective {
       "already know so far (e.g. '¿Qué sabes hasta ahora?') and where " +
       "they think the goose is hiding — encourage them to answer with " +
       `'Creo que está en...'. As a reminder, mention the five possible ` +
-      `spots by name: ${places} (these exact Spanish place names — they're ` +
-      "also labeled on the park map).\n" +
+      `spots, English name then Spanish: ${places} (the map labels each ` +
+      "spot in English, but they must answer with the Spanish name).\n" +
       `2. Compare their answer to the real answer ("${loc.name}"), being ` +
       "forgiving of minor wording as long as they clearly named the right " +
       "place. In that SAME reply, judge it and wrap up — don't ask another " +

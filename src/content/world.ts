@@ -18,7 +18,7 @@
 import type { CefrLevel } from "../domain/cefr.js";
 import type { DailyRole } from "../domain/dailyLoop.js";
 import type { ObjectiveState } from "../domain/objective.js";
-import { gooseLocationForDay } from "../domain/objectives/gooseMystery.js";
+import { gooseLocationForDay, locationLabelEn } from "../domain/objectives/gooseMystery.js";
 import { PARK_BG, PARK_BG_PORTRAIT, STREET_BG, STREET_BG_PORTRAIT } from "./art.js";
 
 export interface DialogueLine {
@@ -112,7 +112,7 @@ export const PUEBLO_DEL_AYER: Area = {
   locations: [
     {
       id: "seed-farm",
-      name: "La Granja de Semillas",
+      name: "Seed Farm",
       role: "seeds",
       icon: "🌱",
       blurb: "Hear Jackie's story and take home this week's seed.",
@@ -121,7 +121,7 @@ export const PUEBLO_DEL_AYER: Area = {
     },
     {
       id: "plaza",
-      name: "La Plaza",
+      name: "Plaza",
       role: "water",
       icon: "💧",
       blurb: "Retell Jackie's story to Jorgito. Waters your field.",
@@ -130,7 +130,7 @@ export const PUEBLO_DEL_AYER: Area = {
     },
     {
       id: "store",
-      name: "La Tienda",
+      name: "Store",
       role: "store",
       icon: "🛒",
       blurb: "Tell Doña Tienda about your day and sell your harvest.",
@@ -140,7 +140,7 @@ export const PUEBLO_DEL_AYER: Area = {
     },
     {
       id: "the-woods",
-      name: "El Bosque",
+      name: "The Woods",
       role: "foliage",
       icon: "🍃",
       blurb: "Gather greenery with Arlene for this week's bouquet.",
@@ -149,7 +149,7 @@ export const PUEBLO_DEL_AYER: Area = {
     },
     {
       id: "the-room",
-      name: "La Sala",
+      name: "Living Room",
       role: "ribbons",
       icon: "🪑",
       blurb: "Help Maria find where things are — and finish off the bouquet.",
@@ -274,7 +274,7 @@ export const FIESTA_DE_DAPHNE: Area = {
   locations: [
     {
       id: "la-ramada",
-      name: "La Ramada",
+      name: locationLabelEn("la-ramada"),
       role: "seeds",
       icon: "🎂",
       blurb: "Papachulo te espera bajo la ramada — el ganso se llevó las llaves y solo él sabe una pista.",
@@ -283,7 +283,7 @@ export const FIESTA_DE_DAPHNE: Area = {
     },
     {
       id: "el-chapoteadero",
-      name: "El Chapoteadero",
+      name: locationLabelEn("el-chapoteadero"),
       role: "water",
       icon: "💦",
       blurb: "Jorgito está junto al chapoteadero — tiene otra pista sobre el ganso.",
@@ -292,7 +292,7 @@ export const FIESTA_DE_DAPHNE: Area = {
     },
     {
       id: "el-parque-infantil",
-      name: "El Parque Infantil",
+      name: locationLabelEn("el-parque-infantil"),
       role: "store",
       icon: "🛝",
       blurb: "Marichuy te espera en el parque infantil — dile dónde crees que está el ganso.",
@@ -301,7 +301,7 @@ export const FIESTA_DE_DAPHNE: Area = {
     },
     {
       id: "el-escenario",
-      name: "El Anfiteatro",
+      name: locationLabelEn("el-escenario"),
       role: "foliage",
       icon: "🎶",
       blurb: "Tía Jackie está junto al anfiteatro — tiene una pista sobre el ganso.",
@@ -310,7 +310,7 @@ export const FIESTA_DE_DAPHNE: Area = {
     },
     {
       id: "el-estanque-de-los-patos",
-      name: "El Estanque de los Patos",
+      name: locationLabelEn("el-estanque-de-los-patos"),
       role: "ribbons",
       icon: "🦆",
       blurb: "Tía Anette está junto al estanque — tiene una pista extra, si la quieres.",
