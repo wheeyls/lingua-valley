@@ -20,8 +20,7 @@ import { buildHubMap } from "../content/maps";
 import { findNpc, visibleLocations, type Npc } from "../content/world";
 import { themeForRole, type Campaign, type ResourceTheme } from "../content/campaigns";
 import { renderSceneHtml } from "../content/sceneArt";
-import { renderPartySceneHtml } from "../content/partySceneArt";
-import type { HubMaps, MapNpc } from "../domain/gameMap";
+import type { MapNpc } from "../domain/gameMap";
 import type { ObjectiveGraph, ObjectiveContext } from "../domain/objective";
 import { grid, needsSeed, bloomsThisRow, ROW_LENGTH, type CellState } from "../domain/garden";
 import { hoursUntilNextDay, type DailyRole } from "../domain/dailyLoop";
@@ -36,7 +35,6 @@ import type { Adapters } from "./adapters";
 export class GameController {
   private worldView!: HtmlWorldView;
   private objectives: ObjectiveGraph;
-  private hub: HubMaps;
   private devPanel?: HtmlDevPanel;
 
   constructor(
@@ -45,7 +43,6 @@ export class GameController {
     private readonly campaign: Campaign,
   ) {
     this.objectives = campaign.objectives;
-    this.hub = buildHubMap(campaign.area);
   }
 
   start() {
@@ -84,6 +81,7 @@ export class GameController {
   private render() {
     const state = this.player.getState();
     const objState = state.daily.objectiveState;
+    const today = appDay(this.adapters.clock.now());
 
     const visibleNpcIds = new Set(
       visibleLocations(this.campaign.area).flatMap((loc) => loc.npcIds),
@@ -97,7 +95,10 @@ export class GameController {
       activeObjectives.filter((obj) => objState[obj.id] != null).map((obj) => obj.npcId),
     );
 
-    this.worldView.loadMap(this.hub, completedNpcIds);
+    // Rebuilt every render (not cached) — cheap, and some campaigns place an
+    // NPC dynamically based on the day (e.g. Fiesta de Daphne's Silly Goose).
+    const hub = buildHubMap(this.campaign.area, today);
+    this.worldView.loadMap(hub, completedNpcIds);
     this.worldView.updateHud(state.money);
     this.worldView.setExtraCards([this.gardenCard(), this.foliageCard(), this.ribbonsCard()]);
 
@@ -320,11 +321,7 @@ export class GameController {
     };
     const theme = objective.buildTheme(ctx);
     const ref = objective.referenceScene?.(ctx);
-    const sceneHtml = !ref
-      ? null
-      : ref.kind === "party"
-        ? renderPartySceneHtml(ref.scene)
-        : renderSceneHtml(ref.scene);
+    const sceneHtml = ref ? renderSceneHtml(ref.scene) : null;
 
     const session = new ConversationSession(
       {
@@ -433,7 +430,15 @@ export class GameController {
       const waterName = this.roleNpcName("water") ?? "them";
       this.toast(`🌱 New row planted! Talk to ${waterName} daily this week to keep it growing.`);
     } else if (applied.sold > 0) {
-      this.toast(`🛒 Nice review! +${applied.soldValue} 💰`);
+      const gooseResult = this.player.getState().daily.objectiveState["find-the-goose"]?.outputs
+        ?.result;
+      if (gooseResult === "correcto") {
+        this.toast("🔑 ¡Las encontraste! You found the keys — time for cake and presents!");
+      } else if (gooseResult === "incorrecto") {
+        this.toast("🔍 Not this time — ask around again tomorrow.");
+      } else {
+        this.toast(`🛒 Nice review! +${applied.soldValue} 💰`);
+      }
     } else if (role === "water" && applied.grown > 0) {
       const theme = this.resourceTheme("water");
       this.toast(`${theme.icon} Your ${theme.itemSingular} ${theme.grownVerb}! Come back tomorrow to keep the streak.`);

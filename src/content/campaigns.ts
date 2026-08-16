@@ -13,7 +13,7 @@ import type { DailyRole } from "../domain/dailyLoop.js";
 import { PUEBLO_DEL_AYER, FIESTA_DE_DAPHNE } from "./world.js";
 import { A2_PAST_TENSE, A2_FIESTA_DAPHNE } from "./lessons.js";
 import { buildDailyGraph } from "../domain/objectives/daily.js";
-import { buildDaphnePartyGraph } from "../domain/objectives/daphneParty.js";
+import { buildGooseMysteryGraph } from "../domain/objectives/daphneParty.js";
 
 /**
  * Display flavor for one of a campaign's three growable resources (the main
@@ -142,7 +142,7 @@ export const CAMPAIGNS: Record<string, Campaign> = {
     id: "fiesta-de-daphne",
     area: FIESTA_DE_DAPHNE,
     lesson: A2_FIESTA_DAPHNE,
-    objectives: buildDaphnePartyGraph(A2_FIESTA_DAPHNE),
+    objectives: buildGooseMysteryGraph(A2_FIESTA_DAPHNE),
     rewardTheme: DAPHNE_REWARD_THEME,
   },
 };

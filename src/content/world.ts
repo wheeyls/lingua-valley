@@ -17,6 +17,7 @@
 
 import type { CefrLevel } from "../domain/cefr.js";
 import type { DailyRole } from "../domain/dailyLoop.js";
+import { gooseLocationForDay } from "../domain/objectives/gooseMystery.js";
 import { PARK_BG, PARK_BG_PORTRAIT, STREET_BG, STREET_BG_PORTRAIT } from "./art.js";
 
 export interface DialogueLine {
@@ -83,6 +84,13 @@ export interface Area {
   backgroundLandscape: MapBackground;
   /** Narrow-viewport hub map — different art, same anchor ids, own viewBox. */
   backgroundPortrait: MapBackground;
+  /** Optional per-day dynamic NPC placement — e.g. a character whose
+   *  location isn't fixed content but computed from the calendar day
+   *  (YYYY-MM-DD). Returns null if nothing dynamic applies today. Resolved
+   *  by content/maps.ts's buildHubMap, on top of each Location's static
+   *  npcIds — see the Silly Goose in FIESTA_DE_DAPHNE for the only current
+   *  use. */
+  dynamicNpc?: (today: string) => { locationId: string; npcId: string } | null;
 }
 
 export const PUEBLO_DEL_AYER: Area = {
@@ -230,29 +238,39 @@ export const PUEBLO_DEL_AYER: Area = {
 
 /**
  * El Cumpleaños de Daphne — a park in Phoenix, December, Daphne's first
- * birthday. The family is visiting from out of town, practicing Spanish
- * with Daphne's family. Same daily-loop mechanics as Pueblo del Ayer (paired
- * story/retell, near-future bonus plans, prepositions-of-place bonus with a
- * picture to peek at) — different story, different place, different people.
+ * birthday. The Silly Goose stole the car keys and is hiding somewhere in
+ * the park — the cake and presents are locked in the car until he's found.
+ * Family members (real people, kept simple — they teach a name and share
+ * one fact, not much personality) each know one true/false clue about
+ * wherever he actually is today (see domain/objectives/gooseMystery.ts for
+ * the day-seeded ground truth); the player deduces the spot and guesses
+ * with Marichuy. The Goose himself is placed dynamically each day at his
+ * real hiding spot (`dynamicNpc` below) — an attentive player can find him
+ * directly, though the formal win still requires Marichuy's conversation.
  */
 export const FIESTA_DE_DAPHNE: Area = {
   id: "fiesta-de-daphne",
   name: "El Cumpleaños de Daphne",
   level: "A2",
   blurb:
-    "Diciembre en Phoenix — hace sol pero no hace calor. La familia se " +
-    "reúne en el parque para el primer cumpleaños de Daphne. Esta semana: " +
-    "contar una historia en el pasado — entender, recontar, y compartir la tuya.",
+    "Diciembre en Phoenix — hace sol pero no hace calor. Es el primer " +
+    "cumpleaños de Daphne, ¡pero el ganso travieso se robó las llaves del " +
+    "carro! Esta semana: escuchar pistas sobre dónde se escondió, y " +
+    "adivinar el lugar correcto.",
   ticketPrice: 60,
   backgroundLandscape: { svg: PARK_BG, viewBoxWidth: 400, viewBoxHeight: 220 },
   backgroundPortrait: { svg: PARK_BG_PORTRAIT, viewBoxWidth: 240, viewBoxHeight: 460 },
+  dynamicNpc: (today) => {
+    const loc = gooseLocationForDay(today);
+    return { locationId: loc.id, npcId: "ganso-tonto" };
+  },
   locations: [
     {
       id: "la-ramada",
       name: "La Ramada",
       role: "seeds",
       icon: "🎂",
-      blurb: "Escucha al abuelo Jorge contar cómo prepararon el parque, sentado bajo la ramada.",
+      blurb: "Papachulo te espera bajo la ramada — el ganso se llevó las llaves y solo él sabe una pista.",
       npcIds: ["jorge-abuelo"],
       anchor: "la-ramada",
     },
@@ -261,7 +279,7 @@ export const FIESTA_DE_DAPHNE: Area = {
       name: "El Chapoteadero",
       role: "water",
       icon: "💦",
-      blurb: "Cuéntale a Jorgito lo que hizo el abuelo esa mañana, junto al chapoteadero.",
+      blurb: "Jorgito está junto al chapoteadero — tiene otra pista sobre el ganso.",
       npcIds: ["jorgito-tio"],
       anchor: "el-chapoteadero",
     },
@@ -270,17 +288,16 @@ export const FIESTA_DE_DAPHNE: Area = {
       name: "El Parque Infantil",
       role: "store",
       icon: "🛝",
-      blurb: "Cuéntale al paletero sobre la fiesta cerca de los toboganes y compra una paleta.",
-      npcIds: ["paletero"],
+      blurb: "Marichuy te espera en el parque infantil — dile dónde crees que está el ganso.",
+      npcIds: ["maria-abuela"],
       anchor: "el-parque-infantil",
-      hidden: true,
     },
     {
       id: "el-escenario",
-      name: "El Escenario",
+      name: "El Anfiteatro",
       role: "foliage",
       icon: "🎶",
-      blurb: "Habla con tía Jackie junto al escenario sobre lo que va a pasar en la fiesta.",
+      blurb: "Tía Jackie está junto al anfiteatro — tiene una pista sobre el ganso.",
       npcIds: ["jackie-tia"],
       anchor: "el-escenario",
     },
@@ -289,15 +306,15 @@ export const FIESTA_DE_DAPHNE: Area = {
       name: "El Estanque de los Patos",
       role: "ribbons",
       icon: "🦆",
-      blurb: "Ayuda a la abuela a encontrar las cosas de picnic junto al estanque — cuidado con el ganso.",
-      npcIds: ["maria-abuela", "ganso-tonto"],
+      blurb: "Tía Anette está junto al estanque — tiene una pista extra, si la quieres.",
+      npcIds: ["anette-tia"],
       anchor: "el-estanque-de-los-patos",
     },
   ],
   npcs: [
     {
       id: "jorge-abuelo",
-      name: "Jorge",
+      name: "Papachulo",
       color: 0xc0392b,
       voice: "onyx",
       conversation: {
@@ -306,8 +323,8 @@ export const FIESTA_DE_DAPHNE: Area = {
       lines: [
         {
           level: "A2",
-          es: "👂 Escucha al abuelo Jorge",
-          en: "Jorge will greet you and tell you how the family got the park ready for Daphne's party. Tap 'Talk' to begin.",
+          es: "🔑 Escucha a Papachulo — ¡el ganso se llevó las llaves!",
+          en: "Papachulo will explain what happened — the Silly Goose ran off with the car keys! He knows one clue about where the goose went. Tap 'Talk' to begin.",
         },
       ],
     },
@@ -322,24 +339,8 @@ export const FIESTA_DE_DAPHNE: Area = {
       lines: [
         {
           level: "A2",
-          es: "🗣️ Cuéntale a Jorgito la historia",
-          en: "Retell what Jorge did that morning, in the past tense. Tap 'Talk' to begin.",
-        },
-      ],
-    },
-    {
-      id: "paletero",
-      name: "El Paletero",
-      color: 0x3498db,
-      voice: "onyx",
-      conversation: {
-        opener: "¡Paletas frías! ¿Qué tal?",
-      },
-      lines: [
-        {
-          level: "A2",
-          es: "🍧 Cuéntale al paletero sobre la fiesta",
-          en: "Tell the paletero about the party day as a friendly review, then get a treat. Tap 'Talk' to begin.",
+          es: "🔍 Pregúntale a Jorgito lo que sabe",
+          en: "Jorgito has his own clue about where the goose is hiding. Tap 'Talk' to begin.",
         },
       ],
     },
@@ -354,14 +355,30 @@ export const FIESTA_DE_DAPHNE: Area = {
       lines: [
         {
           level: "A2",
-          es: "🎉 Habla con tía Jackie sobre la fiesta",
-          en: "Chat with tía Jackie about what's about to happen at the party — cake, games, presents. Tap 'Talk' to begin.",
+          es: "🔍 Pregúntale a tía Jackie lo que sabe",
+          en: "Tía Jackie has another clue about where the goose is hiding. Tap 'Talk' to begin.",
+        },
+      ],
+    },
+    {
+      id: "anette-tia",
+      name: "Tía Anette",
+      color: 0x6b8f47,
+      voice: "alloy",
+      conversation: {
+        opener: "¡Hola! ¿Qué tal?",
+      },
+      lines: [
+        {
+          level: "A2",
+          es: "🔍 Pregúntale a tía Anette lo que sabe (pista extra)",
+          en: "Tía Anette has a bonus clue, if you want extra confidence before you guess. Tap 'Talk' to begin.",
         },
       ],
     },
     {
       id: "maria-abuela",
-      name: "Abuela Maria",
+      name: "Marichuy",
       color: 0xd4a373,
       voice: "fable",
       conversation: {
@@ -370,8 +387,8 @@ export const FIESTA_DE_DAPHNE: Area = {
       lines: [
         {
           level: "A2",
-          es: "🧺 Adivina dónde están las cosas con la abuela Maria",
-          en: "Maria will ask where things are on the picnic table — practice on top of / under, in front of / behind, left / right. Tap 'Talk' to begin.",
+          es: "🔑 Dile a Marichuy dónde crees que está el ganso",
+          en: "Time to guess! Tell Marichuy where you think the Silly Goose is hiding. Guess right and you'll get the keys back. Tap 'Talk' to begin.",
         },
       ],
     },
@@ -381,13 +398,13 @@ export const FIESTA_DE_DAPHNE: Area = {
       color: 0xe8b923,
       voice: "shimmer",
       conversation: {
-        opener: "¡HONK! ¿Tienes comida? ¡Dame, dame, dame!",
+        opener: "¡HONK! Me... me encontraste.",
       },
       lines: [
         {
           level: "A2",
-          es: "🦆 ¡Cuidado con el ganso!",
-          en: "A silly goose has claimed the duck pond and honks at anyone holding snacks. Say hi if you dare. Tap 'Talk' to begin.",
+          es: "🤫 ¡Encontraste al ganso travieso!",
+          en: "You found him! He's shy about being caught red-handed (well, orange-billed) — say hi, but he won't give up the keys without Marichuy's guess. Tap 'Talk' to begin.",
         },
       ],
     },

@@ -18,7 +18,6 @@
 import type { DailyRole } from "./dailyLoop.js";
 import type { LessonVocab } from "./objectives/lesson.js";
 import type { DailyScene as RoomScene } from "./objectives/scene.js";
-import type { DailyScene as PartyScene } from "./objectives/partyScene.js";
 
 /**
  * A visual scene an objective wants the player to peek at, tagged by which
@@ -26,9 +25,7 @@ import type { DailyScene as PartyScene } from "./objectives/partyScene.js";
  * "picture to confirm against" objectives can each bring their own shape of
  * scene (different slots/items) without this interface hardcoding just one.
  */
-export type ReferenceScene =
-  | { kind: "room"; scene: RoomScene }
-  | { kind: "party"; scene: PartyScene };
+export type ReferenceScene = { kind: "room"; scene: RoomScene };
 
 /** The completion record for one objective in one daily cycle. */
 export interface ObjectiveCompletion {

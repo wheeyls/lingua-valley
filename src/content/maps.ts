@@ -13,6 +13,12 @@
  * of truth for layout, not hand-typed coordinates. The UI picks which
  * orientation to show via a CSS breakpoint (see HtmlWorldView), not this
  * module — buildHubMap always resolves both.
+ *
+ * An Area may also supply `dynamicNpc(today)` — one extra NPC placed at a
+ * day-computed location (e.g. Fiesta de Daphne's Silly Goose, hiding at a
+ * different park location each day) on top of each location's static
+ * npcIds. `today` is threaded through so this stays a pure function of its
+ * inputs, no hidden clock/Date.now() dependency.
  */
 
 import type { GameMap, HubMaps, MapNpc } from "../domain/gameMap.js";
@@ -20,26 +26,31 @@ import { visibleLocations, findNpc, type Area, type MapBackground } from "./worl
 
 export const HUB_MAP_ID = "hub";
 
-/** Build both orientations of the hub map for a given campaign area. */
-export function buildHubMap(area: Area): HubMaps {
+/** Build both orientations of the hub map for a given campaign area, for a
+ *  given calendar day (YYYY-MM-DD) — see the `dynamicNpc` note above. */
+export function buildHubMap(area: Area, today: string): HubMaps {
   return {
-    landscape: buildVariant(area, area.backgroundLandscape),
-    portrait: buildVariant(area, area.backgroundPortrait),
+    landscape: buildVariant(area, area.backgroundLandscape, today),
+    portrait: buildVariant(area, area.backgroundPortrait, today),
   };
 }
 
 /** Resolve one orientation's background into a fully-positioned GameMap —
- *  one NPC pin per visible location. */
-function buildVariant(area: Area, bg: MapBackground): GameMap {
+ *  one NPC pin per visible location (plus the dynamic NPC, if any, at
+ *  whichever location it targets today). */
+function buildVariant(area: Area, bg: MapBackground, today: string): GameMap {
+  const dynamic = area.dynamicNpc?.(today) ?? null;
+
   const npcs: MapNpc[] = visibleLocations(area).flatMap((loc) => {
+    const npcIds = dynamic?.locationId === loc.id ? [...loc.npcIds, dynamic.npcId] : loc.npcIds;
     const anchor = resolveAnchor(bg.svg, loc.anchor, bg.viewBoxWidth, bg.viewBoxHeight);
-    return loc.npcIds.map((npcId, i) => {
+    return npcIds.map((npcId, i) => {
       const npc = findNpc(npcId)!;
       const { x, y } = offsetPosition(
         anchor.x,
         anchor.y,
         i,
-        loc.npcIds.length,
+        npcIds.length,
         bg.viewBoxWidth,
         bg.viewBoxHeight,
       );

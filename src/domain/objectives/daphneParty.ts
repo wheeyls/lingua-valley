@@ -1,28 +1,30 @@
 /**
- * Build the daily objective graph for Daphne's birthday party campaign.
- *
- * Same shape as daily.ts's buildDailyGraph (Pueblo del Ayer), just wired to
- * this campaign's NPCs: Jorge tells the story + hands over the seed (role
- * "seeds"); Jorgito retells it (role "water", DEPENDS on Jorge's story).
- * Tía Jackie offers bonus practice (role "foliage"). Maria (la abuela)
- * offers the picnic-table picture-guessing bonus (role "ribbons"). The
- * paletero's review stays registered but is hidden in the UI, same as the
- * shopkeeper in Pueblo del Ayer. Pure factory.
+ * Build the daily objective graph for Daphne's birthday party campaign —
+ * the Silly Goose mystery. Papachulo greets the player and delivers the
+ * first clue (role "seeds"); Jorgito and Tía Jackie each deliver another
+ * required clue (roles "water"/"foliage" — together with Papachulo's,
+ * always enough to uniquely identify today's hiding spot, see
+ * gooseMystery.test.ts); Tía Anette offers a bonus 4th confirming clue
+ * (role "ribbons"); Marichuy lets the player guess (role "store", gated on
+ * the three required clues). The Silly Goose himself (dynamically placed
+ * at today's real hiding spot — see FIESTA_DE_DAPHNE.dynamicNpc) offers an
+ * optional bonus encounter, sharing the "ribbons" role with Tía Anette.
+ * Pure factory.
  */
 
 import { ObjectiveGraph } from "../objective.js";
 import type { Lesson } from "./lesson.js";
-import { StoryTelling } from "./StoryTelling.js";
-import { StoryRetell } from "./StoryRetell.js";
-import { StoreReview } from "./StoreReview.js";
-import { PartyPlans } from "./PartyPlans.js";
-import { WhereAreThingsParty } from "./WhereAreThingsParty.js";
+import { GooseStakes } from "./GooseStakes.js";
+import { GooseClue } from "./GooseClue.js";
+import { FindTheGoose } from "./FindTheGoose.js";
+import { GooseEncounter } from "./GooseEncounter.js";
 
-export function buildDaphnePartyGraph(lesson: Lesson): ObjectiveGraph {
+export function buildGooseMysteryGraph(lesson: Lesson): ObjectiveGraph {
   return new ObjectiveGraph()
-    .register(new StoryTelling(lesson, "jorge-abuelo"))
-    .register(new StoryRetell(lesson, "jorgito-tio"))
-    .register(new PartyPlans("jackie-tia"))
-    .register(new WhereAreThingsParty())
-    .register(new StoreReview(lesson, "paletero"));
+    .register(new GooseStakes(lesson))
+    .register(new GooseClue("jorgito-tio", "water", "playArea"))
+    .register(new GooseClue("jackie-tia", "foliage", "food"))
+    .register(new GooseClue("anette-tia", "ribbons", "animals", true))
+    .register(new FindTheGoose(lesson))
+    .register(new GooseEncounter());
 }

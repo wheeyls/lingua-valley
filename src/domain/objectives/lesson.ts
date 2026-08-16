@@ -37,6 +37,8 @@ export interface Lesson {
   storyTheme?: string;
   retellTheme?: string;
 
-  /** The review / unit-test scenario (store NPC). */
-  reviewTheme: string;
+  /** The review / unit-test scenario (store NPC). Optional — not every
+   *  campaign's store-role objective draws its theme from the lesson (e.g.
+   *  Daphne's FindTheGoose builds its own theme directly). */
+  reviewTheme?: string;
 }
