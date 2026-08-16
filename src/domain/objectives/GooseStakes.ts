@@ -9,7 +9,7 @@
 
 import type { Objective, ObjectiveContext } from "../objective.js";
 import type { Lesson } from "./lesson.js";
-import { gooseLocationForDay } from "./gooseMystery.js";
+import { gooseLocationForDay, allLocationPairs } from "./gooseMystery.js";
 
 export class GooseStakes implements Objective {
   readonly id = "goose-stakes";
@@ -24,14 +24,28 @@ export class GooseStakes implements Objective {
     const fact = loc.wet
       ? "Sí sé una cosa: está mojado — cerca del agua."
       : "Sí sé una cosa: está seco — nada de agua por ahí.";
+    const places = allLocationPairs()
+      .map((p) => `the ${p.en} (${p.es})`)
+      .join(", ");
     return (
       "You are Papachulo, Daphne's grandfather, greeting the player at the " +
-      "ramada. Explain what happened, in simple A2 Spanish: the Silly " +
-      "Goose stole the car keys and is hiding somewhere in the park — the " +
-      "cake and presents are stuck in the car until he's found. You only " +
-      `know one clue: "${fact}" Share it, then have the player repeat it ` +
-      "back to you in Spanish so they remember it. Keep every sentence " +
-      `short and A2-simple. Keep it at the ${this.lesson.level} level.`
+      "ramada. Follow this exact structure, one beat per turn — this keeps " +
+      "the conversation short and predictable for a beginner, don't add " +
+      "extra turns or small talk beyond it:\n" +
+      "1. Briefly explain what happened, in simple A2 Spanish: the Silly " +
+      "Goose stole the car keys and is hiding somewhere in the park. Tell " +
+      `them he could be in one of these five spots: ${places} — the map ` +
+      "labels each spot in English, so say the Spanish name right after " +
+      "the English one each time, out loud, so the player connects the " +
+      "two (they'll need the Spanish word to guess later). Then ask " +
+      "the player what they already know so far (e.g. '¿Qué sabes hasta " +
+      "ahora?') — they've probably just arrived and don't know anything " +
+      "yet, but ask anyway.\n" +
+      `2. After they answer, share your one clue: "${fact}" Have them ` +
+      "repeat it back to you in Spanish so they remember it.\n" +
+      "3. After they repeat it, wish them luck (e.g. '¡Buena suerte!') and " +
+      "end the conversation there — don't keep chatting past this point.\n" +
+      `Keep every sentence short and A2-simple. Keep it at the ${this.lesson.level} level.`
     );
   }
 

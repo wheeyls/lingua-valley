@@ -23,12 +23,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const { raw, context, level } = req.body as {
+    const { raw, context, level, npcName, knownNames } = req.body as {
       raw?: string;
       context?: string;
       level?: string;
+      npcName?: string;
+      knownNames?: string[];
     };
     if (!raw) return res.status(400).json({ error: "Missing raw transcription" });
+
+    const namesList = Array.from(new Set([npcName, ...(knownNames ?? [])].filter(Boolean)));
+    const namesLine = namesList.length
+      ? `\n\nThe player is talking to ${npcName ?? "a character"} in a game with these real ` +
+        `character names: ${namesList.join(", ")}. These are proper nouns, not Spanish ` +
+        `vocabulary — if the player says one (correctly or approximately), NEVER "correct", ` +
+        `translate, or replace it with a different word, even if it doesn't sound like a ` +
+        `Spanish word. Only fix the CLEARLY WRONG surrounding words, if any.`
+      : "";
 
     const client = getClient();
     const completion = await client.chat.completions.create({
@@ -57,7 +68,7 @@ Rules:
 - If they used a simple/incorrect form, keep it simple/incorrect (that's a real mistake for the grader to catch)
 - Only fix what is clearly a TRANSCRIPTION artifact, not a language learning mistake
 - If the raw text seems fine as-is, return it unchanged
-- Output ONLY the cleaned Spanish text
+- Output ONLY the cleaned Spanish text${namesLine}
 
 Respond with JSON: { "cleaned": "...", "corrected": true/false }`,
         },

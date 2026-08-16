@@ -9,7 +9,11 @@
 
 import { MicRecorder, playAudioBytes, unlockAudio } from "./voice.js";
 import { transcribe, cleanTranscription, speak } from "./api.js";
-import type { ConversationChannel, ConversationChannelUi } from "./ConversationChannel.js";
+import type {
+  ConversationChannel,
+  ConversationChannelUi,
+  ConversationContext,
+} from "./ConversationChannel.js";
 
 type Phase = "idle" | "recording" | "busy";
 
@@ -22,8 +26,12 @@ export class VoiceConversationChannel implements ConversationChannel {
   private phase: Phase = "idle";
   /** The NPC's last line, used as context to clean the next transcription. */
   private lastNpcLine = "";
+  /** Who the player's talking to + every valid character name — passed to
+   *  cleanTranscription so it doesn't "correct" a correctly-spoken name. */
+  private context: ConversationContext | null = null;
 
-  prepare(): void {
+  prepare(context?: ConversationContext): void {
+    this.context = context ?? null;
     unlockAudio();
     void this.recorder.acquire().catch(() => {});
   }
@@ -85,7 +93,12 @@ export class VoiceConversationChannel implements ConversationChannel {
           return;
         }
         ui.setStatus("Processing…");
-        const { cleaned, corrected } = await cleanTranscription(utterance, this.lastNpcLine);
+        const { cleaned, corrected } = await cleanTranscription(utterance, {
+          lastNpcLine: this.lastNpcLine,
+          npcName: this.context?.npcName,
+          knownNames: this.context?.knownNames,
+          level: this.context?.level,
+        });
         ui.setTranscript(
           corrected && cleaned !== utterance
             ? `Heard: "${utterance}" → You meant: "${cleaned}"`

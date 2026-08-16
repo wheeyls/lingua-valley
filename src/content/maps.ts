@@ -68,6 +68,7 @@ function buildVariant(
         npcId,
         name: npc.name,
         color: npc.color,
+        locationName: loc.name,
         icon: loc.icon,
         x,
         y,

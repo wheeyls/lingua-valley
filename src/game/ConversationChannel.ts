@@ -16,9 +16,21 @@ export interface ConversationChannelUi {
   setTranscript(text: string): void;
 }
 
+/** Who the player is about to talk to, for channels that need it (e.g. the
+ *  voice channel's transcription-cleanup pass, so it doesn't "correct" a
+ *  correctly-spoken character name into something else). */
+export interface ConversationContext {
+  npcName: string;
+  /** Every character name in the current campaign — a real proper noun the
+   *  player might legitimately say, even if it's not who they're talking to
+   *  right now (e.g. asking "have you seen Jorgito?"). */
+  knownNames: string[];
+  level: string;
+}
+
 export interface ConversationChannel {
   /** Acquire resources for a conversation (e.g. mic permission, audio unlock). */
-  prepare(): void;
+  prepare(context?: ConversationContext): void;
   /**
    * Render the player's input control into `container` and call `onTurn` for each
    * submitted utterance. `ui` lets the channel narrate progress (status/transcript).

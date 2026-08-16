@@ -8,14 +8,18 @@
  * the browser without hitting OpenAI or any /api endpoint.
  */
 
-import type { ConversationChannel, ConversationChannelUi } from "./ConversationChannel.js";
+import type {
+  ConversationChannel,
+  ConversationChannelUi,
+  ConversationContext,
+} from "./ConversationChannel.js";
 
 export class ManualConversationChannel implements ConversationChannel {
   private onTurn: ((utterance: string) => void) | null = null;
   private input: HTMLInputElement | null = null;
   private sendBtn: HTMLButtonElement | null = null;
 
-  prepare(): void {}
+  prepare(_context?: ConversationContext): void {}
 
   mountInput(
     container: HTMLElement,
