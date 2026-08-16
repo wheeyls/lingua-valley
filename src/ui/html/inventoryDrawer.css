@@ -1,0 +1,154 @@
+/*
+ * Inventory drawer — a bottom sheet for the campaign's growable resource
+ * cards (garden/foliage/ribbons, etc). Closed by default; slides up over
+ * the map with a dimming backdrop. Card styles here were relocated
+ * verbatim from room.css's old always-visible extras row.
+ */
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgba(10, 8, 14, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.drawer-backdrop-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drawer-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 21;
+  max-height: min(70vh, 520px);
+  display: flex;
+  flex-direction: column;
+  background: rgba(20, 16, 28, 0.98);
+  border-top: 1px solid #4a7c59;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.5);
+  transform: translateY(100%);
+  transition: transform 0.25s ease;
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  color: #f4ecd8;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.drawer-sheet-open {
+  transform: translateY(0);
+}
+
+.drawer-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: #4a4256;
+  margin: 10px auto 4px;
+  flex-shrink: 0;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 18px 10px;
+  flex-shrink: 0;
+}
+.drawer-title {
+  font-size: clamp(15px, 3.5vw, 19px);
+  font-weight: bold;
+  color: #ffe08a;
+}
+.drawer-close-btn {
+  background: none;
+  border: 1px solid #555;
+  border-radius: 8px;
+  color: #8a8290;
+  font-size: 16px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.drawer-close-btn:active { opacity: 0.7; }
+
+.drawer-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: clamp(12px, 3vw, 24px);
+  padding: 4px clamp(16px, 4vw, 32px) clamp(16px, 4vw, 32px);
+  overflow-y: auto;
+}
+
+/* --- Shared card styles --- */
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(14px, 3vw, 22px) clamp(16px, 3.5vw, 26px);
+  border-radius: 18px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.1s;
+  text-align: center;
+  min-width: clamp(100px, 25vw, 150px);
+}
+.card:active { transform: scale(0.95); }
+
+/* --- Item card --- */
+.card-item {
+  background: rgba(26, 20, 35, 0.82);
+  border: 3px solid #9bc995;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.card-item .card-icon-text {
+  font-size: clamp(32px, 8vw, 52px);
+  margin-bottom: 6px;
+}
+.card-item .card-label {
+  font-size: clamp(13px, 2.5vw, 17px);
+  color: #ffe08a;
+  font-weight: bold;
+}
+
+/* --- Garden card (the streak field: rows of 7 plants) --- */
+.card-garden {
+  min-width: clamp(184px, 46vw, 288px);
+}
+.card-garden .card-hint {
+  font-size: clamp(11px, 2.2vw, 14px);
+  color: #9bc995;
+  margin-top: 6px;
+}
+.garden-grid {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(3px, 0.8vw, 6px);
+  margin-bottom: 8px;
+}
+.garden-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: clamp(3px, 0.8vw, 6px);
+}
+.garden-cell {
+  width: clamp(22px, 5.5vw, 34px);
+  height: clamp(22px, 5.5vw, 34px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(14px, 3.4vw, 22px);
+  line-height: 1;
+  background: rgba(58, 47, 30, 0.55);
+  border-radius: 8px;
+}

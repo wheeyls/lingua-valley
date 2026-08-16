@@ -21,7 +21,7 @@ import { findNpc, visibleLocations, type Npc } from "../content/world";
 import { themeForRole, type Campaign, type ResourceTheme } from "../content/campaigns";
 import { renderSceneHtml } from "../content/sceneArt";
 import { renderPartySceneHtml } from "../content/partySceneArt";
-import type { GameMap, MapNpc } from "../domain/gameMap";
+import type { HubMaps, MapNpc } from "../domain/gameMap";
 import type { ObjectiveGraph, ObjectiveContext } from "../domain/objective";
 import { grid, needsSeed, bloomsThisRow, ROW_LENGTH, type CellState } from "../domain/garden";
 import { hoursUntilNextDay, type DailyRole } from "../domain/dailyLoop";
@@ -36,7 +36,7 @@ import type { Adapters } from "./adapters";
 export class GameController {
   private worldView!: HtmlWorldView;
   private objectives: ObjectiveGraph;
-  private hub: GameMap;
+  private hub: HubMaps;
   private devPanel?: HtmlDevPanel;
 
   constructor(
