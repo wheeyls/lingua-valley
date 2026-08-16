@@ -2,16 +2,21 @@ import { describe, it, expect } from "vitest";
 import { buildHubMap, resolveAnchor } from "../../content/maps";
 import { visibleLocations, AREAS } from "../../content/world";
 import { PUEBLO_DEL_AYER, FIESTA_DE_DAPHNE } from "../../content/world";
+import { gooseLocationForDay } from "../objectives/gooseMystery";
+
+// A fixed test day — Pueblo del Ayer's assertions don't depend on the day
+// (it has no dynamicNpc), but buildHubMap always requires one.
+const TEST_DAY = "2026-08-16";
 
 // Exercises the generic map-building mechanism (buildHubMap) — pinned to
 // Pueblo del Ayer specifically, independent of whichever campaign is
 // DEFAULT_CAMPAIGN today.
-const HUB = buildHubMap(PUEBLO_DEL_AYER);
+const HUB = buildHubMap(PUEBLO_DEL_AYER, TEST_DAY);
 
 describe("gameMap — flat hub", () => {
   it("every Area's anchors resolve in BOTH orientations (no typos, no missing markers)", () => {
     for (const area of AREAS) {
-      expect(() => buildHubMap(area)).not.toThrow();
+      expect(() => buildHubMap(area, TEST_DAY)).not.toThrow();
     }
   });
 
@@ -71,31 +76,44 @@ describe("gameMap — flat hub", () => {
     });
   }
 
-  it("multi-NPC locations spread siblings apart around the shared anchor, in both orientations", () => {
-    const hub = buildHubMap(FIESTA_DE_DAPHNE);
-    const pond = FIESTA_DE_DAPHNE.locations.find((l) => l.id === "el-estanque-de-los-patos")!;
+  // The Silly Goose is placed dynamically (FIESTA_DE_DAPHNE.dynamicNpc),
+  // landing on whichever location gooseLocationForDay picks for the day —
+  // which already hosts its own family-member npcId, so this is the same
+  // "two NPCs, one anchor" scenario the old fixed-at-the-pond pairing
+  // exercised, just sourced from the dynamic pick instead of hardcoded.
+  it("the dynamically-placed Silly Goose spreads apart from whoever's already at that location", () => {
+    const hub = buildHubMap(FIESTA_DE_DAPHNE, TEST_DAY);
+    const gooseLoc = gooseLocationForDay(TEST_DAY);
+    const loc = FIESTA_DE_DAPHNE.locations.find((l) => l.id === gooseLoc.id)!;
+    const residentNpcId = loc.npcIds[0];
 
     for (const [map, bg] of [
       [hub.landscape, FIESTA_DE_DAPHNE.backgroundLandscape],
       [hub.portrait, FIESTA_DE_DAPHNE.backgroundPortrait],
     ] as const) {
-      const anchor = resolveAnchor(bg.svg, pond.anchor, bg.viewBoxWidth, bg.viewBoxHeight);
-      const maria = map.npcs.find((n) => n.npcId === "maria-abuela")!;
+      const anchor = resolveAnchor(bg.svg, loc.anchor, bg.viewBoxWidth, bg.viewBoxHeight);
+      const resident = map.npcs.find((n) => n.npcId === residentNpcId)!;
       const goose = map.npcs.find((n) => n.npcId === "ganso-tonto")!;
 
-      expect(maria).toBeDefined();
+      expect(resident).toBeDefined();
       expect(goose).toBeDefined();
-      expect(maria.x !== goose.x || maria.y !== goose.y).toBe(true);
+      expect(resident.x !== goose.x || resident.y !== goose.y).toBe(true);
 
       // percent — both stay near the shared anchor, not scattered afield. The y
       // axis's offset is scaled up by (viewBoxWidth/viewBoxHeight) to keep the
       // *pixel* spread circular on the aspect-locked stage, so its delta is
       // larger in raw percent terms than x's — bound generously for both axes.
       const DELTA = 16;
-      expect(Math.abs(maria.x - anchor.x)).toBeLessThanOrEqual(DELTA);
-      expect(Math.abs(maria.y - anchor.y)).toBeLessThanOrEqual(DELTA);
+      expect(Math.abs(resident.x - anchor.x)).toBeLessThanOrEqual(DELTA);
+      expect(Math.abs(resident.y - anchor.y)).toBeLessThanOrEqual(DELTA);
       expect(Math.abs(goose.x - anchor.x)).toBeLessThanOrEqual(DELTA);
       expect(Math.abs(goose.y - anchor.y)).toBeLessThanOrEqual(DELTA);
     }
+  });
+
+  it("the Silly Goose only appears at his one dynamic location, not any other", () => {
+    const hub = buildHubMap(FIESTA_DE_DAPHNE, TEST_DAY);
+    const goosePins = hub.landscape.npcs.filter((n) => n.npcId === "ganso-tonto");
+    expect(goosePins).toHaveLength(1);
   });
 });
