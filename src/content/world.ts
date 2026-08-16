@@ -17,6 +17,7 @@
 
 import type { CefrLevel } from "../domain/cefr.js";
 import type { DailyRole } from "../domain/dailyLoop.js";
+import type { ObjectiveState } from "../domain/objective.js";
 import { gooseLocationForDay } from "../domain/objectives/gooseMystery.js";
 import { PARK_BG, PARK_BG_PORTRAIT, STREET_BG, STREET_BG_PORTRAIT } from "./art.js";
 
@@ -85,12 +86,16 @@ export interface Area {
   /** Narrow-viewport hub map — different art, same anchor ids, own viewBox. */
   backgroundPortrait: MapBackground;
   /** Optional per-day dynamic NPC placement — e.g. a character whose
-   *  location isn't fixed content but computed from the calendar day
-   *  (YYYY-MM-DD). Returns null if nothing dynamic applies today. Resolved
-   *  by content/maps.ts's buildHubMap, on top of each Location's static
-   *  npcIds — see the Silly Goose in FIESTA_DE_DAPHNE for the only current
-   *  use. */
-  dynamicNpc?: (today: string) => { locationId: string; npcId: string } | null;
+   *  location (or visibility) isn't fixed content but computed from the
+   *  calendar day (YYYY-MM-DD) and today's objective progress. Returns null
+   *  if nothing dynamic applies today (including "not visible yet").
+   *  Resolved by content/maps.ts's buildHubMap, on top of each Location's
+   *  static npcIds — see the Silly Goose in FIESTA_DE_DAPHNE for the only
+   *  current use. */
+  dynamicNpc?: (
+    today: string,
+    objectiveState: ObjectiveState,
+  ) => { locationId: string; npcId: string } | null;
 }
 
 export const PUEBLO_DEL_AYER: Area = {
@@ -244,9 +249,10 @@ export const PUEBLO_DEL_AYER: Area = {
  * one fact, not much personality) each know one true/false clue about
  * wherever he actually is today (see domain/objectives/gooseMystery.ts for
  * the day-seeded ground truth); the player deduces the spot and guesses
- * with Marichuy. The Goose himself is placed dynamically each day at his
- * real hiding spot (`dynamicNpc` below) — an attentive player can find him
- * directly, though the formal win still requires Marichuy's conversation.
+ * with Marichuy. The Goose himself stays off the map entirely until the
+ * player guesses correctly (`dynamicNpc` below checks find-the-goose's
+ * outputs) — he doesn't appear as a shortcut around the deduction, only as
+ * the payoff once you've actually solved it, at that same true location.
  */
 export const FIESTA_DE_DAPHNE: Area = {
   id: "fiesta-de-daphne",
@@ -260,7 +266,8 @@ export const FIESTA_DE_DAPHNE: Area = {
   ticketPrice: 60,
   backgroundLandscape: { svg: PARK_BG, viewBoxWidth: 400, viewBoxHeight: 220 },
   backgroundPortrait: { svg: PARK_BG_PORTRAIT, viewBoxWidth: 240, viewBoxHeight: 460 },
-  dynamicNpc: (today) => {
+  dynamicNpc: (today, objectiveState) => {
+    if (objectiveState["find-the-goose"]?.outputs?.result !== "correcto") return null;
     const loc = gooseLocationForDay(today);
     return { locationId: loc.id, npcId: "ganso-tonto" };
   },
@@ -403,8 +410,8 @@ export const FIESTA_DE_DAPHNE: Area = {
       lines: [
         {
           level: "A2",
-          es: "🤫 ¡Encontraste al ganso travieso!",
-          en: "You found him! He's shy about being caught red-handed (well, orange-billed) — say hi, but he won't give up the keys without Marichuy's guess. Tap 'Talk' to begin.",
+          es: "🔑 ¡Encontraste al ganso travieso!",
+          en: "You guessed right and found him! He's shy about being caught red-handed (well, orange-billed) with the keys — say hi and celebrate. Tap 'Talk' to begin.",
         },
       ],
     },

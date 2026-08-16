@@ -14,32 +14,41 @@
  * orientation to show via a CSS breakpoint (see HtmlWorldView), not this
  * module — buildHubMap always resolves both.
  *
- * An Area may also supply `dynamicNpc(today)` — one extra NPC placed at a
- * day-computed location (e.g. Fiesta de Daphne's Silly Goose, hiding at a
- * different park location each day) on top of each location's static
- * npcIds. `today` is threaded through so this stays a pure function of its
- * inputs, no hidden clock/Date.now() dependency.
+ * An Area may also supply `dynamicNpc(today, objectiveState)` — one extra
+ * NPC placed at a day-computed location (e.g. Fiesta de Daphne's Silly
+ * Goose, hiding at a different park location each day, only visible once
+ * the player's find-the-goose objective has succeeded) on top of each
+ * location's static npcIds. Both `today` and `objectiveState` are threaded
+ * through as plain arguments so this stays a pure function of its inputs,
+ * no hidden clock/player-state dependency.
  */
 
 import type { GameMap, HubMaps, MapNpc } from "../domain/gameMap.js";
+import type { ObjectiveState } from "../domain/objective.js";
 import { visibleLocations, findNpc, type Area, type MapBackground } from "./world.js";
 
 export const HUB_MAP_ID = "hub";
 
 /** Build both orientations of the hub map for a given campaign area, for a
- *  given calendar day (YYYY-MM-DD) — see the `dynamicNpc` note above. */
-export function buildHubMap(area: Area, today: string): HubMaps {
+ *  given calendar day (YYYY-MM-DD) and the player's current daily objective
+ *  state — see the `dynamicNpc` note above. */
+export function buildHubMap(area: Area, today: string, objectiveState: ObjectiveState): HubMaps {
   return {
-    landscape: buildVariant(area, area.backgroundLandscape, today),
-    portrait: buildVariant(area, area.backgroundPortrait, today),
+    landscape: buildVariant(area, area.backgroundLandscape, today, objectiveState),
+    portrait: buildVariant(area, area.backgroundPortrait, today, objectiveState),
   };
 }
 
 /** Resolve one orientation's background into a fully-positioned GameMap —
  *  one NPC pin per visible location (plus the dynamic NPC, if any, at
  *  whichever location it targets today). */
-function buildVariant(area: Area, bg: MapBackground, today: string): GameMap {
-  const dynamic = area.dynamicNpc?.(today) ?? null;
+function buildVariant(
+  area: Area,
+  bg: MapBackground,
+  today: string,
+  objectiveState: ObjectiveState,
+): GameMap {
+  const dynamic = area.dynamicNpc?.(today, objectiveState) ?? null;
 
   const npcs: MapNpc[] = visibleLocations(area).flatMap((loc) => {
     const npcIds = dynamic?.locationId === loc.id ? [...loc.npcIds, dynamic.npcId] : loc.npcIds;

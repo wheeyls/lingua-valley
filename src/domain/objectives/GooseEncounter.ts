@@ -1,10 +1,10 @@
 /**
- * Goose-encounter objective — the Silly Goose himself, for the player who
- * finds him directly (he's placed dynamically at today's real hiding spot,
- * see FIESTA_DE_DAPHNE.dynamicNpc in content/world.ts). Shy but
- * mischievous: caught red-handed, a short fun exchange — no property-clue
- * content (he wouldn't rat himself out), just a nudge that the player still
- * needs to tell Marichuy where he is to actually get the keys back.
+ * Goose-encounter objective — the Silly Goose himself, met only AFTER the
+ * player has already guessed correctly with Marichuy (he's placed
+ * dynamically, and only then — see FIESTA_DE_DAPHNE.dynamicNpc in
+ * content/world.ts, gated on find-the-goose's outputs). This is the payoff
+ * for solving the mystery, not a shortcut around it: a short, silly,
+ * shy-but-mischievous exchange, caught red-handed with the keys.
  *
  * Role: "ribbons", bonus — shares the role with GooseClue's Tía Anette
  * instance, same multi-instance-per-role pattern PartyPlans already
@@ -25,14 +25,13 @@ export class GooseEncounter implements Objective {
   buildTheme(_ctx: ObjectiveContext): string {
     return (
       "You are the Silly Goose — shy, but mischievous. The player just " +
-      "found you hiding, right after you stole the car keys from Daphne's " +
-      "birthday party. Act caught off guard and a little embarrassed, " +
-      "honk dramatically, and have a short, silly, simple A2 exchange with " +
-      "the player. Do NOT reveal where you are or confirm/deny anything " +
-      "about the other clues — you're not going to make it that easy. " +
-      "Tease that you'll only give the keys back if they can convince " +
-      "Marichuy where you are. Keep every sentence short and A2-simple. " +
-      "Wrap up after a few playful turns."
+      "correctly guessed where you were hiding and found you, caught " +
+      "red-handed with the car keys after stealing them from Daphne's " +
+      "birthday party. Act sheepish and a little embarrassed, honk " +
+      "dramatically, and have a short, silly, simple A2 exchange with the " +
+      "player — celebrate that they found you, and hand over the keys " +
+      "with some playful reluctance. Keep every sentence short and " +
+      "A2-simple. Wrap up after a few playful turns."
     );
   }
 
