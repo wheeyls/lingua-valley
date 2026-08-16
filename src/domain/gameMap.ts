@@ -17,6 +17,11 @@ export interface MapNpc {
   npcId: string; // links to NPC data in world.ts
   name: string;
   color: number;
+  /** The hosting Location's display name (e.g. "El Anfiteatro") — shown on
+   *  the pin so the place itself is clearly labeled, not just who's there.
+   *  Some content (e.g. Daphne's mystery) depends on the player actually
+   *  knowing this name to answer with. */
+  locationName: string;
   /** Optional emoji badge (from the NPC's Location.icon), shown on the pin. */
   icon?: string;
   /** Optional path to a PNG/SVG asset. Falls back to the SVG thumbnail avatar. */

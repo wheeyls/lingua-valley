@@ -211,7 +211,10 @@ export class HtmlWorldView {
           </div>
           ${done ? '<div class="marker-badge">✓</div>' : ""}
         </div>
-        <div class="marker-label">${npc.icon ? `${npc.icon} ` : ""}${npc.name}</div>
+        <div class="marker-label">
+          <div class="marker-location">${npc.icon ? `${npc.icon} ` : ""}${npc.locationName}</div>
+          <div class="marker-npc-name">${npc.name}</div>
+        </div>
       `;
       marker.addEventListener("pointerdown", (e) => {
         e.stopPropagation();

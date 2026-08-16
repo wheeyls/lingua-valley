@@ -31,12 +31,16 @@ export interface GooseLocation {
   animals: boolean;
 }
 
+// `name` matches the corresponding Location.name in content/world.ts
+// (lowercased for mid-sentence Spanish) exactly — this is also what's shown
+// on that location's map pin, so what the player reads on the map and what
+// the dialogue asks them to say are always the same word.
 const LOCATIONS: GooseLocation[] = [
   { id: "el-chapoteadero", name: "el chapoteadero", wet: true, playArea: true, food: false, animals: false },
   { id: "el-parque-infantil", name: "el parque infantil", wet: false, playArea: true, food: false, animals: false },
   { id: "la-ramada", name: "la ramada", wet: false, playArea: false, food: true, animals: false },
   { id: "el-escenario", name: "el anfiteatro", wet: false, playArea: false, food: false, animals: false },
-  { id: "el-estanque-de-los-patos", name: "el estanque", wet: true, playArea: false, food: false, animals: true },
+  { id: "el-estanque-de-los-patos", name: "el estanque de los patos", wet: true, playArea: false, food: false, animals: true },
 ];
 
 /** Deterministic per calendar day — the same day always picks the same
@@ -45,4 +49,11 @@ const LOCATIONS: GooseLocation[] = [
 export function gooseLocationForDay(today: string): GooseLocation {
   const rand = mulberry32(seedFromDay(`${today}:goose`));
   return LOCATIONS[Math.floor(rand() * LOCATIONS.length)];
+}
+
+/** The 5 candidate names, in Spanish — for dialogue that needs to remind
+ *  the player of the full menu of possible answers (see GooseStakes,
+ *  FindTheGoose), not just today's ground truth. */
+export function allLocationNames(): string[] {
+  return LOCATIONS.map((l) => l.name);
 }

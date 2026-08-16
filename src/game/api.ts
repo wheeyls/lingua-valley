@@ -40,6 +40,17 @@ export interface CleanResult {
   corrected: boolean;
 }
 
+export interface CleanTranscriptionContext {
+  /** The NPC's last spoken line, for conversational context. */
+  lastNpcLine?: string;
+  /** Who the player is talking to right now. */
+  npcName?: string;
+  /** Every character name in the current campaign — real proper nouns to
+   *  leave alone, not "correct" as mis-transcriptions. */
+  knownNames?: string[];
+  level?: string;
+}
+
 /**
  * Clean a raw Whisper transcription — fix speech-to-text artifacts (misheard
  * words, English insertions, garbled text) so the grader evaluates what the
@@ -48,14 +59,19 @@ export interface CleanResult {
  */
 export async function cleanTranscription(
   raw: string,
-  context?: string,
-  level?: string,
+  context?: CleanTranscriptionContext,
 ): Promise<CleanResult> {
   try {
     const res = await fetch(`${BASE}/clean-transcription`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ raw, context, level }),
+      body: JSON.stringify({
+        raw,
+        context: context?.lastNpcLine,
+        npcName: context?.npcName,
+        knownNames: context?.knownNames,
+        level: context?.level,
+      }),
     });
     if (!res.ok) return { cleaned: raw, corrected: false };
     return (await res.json()) as CleanResult;

@@ -43,12 +43,13 @@ describe("gameMap — flat hub", () => {
         expect(npcIds).not.toContain("shopkeeper");
       });
 
-      it("each NPC pin matches its location's npc and icon", () => {
+      it("each NPC pin matches its location's npc, icon, and name", () => {
         const plaza = visibleLocations(PUEBLO_DEL_AYER).find((l) => l.id === "plaza")!;
         const pin = map.npcs.find((n) => n.npcId === "jorgito")!;
         expect(pin).toBeDefined();
         expect(pin.icon).toBe(plaza.icon);
         expect(pin.name).toBe("Jorgito");
+        expect(pin.locationName).toBe(plaza.name);
       });
 
       it("every pin has an x/y within the viewBox (0-100)", () => {

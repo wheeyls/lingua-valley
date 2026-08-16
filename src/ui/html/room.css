@@ -214,16 +214,34 @@
 }
 .marker-label {
   margin-top: 3px;
-  font-size: clamp(9px, 2vw, 12px);
-  font-weight: bold;
-  color: #f4ecd8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   background: rgba(26, 20, 35, 0.72);
   padding: 2px 6px;
   border-radius: 8px;
+  max-width: 30vw;
+}
+/* The place itself, e.g. "El Anfiteatro" — primary, since some content
+   (Daphne's mystery) depends on the player actually knowing this name. */
+.marker-location {
+  font-size: clamp(9px, 2vw, 12px);
+  font-weight: bold;
+  color: #ffe08a;
   white-space: nowrap;
-  max-width: 22vw;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
+}
+/* Who's there — secondary, smaller. */
+.marker-npc-name {
+  font-size: clamp(8px, 1.7vw, 10px);
+  color: #f4ecd8;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* On narrow phones, trim the body's own padding so the stage (and its pins)

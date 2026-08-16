@@ -346,7 +346,11 @@ export class GameController {
     let lastApplied: ApplyResult | null = null;
 
     blockCanvas();
-    channel.prepare();
+    channel.prepare({
+      npcName: npc.name,
+      knownNames: this.campaign.area.npcs.map((n) => n.name),
+      level: lesson.level,
+    });
 
     const view = new HtmlConversationView({
       onLeave: () => {
