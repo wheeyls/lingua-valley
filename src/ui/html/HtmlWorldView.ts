@@ -2,27 +2,24 @@
  * HtmlWorldView — flat point-and-click hub.
  *
  * A single static screen: a small mini-map (aspect-locked SVG stage) with
- * tappable NPC pins positioned over it, plus live resource cards below. Tap
- * a pin to talk. No movement, no scrolling, no player character, no
- * sub-screens.
+ * tappable NPC pins positioned over it. Tap a pin to talk. No movement, no
+ * scrolling, no player character, no sub-screens.
+ *
+ * Two orientation stages (landscape/portrait, from the campaign's HubMaps)
+ * are both built into the DOM; a CSS breakpoint in room.css shows exactly
+ * one, so switching is instant on resize with no JS resize listener. The
+ * campaign's growable resource cards (garden/foliage/etc) no longer render
+ * inline here — they live in an HtmlInventoryDrawer, opened via the
+ * backpack button in the top bar, so the stage gets the full screen.
  */
 
 import "./room.css";
-import type { GameMap, MapNpc } from "../../domain/gameMap";
+import type { GameMap, HubMaps, MapNpc } from "../../domain/gameMap";
 import { npcThumbnailSvg } from "../../content/art";
+import { HtmlInventoryDrawer, type ExtraCard } from "./HtmlInventoryDrawer";
 
 export interface WorldViewCallbacks {
   onNpcTap: (npc: MapNpc) => void;
-}
-
-/** A live, state-driven card injected by the controller (the garden). */
-export interface ExtraCard {
-  id: string;
-  icon: string;
-  label: string;
-  hint: string;
-  grid?: string[][];
-  onTap: () => void;
 }
 
 export class HtmlWorldView {
@@ -30,9 +27,7 @@ export class HtmlWorldView {
   private barEl: HTMLDivElement;
   private bodyEl: HTMLDivElement;
   private callbacks: WorldViewCallbacks;
-  private currentMap!: GameMap;
-  private extraCards: ExtraCard[] = [];
-  private lastCompleted: Set<string> = new Set();
+  private drawer: HtmlInventoryDrawer;
 
   constructor(callbacks: WorldViewCallbacks) {
     this.callbacks = callbacks;
@@ -49,20 +44,18 @@ export class HtmlWorldView {
     this.root.appendChild(this.bodyEl);
 
     document.body.appendChild(this.root);
+
+    this.drawer = new HtmlInventoryDrawer();
+    this.setupInventoryButton();
   }
 
-  loadMap(map: GameMap, completedNpcIds: Set<string> = new Set()) {
-    this.currentMap = map;
-    this.lastCompleted = completedNpcIds;
-    this.renderRoom(map, completedNpcIds);
+  loadMap(hub: HubMaps, completedNpcIds: Set<string> = new Set()) {
+    this.renderRoom(hub, completedNpcIds);
   }
 
-  /** Set the live, controller-driven cards (field, station) and re-render. */
+  /** Set the live, controller-driven cards (field, station) in the drawer. */
   setExtraCards(cards: ExtraCard[]) {
-    this.extraCards = cards;
-    if (this.currentMap) {
-      this.renderRoom(this.currentMap, this.lastCompleted);
-    }
+    this.drawer.setCards(cards);
   }
 
   updateHud(money: number) {
@@ -136,21 +129,40 @@ export class HtmlWorldView {
     statusEl.innerHTML = `✅ Done! Back in ${timeStr}`;
   }
 
-  destroy() { this.root.remove(); }
+  destroy() {
+    this.root.remove();
+    this.drawer.destroy();
+  }
 
-  private renderRoom(map: GameMap, completedNpcIds: Set<string> = new Set()) {
+  /** Backpack button, top bar — opens the inventory drawer. Inserted once;
+   *  survives renderRoom's per-orientation rebuilds since those only ever
+   *  touch .room-bar's name/info spans, not this. */
+  private setupInventoryButton() {
+    const btn = document.createElement("button");
+    btn.className = "hud-inventory-btn";
+    btn.type = "button";
+    btn.title = "Your things";
+    btn.textContent = "🎒";
+    btn.addEventListener("pointerdown", (e) => {
+      e.stopPropagation();
+      this.drawer.toggle();
+    });
+    this.barEl.appendChild(btn);
+  }
+
+  private renderRoom(hub: HubMaps, completedNpcIds: Set<string> = new Set()) {
     // Top bar — update the per-room bits (name) in place rather than
     // resetting the whole bar's innerHTML, so persistent overlay children
-    // appended elsewhere (.hud-info, .hud-checkpoint, .hud-user, .hud-daily)
-    // survive across the multiple renderRoom calls one GameController.render()
-    // triggers (loadMap/setExtraCards each call this).
+    // appended elsewhere (.hud-info, .hud-checkpoint, .hud-user, .hud-daily,
+    // .hud-inventory-btn) survive across the multiple renderRoom calls one
+    // GameController.render() triggers (loadMap/setExtraCards each call this).
     let nameEl = this.barEl.querySelector(".room-name") as HTMLElement | null;
     if (!nameEl) {
       nameEl = document.createElement("span");
       nameEl.className = "room-name";
       this.barEl.insertBefore(nameEl, this.barEl.firstChild);
     }
-    nameEl.textContent = map.name;
+    nameEl.textContent = hub.landscape.name;
 
     if (!this.barEl.querySelector(".hud-info")) {
       const infoEl = document.createElement("span");
@@ -159,22 +171,25 @@ export class HtmlWorldView {
     }
 
     this.bodyEl.innerHTML = "";
+    this.bodyEl.appendChild(this.buildStage(hub.landscape, "room-stage--landscape", completedNpcIds));
+    this.bodyEl.appendChild(this.buildStage(hub.portrait, "room-stage--portrait", completedNpcIds));
+  }
 
-    // --- Map stage: aspect-locked container so pin x/y percentages always
-    // line up with the background art, regardless of viewport shape.
+  /** Build one orientation's aspect-locked stage: background art + NPC pins. */
+  private buildStage(
+    map: GameMap,
+    orientationClass: string,
+    completedNpcIds: Set<string>,
+  ): HTMLElement {
     const stage = document.createElement("div");
-    stage.className = "room-stage";
-    const viewBoxWidth = map.viewBoxWidth ?? 400;
-    const viewBoxHeight = map.viewBoxHeight ?? 220;
-    stage.style.aspectRatio = `${viewBoxWidth} / ${viewBoxHeight}`;
+    stage.className = `room-stage ${orientationClass}`;
+    stage.style.aspectRatio = `${map.viewBoxWidth} / ${map.viewBoxHeight}`;
 
-    if (map.backgroundSvg) {
-      const bg = document.createElement("div");
-      bg.className = "room-stage-bg";
-      bg.style.cssText = "position:absolute;inset:0;";
-      bg.innerHTML = map.backgroundSvg;
-      stage.appendChild(bg);
-    }
+    const bg = document.createElement("div");
+    bg.className = "room-stage-bg";
+    bg.style.cssText = "position:absolute;inset:0;";
+    bg.innerHTML = map.backgroundSvg;
+    stage.appendChild(bg);
 
     // NPC pins — small "mini-map" markers positioned over the stage.
     const markers = document.createElement("div");
@@ -205,35 +220,7 @@ export class HtmlWorldView {
       markers.appendChild(marker);
     }
     stage.appendChild(markers);
-    this.bodyEl.appendChild(stage);
 
-    // --- Extra cards (garden/foliage/ribbons) — unchanged, below the stage.
-    const extras = document.createElement("div");
-    extras.className = "room-extras";
-    for (const extra of this.extraCards) {
-      const card = document.createElement("div");
-      card.className = extra.grid ? "card card-item card-garden" : "card card-item";
-      const visual = extra.grid
-        ? `<div class="garden-grid">${extra.grid
-            .map(
-              (row) =>
-                `<div class="garden-row">${row
-                  .map((cell) => `<span class="garden-cell">${cell}</span>`)
-                  .join("")}</div>`,
-            )
-            .join("")}</div>`
-        : `<div class="card-icon-text">${extra.icon}</div>`;
-      card.innerHTML = `
-        ${visual}
-        <div class="card-label">${extra.label}</div>
-        <div class="card-hint">${extra.hint}</div>
-      `;
-      card.addEventListener("pointerdown", (e) => {
-        e.stopPropagation();
-        extra.onTap();
-      });
-      extras.appendChild(card);
-    }
-    this.bodyEl.appendChild(extras);
+    return stage;
   }
 }

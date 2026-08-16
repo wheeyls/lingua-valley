@@ -1,9 +1,12 @@
 /**
  * Game map model — the pin-based hub screen.
  *
- * The world is a single HUB map: a small SVG scene with tappable NPC pins
- * positioned over it. No movement, no sub-rooms — pin positions are resolved
- * from named anchor points in the background art (see content/maps.ts).
+ * The world is a single HUB, resolved as a PAIR of fully-independent
+ * orientations (landscape/portrait — see HubMaps) so a campaign can supply
+ * different art for wide vs narrow viewports. Each orientation is a small
+ * SVG scene with tappable NPC pins positioned over it. No movement, no
+ * sub-rooms — pin positions are resolved from named anchor points in the
+ * background art (see content/maps.ts).
  *
  * PURE DOMAIN: no framework. Fully testable.
  */
@@ -18,20 +21,27 @@ export interface MapNpc {
   icon?: string;
   /** Optional path to a PNG/SVG asset. Falls back to the SVG thumbnail avatar. */
   art?: string;
-  /** Marker position in percent (0-100) of the map's viewBox. */
+  /** Marker position in percent (0-100) of this map's viewBox. */
   x: number;
   y: number;
 }
 
+/** One fully-resolved orientation of a campaign's hub. */
 export interface GameMap {
   id: string;
   name: string;
   /** All NPC pins on this map. */
   npcs: MapNpc[];
-  /** Optional inline SVG string for the hub background. */
-  backgroundSvg?: string;
-  /** viewBox the backgroundSvg and npc x/y percentages are resolved
-   *  against. Defaults to 400×220 (all current art) if unset. */
-  viewBoxWidth?: number;
-  viewBoxHeight?: number;
+  /** Inline SVG string for the hub background. */
+  backgroundSvg: string;
+  /** viewBox the backgroundSvg and npc x/y percentages are resolved against. */
+  viewBoxWidth: number;
+  viewBoxHeight: number;
+}
+
+/** Both orientations of one campaign's hub, fully resolved. The UI picks
+ *  which to show via CSS breakpoint — see HtmlWorldView. */
+export interface HubMaps {
+  landscape: GameMap;
+  portrait: GameMap;
 }

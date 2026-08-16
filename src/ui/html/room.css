@@ -1,10 +1,13 @@
 /*
  * Room-based point-and-click navigation.
  * Fully responsive — works in portrait, landscape, phone, tablet, desktop.
- * No fixed dimensions. NPCs render as small mini-map pins over an
- * aspect-locked background stage (letterboxed, not cropped, so pin
- * percentages always line up with the art); the field/foliage/ribbons
- * resource cards wrap naturally below it.
+ * NPCs render as small mini-map pins over an aspect-locked background stage
+ * (letterboxed, not cropped, so pin percentages always line up with the
+ * art). Two stages (portrait art, landscape art — own anchor layout each)
+ * are both built into the DOM at once; the media query below shows exactly
+ * one, keyed on viewport width rather than device orientation. The stage
+ * gets the whole screen now — resource cards (garden/foliage/etc) live in
+ * the inventory drawer (inventoryDrawer.css), not inline here.
  */
 
 .room {
@@ -65,6 +68,23 @@
 }
 .hud-checkpoint:active { opacity: 0.7; }
 
+/* Inventory drawer trigger in the HUD bar */
+.hud-inventory-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 224, 138, 0.14);
+  border: 1px solid #ffe08a;
+  font-size: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.hud-inventory-btn:active { opacity: 0.7; }
+
 /* User + logout in the HUD bar */
 .hud-user {
   display: flex;
@@ -93,13 +113,12 @@
 }
 .hud-logout-btn:active { opacity: 0.7; }
 
-/* --- Room body --- */
+/* --- Room body: now just centers whichever single stage is visible --- */
 .room-body {
   flex: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: clamp(12px, 3vw, 24px);
+  justify-content: center;
   padding: clamp(16px, 4vw, 32px)
            max(clamp(16px, 4vw, 32px), env(safe-area-inset-left, 0px));
   overflow-y: auto;
@@ -110,18 +129,18 @@
   padding-bottom: max(clamp(16px, 4vw, 32px), env(safe-area-inset-bottom, 0px));
 }
 
-/* --- Map stage: aspect-locked so pin percentages line up with the art
-       regardless of viewport shape (letterboxed, not cropped) --- */
+/* --- Map stage: aspect-locked (per-instance, via inline style — see
+       HtmlWorldView's buildStage) so pin percentages line up with the art
+       regardless of viewport shape (letterboxed, not cropped). Both
+       orientations are built into the DOM; only one is ever displayed. --- */
 .room-stage {
   position: relative;
   width: 100%;
   max-width: 100%;
   max-height: 100%;
-  aspect-ratio: 400 / 220;
   margin: 0 auto;
   border-radius: 18px;
   overflow: hidden;
-  flex-shrink: 0;
 }
 .room-stage svg {
   width: 100%;
@@ -131,6 +150,16 @@
 .room-markers {
   position: absolute;
   inset: 0;
+}
+
+/* Mobile-first: portrait art by default, landscape once there's room for
+   it. Width-based, not device orientation — a narrowed desktop window
+   should get the compact map just as much as a portrait phone should. */
+.room-stage--portrait { display: block; }
+.room-stage--landscape { display: none; }
+@media (min-width: 700px) {
+  .room-stage--portrait { display: none; }
+  .room-stage--landscape { display: block; }
 }
 
 /* --- Map marker (mini-map pin) --- */
@@ -197,88 +226,15 @@
   text-overflow: ellipsis;
 }
 
-/* --- Extra-card row (garden/foliage/ribbons) — same layout the whole
-       .room-body used to have, now scoped to just this row --- */
-.room-extras {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: clamp(12px, 3vw, 24px);
-  width: 100%;
-}
-
 /* On narrow phones, trim the body's own padding so the stage (and its pins)
    can claim as much of the limited width as possible. */
 @media (max-width: 480px) {
   .room-body {
     padding-left: max(10px, env(safe-area-inset-left, 0px));
     padding-right: max(10px, env(safe-area-inset-right, 0px));
-    gap: 10px;
   }
 }
 
-/* --- Shared card styles --- */
-.card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: clamp(14px, 3vw, 22px) clamp(16px, 3.5vw, 26px);
-  border-radius: 18px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform 0.1s;
-  text-align: center;
-  min-width: clamp(100px, 25vw, 150px);
-}
-.card:active { transform: scale(0.95); }
-
-/* --- Item card --- */
-.card-item {
-  background: rgba(26, 20, 35, 0.82);
-  border: 3px solid #9bc995;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-}
-.card-item .card-icon-text {
-  font-size: clamp(32px, 8vw, 52px);
-  margin-bottom: 6px;
-}
-.card-item .card-label {
-  font-size: clamp(13px, 2.5vw, 17px);
-  color: #ffe08a;
-  font-weight: bold;
-}
-
-/* --- Garden card (the streak field: rows of 7 plants) --- */
-.card-garden {
-  min-width: clamp(184px, 46vw, 288px);
-}
-.card-garden .card-hint {
-  font-size: clamp(11px, 2.2vw, 14px);
-  color: #9bc995;
-  margin-top: 6px;
-}
-.garden-grid {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(3px, 0.8vw, 6px);
-  margin-bottom: 8px;
-}
-.garden-row {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: clamp(3px, 0.8vw, 6px);
-}
-.garden-cell {
-  width: clamp(22px, 5.5vw, 34px);
-  height: clamp(22px, 5.5vw, 34px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: clamp(14px, 3.4vw, 22px);
-  line-height: 1;
-  background: rgba(58, 47, 30, 0.55);
-  border-radius: 8px;
-}
+/* Card styles (garden/foliage/ribbons resource cards) moved to
+   inventoryDrawer.css — they now render inside the inventory drawer, not
+   inline here. */

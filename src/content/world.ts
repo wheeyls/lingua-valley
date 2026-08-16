@@ -17,7 +17,7 @@
 
 import type { CefrLevel } from "../domain/cefr.js";
 import type { DailyRole } from "../domain/dailyLoop.js";
-import { PARK_BG } from "./art.js";
+import { PARK_BG, PARK_BG_PORTRAIT, STREET_BG, STREET_BG_PORTRAIT } from "./art.js";
 
 export interface DialogueLine {
   level: CefrLevel;
@@ -46,13 +46,22 @@ export interface Location {
   blurb: string;
   /** NPC ids hosted here, in the order you talk to them. */
   npcIds: string[];
-  /** Id of the anchor marker (a <circle id="..."> in the Area's
-   *  backgroundSvg) this location's pin cluster is centered on. Resolved to
-   *  actual coordinates by buildHubMap — see maps.ts's resolveAnchor(). */
+  /** Id of the anchor marker (a <circle id="..."> present in BOTH of the
+   *  Area's backgrounds — landscape and portrait) this location's pin
+   *  cluster is centered on. Resolved to actual coordinates per-orientation
+   *  by buildHubMap — see maps.ts's resolveAnchor(). */
   anchor: string;
   /** Hidden locations are dropped from the UI (no hub door, no room) but kept in
    *  content, so re-enabling one is just a matter of removing this flag. */
   hidden?: boolean;
+}
+
+/** A background SVG plus the viewBox it was authored against — the anchor
+ *  circles inside it are resolved in these units (see content/maps.ts). */
+export interface MapBackground {
+  svg: string;
+  viewBoxWidth: number;
+  viewBoxHeight: number;
 }
 
 export interface Area {
@@ -69,8 +78,11 @@ export interface Area {
   locations: Location[];
   /** All NPCs in the campaign (referenced by locations). */
   npcs: Npc[];
-  /** Inline SVG for the hub background. Falls back to STREET_BG if unset. */
-  backgroundSvg?: string;
+  /** Wide-viewport hub map. Every Location.anchor must resolve in this
+   *  background too (not just backgroundPortrait). */
+  backgroundLandscape: MapBackground;
+  /** Narrow-viewport hub map — different art, same anchor ids, own viewBox. */
+  backgroundPortrait: MapBackground;
 }
 
 export const PUEBLO_DEL_AYER: Area = {
@@ -82,6 +94,8 @@ export const PUEBLO_DEL_AYER: Area = {
     "talking about the past — understand a story, retell it, share your own.",
   nextAreaId: "ciudad-manana",
   ticketPrice: 60,
+  backgroundLandscape: { svg: STREET_BG, viewBoxWidth: 400, viewBoxHeight: 220 },
+  backgroundPortrait: { svg: STREET_BG_PORTRAIT, viewBoxWidth: 240, viewBoxHeight: 460 },
   locations: [
     {
       id: "seed-farm",
@@ -230,7 +244,8 @@ export const FIESTA_DE_DAPHNE: Area = {
     "reúne en el parque para el primer cumpleaños de Daphne. Esta semana: " +
     "contar una historia en el pasado — entender, recontar, y compartir la tuya.",
   ticketPrice: 60,
-  backgroundSvg: PARK_BG,
+  backgroundLandscape: { svg: PARK_BG, viewBoxWidth: 400, viewBoxHeight: 220 },
+  backgroundPortrait: { svg: PARK_BG_PORTRAIT, viewBoxWidth: 240, viewBoxHeight: 460 },
   locations: [
     {
       id: "la-ramada",

@@ -7,28 +7,42 @@
  *
  * Built from the current area's `locations` so content drives the hub:
  * adding a location adds an NPC pin automatically. Each location's `anchor`
- * names an invisible `<circle id="...">` marker in the Area's background
- * SVG (see content/art.ts) — that's where its pin(s) get positioned, so the
- * art is the single source of truth for layout, not hand-typed coordinates.
+ * names an invisible `<circle id="...">` marker present in BOTH of the
+ * Area's backgrounds (landscape and portrait — see content/art.ts) — that's
+ * where its pin(s) get positioned in each, so the art is the single source
+ * of truth for layout, not hand-typed coordinates. The UI picks which
+ * orientation to show via a CSS breakpoint (see HtmlWorldView), not this
+ * module — buildHubMap always resolves both.
  */
 
-import type { GameMap, MapNpc } from "../domain/gameMap.js";
-import { STREET_BG } from "./art.js";
-import { visibleLocations, findNpc, type Area } from "./world.js";
+import type { GameMap, HubMaps, MapNpc } from "../domain/gameMap.js";
+import { visibleLocations, findNpc, type Area, type MapBackground } from "./world.js";
 
 export const HUB_MAP_ID = "hub";
-const VIEW_BOX_WIDTH = 400;
-const VIEW_BOX_HEIGHT = 220;
 
-/** Build the hub map for a given campaign area — one NPC pin per visible location. */
-export function buildHubMap(area: Area): GameMap {
-  const backgroundSvg = area.backgroundSvg ?? STREET_BG;
+/** Build both orientations of the hub map for a given campaign area. */
+export function buildHubMap(area: Area): HubMaps {
+  return {
+    landscape: buildVariant(area, area.backgroundLandscape),
+    portrait: buildVariant(area, area.backgroundPortrait),
+  };
+}
 
+/** Resolve one orientation's background into a fully-positioned GameMap —
+ *  one NPC pin per visible location. */
+function buildVariant(area: Area, bg: MapBackground): GameMap {
   const npcs: MapNpc[] = visibleLocations(area).flatMap((loc) => {
-    const anchor = resolveAnchor(backgroundSvg, loc.anchor, VIEW_BOX_WIDTH, VIEW_BOX_HEIGHT);
+    const anchor = resolveAnchor(bg.svg, loc.anchor, bg.viewBoxWidth, bg.viewBoxHeight);
     return loc.npcIds.map((npcId, i) => {
       const npc = findNpc(npcId)!;
-      const { x, y } = offsetPosition(anchor.x, anchor.y, i, loc.npcIds.length);
+      const { x, y } = offsetPosition(
+        anchor.x,
+        anchor.y,
+        i,
+        loc.npcIds.length,
+        bg.viewBoxWidth,
+        bg.viewBoxHeight,
+      );
       return {
         id: `${npcId}-npc`,
         npcId,
@@ -44,9 +58,9 @@ export function buildHubMap(area: Area): GameMap {
   return {
     id: HUB_MAP_ID,
     name: area.name,
-    backgroundSvg,
-    viewBoxWidth: VIEW_BOX_WIDTH,
-    viewBoxHeight: VIEW_BOX_HEIGHT,
+    backgroundSvg: bg.svg,
+    viewBoxWidth: bg.viewBoxWidth,
+    viewBoxHeight: bg.viewBoxHeight,
     npcs,
   };
 }
@@ -81,20 +95,25 @@ export function resolveAnchor(
  *  the same pixel size on both axes; a naive equal-percent circular offset
  *  would end up visually elliptical (squashed vertically, since 1% of the
  *  shorter height axis is fewer pixels than 1% of the wider width axis).
- *  Scaling the y component by (VIEW_BOX_WIDTH / VIEW_BOX_HEIGHT) corrects
- *  for that, so siblings end up evenly spaced in actual rendered pixels. */
+ *  Scaling the y component by (viewBoxWidth / viewBoxHeight) corrects for
+ *  that, so siblings end up evenly spaced in actual rendered pixels.
+ *  `viewBoxWidth`/`viewBoxHeight` are THIS variant's own dimensions — the
+ *  landscape and portrait backgrounds have different aspect ratios, so the
+ *  correction factor differs per call. */
 function offsetPosition(
   anchorX: number,
   anchorY: number,
   index: number,
   count: number,
+  viewBoxWidth: number,
+  viewBoxHeight: number,
 ): { x: number; y: number } {
   if (count <= 1) return { x: anchorX, y: anchorY };
   const RADIUS = 8; // percent of viewBox width
   const angle = (2 * Math.PI * index) / count - Math.PI / 2;
   return {
     x: clamp(anchorX + RADIUS * Math.cos(angle), 2, 98),
-    y: clamp(anchorY + RADIUS * Math.sin(angle) * (VIEW_BOX_WIDTH / VIEW_BOX_HEIGHT), 2, 98),
+    y: clamp(anchorY + RADIUS * Math.sin(angle) * (viewBoxWidth / viewBoxHeight), 2, 98),
   };
 }
 
