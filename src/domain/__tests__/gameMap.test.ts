@@ -11,12 +11,12 @@ const TEST_DAY = "2026-08-16";
 // Exercises the generic map-building mechanism (buildHubMap) — pinned to
 // Pueblo del Ayer specifically, independent of whichever campaign is
 // DEFAULT_CAMPAIGN today.
-const HUB = buildHubMap(PUEBLO_DEL_AYER, TEST_DAY);
+const HUB = buildHubMap(PUEBLO_DEL_AYER, TEST_DAY, {});
 
 describe("gameMap — flat hub", () => {
   it("every Area's anchors resolve in BOTH orientations (no typos, no missing markers)", () => {
     for (const area of AREAS) {
-      expect(() => buildHubMap(area, TEST_DAY)).not.toThrow();
+      expect(() => buildHubMap(area, TEST_DAY, {})).not.toThrow();
     }
   });
 
@@ -76,13 +76,29 @@ describe("gameMap — flat hub", () => {
     });
   }
 
-  // The Silly Goose is placed dynamically (FIESTA_DE_DAPHNE.dynamicNpc),
-  // landing on whichever location gooseLocationForDay picks for the day —
-  // which already hosts its own family-member npcId, so this is the same
-  // "two NPCs, one anchor" scenario the old fixed-at-the-pond pairing
-  // exercised, just sourced from the dynamic pick instead of hardcoded.
-  it("the dynamically-placed Silly Goose spreads apart from whoever's already at that location", () => {
-    const hub = buildHubMap(FIESTA_DE_DAPHNE, TEST_DAY);
+  // The Silly Goose stays off the map entirely until the player has
+  // correctly guessed his location with Marichuy (find-the-goose's outputs)
+  // — he's not a shortcut around the deduction, only the payoff for solving
+  // it. See FIESTA_DE_DAPHNE.dynamicNpc in content/world.ts.
+  it("the Silly Goose does not appear before a correct guess", () => {
+    const noGuessYet = buildHubMap(FIESTA_DE_DAPHNE, TEST_DAY, {});
+    expect(noGuessYet.landscape.npcs.some((n) => n.npcId === "ganso-tonto")).toBe(false);
+
+    const wrongGuess = buildHubMap(FIESTA_DE_DAPHNE, TEST_DAY, {
+      "find-the-goose": { completedAt: "x", outputs: { result: "incorrecto" } },
+    });
+    expect(wrongGuess.landscape.npcs.some((n) => n.npcId === "ganso-tonto")).toBe(false);
+  });
+
+  // Once found (correct guess), he's placed at whichever location
+  // gooseLocationForDay picks for the day — which already hosts its own
+  // family-member npcId, so this is the same "two NPCs, one anchor"
+  // scenario the old fixed-at-the-pond pairing exercised.
+  it("after a correct guess, the Silly Goose appears at his true location and spreads apart from its resident", () => {
+    const objectiveState = {
+      "find-the-goose": { completedAt: "x", outputs: { result: "correcto" } },
+    };
+    const hub = buildHubMap(FIESTA_DE_DAPHNE, TEST_DAY, objectiveState);
     const gooseLoc = gooseLocationForDay(TEST_DAY);
     const loc = FIESTA_DE_DAPHNE.locations.find((l) => l.id === gooseLoc.id)!;
     const residentNpcId = loc.npcIds[0];
@@ -111,8 +127,11 @@ describe("gameMap — flat hub", () => {
     }
   });
 
-  it("the Silly Goose only appears at his one dynamic location, not any other", () => {
-    const hub = buildHubMap(FIESTA_DE_DAPHNE, TEST_DAY);
+  it("after a correct guess, the Silly Goose only appears at his one true location, not any other", () => {
+    const objectiveState = {
+      "find-the-goose": { completedAt: "x", outputs: { result: "correcto" } },
+    };
+    const hub = buildHubMap(FIESTA_DE_DAPHNE, TEST_DAY, objectiveState);
     const goosePins = hub.landscape.npcs.filter((n) => n.npcId === "ganso-tonto");
     expect(goosePins).toHaveLength(1);
   });

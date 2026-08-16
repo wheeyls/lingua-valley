@@ -17,7 +17,7 @@ import { HtmlConversationView } from "../ui/html/HtmlConversationView";
 import { HtmlDevPanel } from "../ui/html/HtmlDevPanel";
 import { blockCanvas, unblockCanvas } from "../ui/html/canvasBlock";
 import { buildHubMap } from "../content/maps";
-import { findNpc, visibleLocations, type Npc } from "../content/world";
+import { findNpc, type Npc } from "../content/world";
 import { themeForRole, type Campaign, type ResourceTheme } from "../content/campaigns";
 import { renderSceneHtml } from "../content/sceneArt";
 import type { MapNpc } from "../domain/gameMap";
@@ -83,9 +83,14 @@ export class GameController {
     const objState = state.daily.objectiveState;
     const today = appDay(this.adapters.clock.now());
 
-    const visibleNpcIds = new Set(
-      visibleLocations(this.campaign.area).flatMap((loc) => loc.npcIds),
-    );
+    // Rebuilt every render (not cached) — cheap, and some campaigns place an
+    // NPC dynamically based on the day and objective progress (e.g. Fiesta
+    // de Daphne's Silly Goose, only visible once he's been found).
+    const hub = buildHubMap(this.campaign.area, today, objState);
+
+    // Derived from the hub (not area.locations directly) so a dynamically
+    // placed NPC — visible only some days/some states — is included too.
+    const visibleNpcIds = new Set(hub.landscape.npcs.map((n) => n.npcId));
     const activeObjectives = this.objectives
       .all()
       .filter((obj) => visibleNpcIds.has(obj.npcId));
@@ -95,9 +100,6 @@ export class GameController {
       activeObjectives.filter((obj) => objState[obj.id] != null).map((obj) => obj.npcId),
     );
 
-    // Rebuilt every render (not cached) — cheap, and some campaigns place an
-    // NPC dynamically based on the day (e.g. Fiesta de Daphne's Silly Goose).
-    const hub = buildHubMap(this.campaign.area, today);
     this.worldView.loadMap(hub, completedNpcIds);
     this.worldView.updateHud(state.money);
     this.worldView.setExtraCards([this.gardenCard(), this.foliageCard(), this.ribbonsCard()]);
