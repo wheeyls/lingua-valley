@@ -313,7 +313,7 @@ export const FIESTA_DE_DAPHNE: Area = {
       name: locationLabelEn("el-estanque-de-los-patos"),
       role: "ribbons",
       icon: "🦆",
-      blurb: "Tía Anette está junto al estanque — tiene una pista extra, si la quieres.",
+      blurb: "Tía Anet está junto al estanque — tiene una pista extra, si la quieres.",
       npcIds: ["anette-tia"],
       anchor: "el-estanque-de-los-patos",
     },
@@ -369,7 +369,7 @@ export const FIESTA_DE_DAPHNE: Area = {
     },
     {
       id: "anette-tia",
-      name: "Tía Anette",
+      name: "Tía Anet",
       color: 0x6b8f47,
       voice: "alloy",
       conversation: {
@@ -378,8 +378,8 @@ export const FIESTA_DE_DAPHNE: Area = {
       lines: [
         {
           level: "A2",
-          es: "🔍 Pregúntale a tía Anette lo que sabe (pista extra)",
-          en: "Tía Anette has a bonus clue, if you want extra confidence before you guess. Tap 'Talk' to begin.",
+          es: "🔍 Pregúntale a tía Anet lo que sabe (pista extra)",
+          en: "Tía Anet has a bonus clue, if you want extra confidence before you guess. Tap 'Talk' to begin.",
         },
       ],
     },
