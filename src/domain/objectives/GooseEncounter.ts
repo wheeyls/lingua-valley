@@ -6,7 +6,7 @@
  * for solving the mystery, not a shortcut around it: a short, silly,
  * shy-but-mischievous exchange, caught red-handed with the keys.
  *
- * Role: "ribbons", bonus — shares the role with GooseClue's Tía Anette
+ * Role: "ribbons", bonus — shares the role with GooseClue's Tía Anet
  * instance, same multi-instance-per-role pattern PartyPlans already
  * establishes for Pueblo's tías (talking to any one of them earns the
  * day's ribbons growth; the others are free extra practice).
