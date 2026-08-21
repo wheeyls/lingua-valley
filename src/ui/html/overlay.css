@@ -148,15 +148,89 @@
   gap: 12px;
 }
 
-.convo-npc-speech {
-  background: #2a2436;
+/* --- Speech bubble: sits above the NPC's portrait, like a comic/game
+       speech bubble with a tail pointing down at them. Collapsed by default
+       (listening is the default practice, not reading) and shrink-to-fit;
+       tapping it expands to the full width of .convo-body and grows as
+       tall as its content needs. .convo-body's own flex:1 + overflow-y:auto
+       already reserves space for the status/input/actions bar below (they're
+       flex-shrink:0 siblings outside .convo-body), so an expanded bubble
+       scrolls within .convo-body instead of ever covering them. */
+.convo-speech-bubble {
+  align-self: center;
+  max-width: 100%;
+  background: #1e1a28;
+  border: 1px solid rgba(255, 224, 138, 0.35);
   border-radius: 16px;
-  padding: 14px 16px;
-  font-size: clamp(17px, 4vw, 24px);
-  line-height: 1.5;
-  color: #f4ecd8;
-  border-left: 5px solid #ffe08a;
 }
+.convo-speech-bubble--expanded {
+  align-self: stretch;
+}
+
+.convo-speech-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+.convo-speech-toggle:active { opacity: 0.8; }
+.convo-speech-toggle-label {
+  flex: 1;
+  font-size: clamp(12px, 2.8vw, 15px);
+  color: #ffe08a;
+}
+.convo-speech-toggle-chevron {
+  color: #ffe08a;
+  font-size: 12px;
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+.convo-speech-toggle[aria-expanded="true"] .convo-speech-toggle-chevron {
+  transform: rotate(-180deg);
+}
+
+.convo-speech-text {
+  border-top: 1px solid rgba(255, 224, 138, 0.25);
+  padding: 12px 14px;
+}
+.convo-npc-speech {
+  font-size: clamp(15px, 3.6vw, 20px);
+  line-height: 1.45;
+  color: #f4ecd8;
+  text-align: center;
+}
+
+/* The tail: a small rotated square, pulled up to straddle the bubble's
+   bottom edge so it reads as a single pointer aimed at the portrait below. */
+.convo-speech-tail {
+  width: 16px;
+  height: 16px;
+  margin: -9px auto 0;
+  background: #1e1a28;
+  border-right: 1px solid rgba(255, 224, 138, 0.35);
+  border-bottom: 1px solid rgba(255, 224, 138, 0.35);
+  transform: rotate(45deg);
+}
+
+/* The NPC's full-body portrait — always on screen below the speech bubble. */
+.convo-speech-portrait {
+  width: clamp(120px, 40vw, 200px);
+  aspect-ratio: 60 / 80;
+  margin: 0 auto;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #1e1a28;
+  border: 1px solid rgba(255, 224, 138, 0.25);
+  flex-shrink: 0;
+}
+.convo-speech-portrait svg { width: 100%; height: 100%; display: block; }
 
 .convo-transcript {
   font-size: clamp(14px, 3vw, 19px);

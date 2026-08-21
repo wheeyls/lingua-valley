@@ -60,6 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         garden: state.field,
         foliage: state.foliage,
         ribbons: state.ribbons,
+        streak: state.daily.streak,
       };
     });
     const checkpoint = buildCheckpoint(members, week);

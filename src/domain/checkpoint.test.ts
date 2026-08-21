@@ -102,6 +102,7 @@ describe("buildCheckpoint", () => {
         garden: { rows: [{ seedDay: "2026-07-06", wateredDays: ["2026-07-06"] }] },
         foliage: emptyGarden,
         ribbons: emptyGarden,
+        streak: 0,
       },
       {
         displayName: "Ana",
@@ -113,6 +114,7 @@ describe("buildCheckpoint", () => {
         },
         foliage: emptyGarden,
         ribbons: emptyGarden,
+        streak: 0,
       },
     ];
     const cp = buildCheckpoint(members, week);
@@ -130,6 +132,7 @@ describe("buildCheckpoint", () => {
           garden: emptyGarden,
           foliage: emptyGarden,
           ribbons: emptyGarden,
+          streak: 0,
         },
       ],
       week,
@@ -146,6 +149,7 @@ describe("buildCheckpoint", () => {
         garden: emptyGarden,
         foliage: { rows: [{ seedDay: "2026-07-06", wateredDays: ["2026-07-06", "2026-07-07"] }] },
         ribbons: emptyGarden,
+        streak: 0,
       },
       {
         displayName: "Bea",
@@ -153,6 +157,7 @@ describe("buildCheckpoint", () => {
         garden: emptyGarden,
         foliage: { rows: [{ seedDay: "2026-07-06", wateredDays: ["2026-07-08"] }] },
         ribbons: emptyGarden,
+        streak: 0,
       },
     ];
     const cp = buildCheckpoint(members, week);
@@ -169,6 +174,7 @@ describe("buildCheckpoint", () => {
         garden: emptyGarden,
         foliage: emptyGarden,
         ribbons: { rows: [{ seedDay: "2026-07-06", wateredDays: ["2026-07-06", "2026-07-07"] }] },
+        streak: 0,
       },
       {
         displayName: "Bea",
@@ -176,11 +182,67 @@ describe("buildCheckpoint", () => {
         garden: emptyGarden,
         foliage: emptyGarden,
         ribbons: { rows: [{ seedDay: "2026-07-06", wateredDays: ["2026-07-08"] }] },
+        streak: 0,
       },
     ];
     const cp = buildCheckpoint(members, week);
     expect(cp.totalRibbons).toBe(3);
     expect(cp.rows.find((r) => r.displayName === "Ana")?.ribbons).toBe(2);
     expect(cp.rows.find((r) => r.displayName === "Bea")?.ribbons).toBe(1);
+  });
+
+  it("marks a day active if ANY of the three gardens were watered that day", () => {
+    const members = [
+      {
+        displayName: "Ana",
+        avatarColor: 1,
+        garden: { rows: [{ seedDay: "2026-07-06", wateredDays: ["2026-07-06", "2026-07-08"] }] },
+        foliage: { rows: [{ seedDay: "2026-07-06", wateredDays: ["2026-07-10"] }] },
+        ribbons: emptyGarden,
+        streak: 0,
+      },
+    ];
+    const cp = buildCheckpoint(members, week);
+    // week.days = [Mon 07-06, Tue 07-07, Wed 07-08, Thu 07-09, Fri 07-10, Sat 07-11, Sun 07-12]
+    expect(cp.rows[0].activeDays).toEqual([true, false, true, false, true, false, false]);
+  });
+
+  it("ignores watered days outside the week when computing activeDays", () => {
+    const members = [
+      {
+        displayName: "Ana",
+        avatarColor: 1,
+        garden: { rows: [{ seedDay: "2026-06-28", wateredDays: ["2026-06-28", "2026-07-13"] }] },
+        foliage: emptyGarden,
+        ribbons: emptyGarden,
+        streak: 0,
+      },
+    ];
+    const cp = buildCheckpoint(members, week);
+    expect(cp.rows[0].activeDays).toEqual([false, false, false, false, false, false, false]);
+  });
+
+  it("carries each member's streak straight through", () => {
+    const members = [
+      {
+        displayName: "Ana",
+        avatarColor: 1,
+        garden: emptyGarden,
+        foliage: emptyGarden,
+        ribbons: emptyGarden,
+        streak: 5,
+      },
+      {
+        displayName: "Bea",
+        avatarColor: 2,
+        garden: emptyGarden,
+        foliage: emptyGarden,
+        ribbons: emptyGarden,
+        streak: 0,
+      },
+    ];
+    const cp = buildCheckpoint(members, week);
+    expect(cp.rows.find((r) => r.displayName === "Ana")?.streak).toBe(5);
+    expect(cp.rows.find((r) => r.displayName === "Bea")?.streak).toBe(0);
   });
 });
