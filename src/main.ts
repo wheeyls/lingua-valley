@@ -57,9 +57,9 @@ async function main() {
       return;
     }
     const auth = new SupabaseAuthGateway(sb, "reg");
-    new HtmlRegisterView(group.name, async (email, password) => {
+    new HtmlRegisterView(group.name, async (email, password, displayName) => {
       try {
-        await auth.register(email, password, group.id);
+        await auth.register(email, password, group.id, displayName);
         window.location.href = "/";
       } catch (err) {
         const errEl = document.querySelector(".error");
@@ -222,6 +222,8 @@ async function showCheckpoint(
         blooms: number;
         foliage: number;
         ribbons: number;
+        activeDays: boolean[];
+        streak: number;
       }[];
     };
     const today = appDay(new Date());

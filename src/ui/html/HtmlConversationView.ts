@@ -12,6 +12,7 @@
 
 import "./overlay.css";
 import { blockCanvas, unblockCanvas } from "./canvasBlock";
+import { npcAvatarSvg } from "../../content/art";
 
 export interface ConvoViewCallbacks {
   onLeave: () => void;
@@ -26,11 +27,17 @@ export class HtmlConversationView {
   private goalEl: HTMLElement;
   private peekBtnWrapEl: HTMLElement;
   private sceneOverlayEl: HTMLElement;
+  private speechBubbleEl: HTMLElement;
+  private speechPortraitEl: HTMLElement;
+  private speechToggleEl: HTMLElement;
+  private speechToggleLabelEl: HTMLElement;
+  private speechTextEl: HTMLElement;
   private npcSpeechEl: HTMLElement;
   private transcriptEl: HTMLElement;
   private feedbackEl: HTMLElement;
   private statusEl: HTMLElement;
   private callbacks: ConvoViewCallbacks;
+  private speechExpanded = false;
 
   constructor(callbacks: ConvoViewCallbacks) {
     this.root = document.createElement("div");
@@ -52,7 +59,17 @@ export class HtmlConversationView {
         <div class="scene-hint">Release to return to the chat</div>
       </div>
       <div class="convo-body">
-        <div class="convo-npc-speech"></div>
+        <div class="convo-speech-bubble">
+          <button class="convo-speech-toggle" type="button" aria-expanded="false">
+            <span class="convo-speech-toggle-label">🔊 Listen — tap for a hint</span>
+            <span class="convo-speech-toggle-chevron">▾</span>
+          </button>
+          <div class="convo-speech-text" style="display:none">
+            <div class="convo-npc-speech"></div>
+          </div>
+          <div class="convo-speech-tail"></div>
+        </div>
+        <div class="convo-speech-portrait"></div>
         <div class="convo-transcript"></div>
         <div class="convo-feedback"></div>
       </div>
@@ -66,6 +83,11 @@ export class HtmlConversationView {
     this.goalEl = this.root.querySelector(".convo-goal")!;
     this.peekBtnWrapEl = this.root.querySelector(".convo-peek-btn-wrap")!;
     this.sceneOverlayEl = this.root.querySelector(".convo-scene-overlay")!;
+    this.speechBubbleEl = this.root.querySelector(".convo-speech-bubble")!;
+    this.speechPortraitEl = this.root.querySelector(".convo-speech-portrait")!;
+    this.speechToggleEl = this.root.querySelector(".convo-speech-toggle")!;
+    this.speechToggleLabelEl = this.root.querySelector(".convo-speech-toggle-label")!;
+    this.speechTextEl = this.root.querySelector(".convo-speech-text")!;
     this.npcSpeechEl = this.root.querySelector(".convo-npc-speech")!;
     this.transcriptEl = this.root.querySelector(".convo-transcript")!;
     this.feedbackEl = this.root.querySelector(".convo-feedback")!;
@@ -76,6 +98,11 @@ export class HtmlConversationView {
     leaveBtn.addEventListener("pointerdown", (e) => {
       e.stopPropagation();
       callbacks.onLeave();
+    });
+
+    this.speechToggleEl.addEventListener("pointerdown", (e) => {
+      e.stopPropagation();
+      this.setSpeechExpanded(!this.speechExpanded);
     });
 
     const peekBtn = this.root.querySelector(".convo-peek-btn")!;
@@ -129,6 +156,14 @@ export class HtmlConversationView {
   }
 
   /**
+   * The NPC's full-body portrait — always on screen, not tucked behind the
+   * hint toggle. Call once, when the conversation opens.
+   */
+  setNpcAvatar(color: string, initial: string): void {
+    this.speechPortraitEl.innerHTML = npcAvatarSvg(color, initial);
+  }
+
+  /**
    * Show (or hide, when absent) a "hold to peek" button that reveals `html`
    * — a picture the player can look at while answering — for as long as
    * it's held. `html` is trusted content built by the content layer (e.g.
@@ -144,11 +179,26 @@ export class HtmlConversationView {
     this.sceneOverlayEl.querySelector(".scene-diagram")!.innerHTML = html;
   }
 
+  /**
+   * A new NPC line has arrived. The text is held ready to reveal, but the
+   * overlay always re-collapses first — listening (the audio already plays
+   * via TTS) is the default each turn, not reading; a hint is one tap away,
+   * not a spoiler shown automatically.
+   */
   setNpcSpeech(text: string): void {
     this.npcSpeechEl.textContent = text;
-    this.npcSpeechEl.style.display = text ? "block" : "none";
-    // Scroll to the latest speech.
-    this.npcSpeechEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    this.setSpeechExpanded(false);
+    this.speechBubbleEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  private setSpeechExpanded(expanded: boolean): void {
+    this.speechExpanded = expanded;
+    this.speechTextEl.style.display = expanded ? "block" : "none";
+    this.speechBubbleEl.classList.toggle("convo-speech-bubble--expanded", expanded);
+    this.speechToggleEl.setAttribute("aria-expanded", String(expanded));
+    this.speechToggleLabelEl.textContent = expanded
+      ? "Tap to hide"
+      : "🔊 Listen — tap for a hint";
   }
 
   setTranscript(text: string): void {

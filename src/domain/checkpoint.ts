@@ -3,9 +3,11 @@
  *
  * A checkpoint is identified by the Sunday that ENDS its week. Its page sums
  * each group member's blooms over that Monday–Sunday week (inclusive of the
- * Sunday itself), giving a TEAM snapshot rather than an individual ranking.
- * There are no streaks here: the reward is helping the group put up a good
- * week, not personal glory.
+ * Sunday itself), giving a TEAM snapshot rather than an individual ranking —
+ * the headline numbers are still group totals, not a leaderboard. Each row
+ * also carries a couple of per-person details (which days they actually
+ * played this week, and their current streak) so members are visually
+ * distinguishable, not just a name and three counts.
  *
  * The "latest" checkpoint is the week containing today — which may still be
  * in progress. That's fine: `bloomsInWeek` only counts days that actually
@@ -99,6 +101,13 @@ export interface CheckpointRow {
   foliage: number;
   /** Ribbons tied this week — the finishing touch on the shared bouquet. */
   ribbons: number;
+  /** One entry per day in the checkpoint week (same Monday→Sunday order as
+   *  CheckpointWeek.days) — true if this member watered ANY of their three
+   *  gardens (main/foliage/ribbons) that day. */
+  activeDays: boolean[];
+  /** The member's current consecutive-day practice streak, as of now — not
+   *  scoped to just this week (see DailyState.streak). */
+  streak: number;
 }
 
 /** A group member's identity + gardens, as the checkpoint builder needs them. */
@@ -108,6 +117,20 @@ export interface CheckpointMember {
   garden: Garden;
   foliage: Garden;
   ribbons: Garden;
+  /** Carried straight from DailyState.streak. */
+  streak: number;
+}
+
+/** Which of `days` this member was active on — watered ANY of their three
+ *  gardens that day. */
+function activeDaysInWeek(member: CheckpointMember, days: readonly string[]): boolean[] {
+  const watered = new Set<string>();
+  for (const garden of [member.garden, member.foliage, member.ribbons]) {
+    for (const row of garden.rows) {
+      for (const day of row.wateredDays) watered.add(day);
+    }
+  }
+  return days.map((day) => watered.has(day));
 }
 
 export interface Checkpoint {
@@ -136,6 +159,8 @@ export function buildCheckpoint(
       blooms: bloomsInWeek(m.garden, week.days),
       foliage: bloomsInWeek(m.foliage, week.days),
       ribbons: bloomsInWeek(m.ribbons, week.days),
+      activeDays: activeDaysInWeek(m, week.days),
+      streak: m.streak,
     }))
     .sort((a, b) => b.blooms - a.blooms || a.displayName.localeCompare(b.displayName));
   const totalBlooms = rows.reduce((n, r) => n + r.blooms, 0);

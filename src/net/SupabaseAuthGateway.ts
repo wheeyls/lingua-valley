@@ -45,13 +45,23 @@ export class SupabaseAuthGateway implements AuthGateway {
   }
 
   /** Register a new account into a group (called from /organizations/:id/register).
-   *  The group id rides along as signup metadata; the handle_new_user() DB trigger
-   *  reads it to place the new user in that group. */
-  async register(email: string, password: string, groupId: string): Promise<void> {
+   *  The group id + display name ride along as signup metadata; the
+   *  handle_new_user() DB trigger reads them to place the new user in that
+   *  group and name their profile (see
+   *  supabase/migrations/20240101000010_signup_display_name.sql) — set there,
+   *  not via a follow-up client write, so it's correct even if email
+   *  confirmation delays the client from ever getting an authenticated
+   *  session for this user. */
+  async register(
+    email: string,
+    password: string,
+    groupId: string,
+    displayName: string,
+  ): Promise<void> {
     const { error } = await this.sb.auth.signUp({
       email,
       password,
-      options: { data: { group_id: groupId } },
+      options: { data: { group_id: groupId, display_name: displayName } },
     });
     if (error) throw error;
   }

@@ -370,6 +370,7 @@ export class GameController {
     });
 
     view.setHeader(npc.name, "", canDo);
+    view.setNpcAvatar(`#${npc.color.toString(16).padStart(6, "0")}`, npc.name[0].toUpperCase());
     view.setScenePeek(sceneHtml);
 
     const opener = npc.conversation.opener;

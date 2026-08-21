@@ -4,7 +4,9 @@
  *
  * Repurposes the leaderboard's full-screen card styling, but leads with the
  * GROUP's total blooms for the week and lists each member's contribution — a
- * team tally, not an individual ranking (no streaks, no money, no glory).
+ * team tally, not an individual ranking (no money). Each row also shows a
+ * few per-person details (which days they played this week, their current
+ * streak) so members read as distinct people, not just a name and 3 numbers.
  *
  * Shows one Monday–Sunday week at a time; Previous/Next step the caller
  * through history (Next is hidden once back at the latest, in-progress week).
@@ -25,10 +27,14 @@ export interface CheckpointData {
     blooms: number;
     foliage: number;
     ribbons: number;
+    activeDays: boolean[];
+    streak: number;
   }[];
   /** True when this is the current (possibly still in-progress) week. */
   isLatest: boolean;
 }
+
+const DAY_LETTERS = ["M", "T", "W", "T", "F", "S", "S"];
 
 export interface CheckpointNav {
   onPrevWeek: () => void;
@@ -132,17 +138,36 @@ export class HtmlCheckpointView {
     blooms: number;
     foliage: number;
     ribbons: number;
+    activeDays: boolean[];
+    streak: number;
   }): string {
     const color = `#${(r.avatarColor >>> 0).toString(16).padStart(6, "0").slice(-6)}`;
     const initial = (r.displayName[0] ?? "?").toUpperCase();
+    const dots = r.activeDays
+      .map((active, i) => {
+        const dotColor = active ? "#9bc995" : "rgba(244,236,216,0.18)";
+        return `<span title="${DAY_LETTERS[i]}" style="width:9px;height:9px;border-radius:50%;
+                background:${dotColor};display:inline-block"></span>`;
+      })
+      .join("");
+    const streakBadge =
+      r.streak > 0
+        ? `<div style="color:#f4a300;font-size:12px;white-space:nowrap">🔥 ${r.streak}-day streak</div>`
+        : "";
     return `
       <div style="display:flex;align-items:center;gap:12px;background:rgba(26,20,35,0.82);
                   border:2px solid #3a2f1e;border-radius:12px;padding:12px 14px">
         <div style="width:34px;height:34px;border-radius:50%;background:${color};
                     display:flex;align-items:center;justify-content:center;font-weight:bold;
                     color:#1a1423;flex-shrink:0">${escapeHtml(initial)}</div>
-        <div style="flex:1;min-width:0;font-weight:bold;font-size:16px;overflow:hidden;
-                    text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.displayName)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:bold;font-size:16px;overflow:hidden;
+                      text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.displayName)}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+            <div style="display:flex;gap:3px">${dots}</div>
+            ${streakBadge}
+          </div>
+        </div>
         <div style="color:#9bc995;font-weight:bold;font-size:15px;flex-shrink:0">${this.theme.primary.icon} ${r.blooms}</div>
         <div style="color:#9bc995;font-weight:bold;font-size:15px;flex-shrink:0">${this.theme.bonusA.icon} ${r.foliage}</div>
         <div style="color:#9bc995;font-weight:bold;font-size:15px;flex-shrink:0">${this.theme.bonusB.icon} ${r.ribbons}</div>
