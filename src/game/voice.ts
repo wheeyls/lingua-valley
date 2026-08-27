@@ -127,57 +127,71 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
+/** Reuse a single Audio element to avoid iOS limits on concurrent Audio objects. */
+let sharedAudio: HTMLAudioElement | null = null;
+
+/** 44-byte silent WAV — used to "bless" the shared element inside a gesture. */
+const SILENT_WAV =
+  "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+
 /**
- * Unlock the browser's audio context by playing a silent sound.
+ * The one HTMLAudioElement every TTS play reuses. iOS Safari "blesses" an audio
+ * element for later programmatic playback only after a play() that begins inside
+ * a user gesture — and the blessing is PER ELEMENT. So every play MUST go
+ * through this same element that unlockAudio() primes.
+ */
+function getSharedAudio(): HTMLAudioElement {
+  if (!sharedAudio) {
+    sharedAudio = new Audio();
+    // Keep playback inline on iOS (don't hijack into the native fullscreen player).
+    sharedAudio.setAttribute("playsinline", "");
+  }
+  return sharedAudio;
+}
+
+/**
+ * Unlock audio playback for the rest of the session by priming the shared Audio
+ * element inside a user gesture.
  *
  * iOS Safari requires a user gesture to start audio playback. The TTS response
- * takes 1-3 seconds — by the time it arrives, the gesture context has often
- * expired. Calling this function immediately on a user tap (e.g. when the
- * conversation opens or the mic is tapped) creates an AudioContext while the
- * gesture is still active, unlocking audio for all subsequent plays in the
- * session. Safe to call multiple times.
+ * takes 1-3 seconds — by the time it arrives, the gesture context has expired,
+ * so the play() would be blocked. iOS grants the exception PER ELEMENT: only an
+ * element whose play() began during a gesture may be replayed programmatically
+ * later. The old code primed a throwaway Audio() and left the shared element
+ * (the one playAudioBytes actually uses) blocked — silent TTS on iOS, while
+ * desktop worked because it has no gesture gate. Call on a real user tap (mic /
+ * conversation open). Safe to call multiple times.
  */
 let audioUnlocked = false;
 export function unlockAudio(): void {
   if (audioUnlocked) return;
   try {
-    const ctx = new AudioContext();
-    const buf = ctx.createBuffer(1, 1, 22050);
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    src.connect(ctx.destination);
-    src.start(0);
-    // Also play a silent HTMLAudioElement so the Audio() constructor is unblocked.
-    const silent = new Audio(
-      "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=",
-    );
-    void silent.play().catch(() => {});
+    const audio = getSharedAudio();
+    audio.src = SILENT_WAV;
+    const p = audio.play();
+    if (p) void p.then(() => audio.pause()).catch(() => {});
     audioUnlocked = true;
   } catch {
     // Best-effort; non-fatal.
   }
 }
 
-/** Reuse a single Audio element to avoid iOS limits on concurrent Audio objects. */
-let sharedAudio: HTMLAudioElement | null = null;
-
 /** Play raw audio bytes (e.g. an mp3 ArrayBuffer from TTS). Resolves when done. */
 export function playAudioBytes(bytes: ArrayBuffer): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const blob = new Blob([bytes], { type: "audio/mpeg" });
-    const url = URL.createObjectURL(blob);
-    // Reuse one Audio element — creating many can exhaust iOS Safari's audio pool
-    // and cause subsequent plays to silently fail.
-    if (!sharedAudio) sharedAudio = new Audio();
-    const audio = sharedAudio;
-    const cleanup = () => {
-      audio.onended = null;
-      audio.onerror = null;
-      URL.revokeObjectURL(url);
-    };
-    audio.onended = () => { cleanup(); resolve(); };
-    audio.onerror = () => { cleanup(); reject(new Error("Audio playback failed")); };
-    audio.src = url;
-    void audio.play().catch((err) => { cleanup(); reject(err); });
-  });
+  const { promise, resolve, reject } = Promise.withResolvers<void>();
+  const blob = new Blob([bytes], { type: "audio/mpeg" });
+  const url = URL.createObjectURL(blob);
+  // Reuse the element unlockAudio() blessed in-gesture; a fresh Audio() here
+  // would be unblessed on iOS and fail to play.
+  const audio = getSharedAudio();
+  const cleanup = () => {
+    audio.onended = null;
+    audio.onerror = null;
+    URL.revokeObjectURL(url);
+  };
+  audio.onended = () => { cleanup(); resolve(); };
+  audio.onerror = () => { cleanup(); reject(new Error("Audio playback failed")); };
+  audio.src = url;
+  void audio.play().catch((err) => { cleanup(); reject(err); });
+  return promise;
 }
